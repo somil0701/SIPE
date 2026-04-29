@@ -1,0 +1,314 @@
+import { useState, useRef, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import Editor from '@monaco-editor/react'
+import { Clock, Play, Lightbulb, ChevronLeft, Loader2 } from 'lucide-react'
+import { questionsApi, attemptsApi } from '../services/api'
+import { useAuthStore } from '../store/authStore'
+
+const LANGUAGES = [
+  { id: 'javascript', name: 'JavaScript' },
+  { id: 'typescript', name: 'TypeScript' },
+  { id: 'python', name: 'Python' },
+  { id: 'java', name: 'Java' },
+  { id: 'cpp', name: 'C++' },
+]
+
+export function QuestionPage() {
+  const { slug } = useParams<{ slug: string }>()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const [language, setLanguage] = useState(user?.preferredLanguage || 'javascript')
+  const [code, setCode] = useState('')
+  const [activeTab, setActiveTab] = useState<'description' | 'solution' | 'submissions'>('description')
+  const [showHint, setShowHint] = useState<number | null>(null)
+  const [latestAttemptId, setLatestAttemptId] = useState<string | null>(null)
+  const startTime = useRef(Date.now())
+
+  const { data: questionData, isLoading } = useQuery({
+    queryKey: ['question', slug],
+    queryFn: () => questionsApi.getBySlug(slug!),
+  })
+
+  const question = questionData
+
+  const { data: latestAttempt, isFetching: isFetchingAttempt } = useQuery({
+    queryKey: ['attempt', latestAttemptId],
+    queryFn: () => attemptsApi.getById(latestAttemptId!),
+    enabled: Boolean(latestAttemptId),
+    refetchInterval: (query) => {
+      const status = (query.state.data as any)?.status
+      return status === 'PENDING' || status === 'RUNNING' || status === 'running' ? 1000 : false
+    },
+  })
+
+  // Populate starter code when question or language changes
+  useEffect(() => {
+    if (question?.starterCode?.[language]) {
+      setCode(question.starterCode[language])
+    }
+  }, [question, language])
+
+  const submitMutation = useMutation({
+    mutationFn: () =>
+      attemptsApi.submit({
+        questionId: question!.id,
+        code,
+        language,
+        timeSpent: Math.floor((Date.now() - startTime.current) / 1000),
+      }),
+    onSuccess: (attempt: any) => {
+      setLatestAttemptId(attempt.id)
+      setActiveTab('submissions')
+      toast.success('Solution submitted. Evaluating now.')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Submission failed')
+    },
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (!question) {
+    return <div className="text-center py-12">Question not found</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate('/practice')}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to Practice
+        </button>
+        <div className="flex items-center gap-2">
+          <span className={`px-3 py-1 rounded-full text-sm difficulty-${question.difficulty}`}>
+            {question.difficulty}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {question.acceptanceRate}% acceptance
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Left Panel - Problem Description */}
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="flex border-b">
+            {(['description', 'solution', 'submissions'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 px-4 py-3 text-sm font-medium capitalize ${
+                  activeTab === tab
+                    ? 'border-b-2 border-primary text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-6 max-h-[calc(100vh-300px)] overflow-auto">
+            {activeTab === 'description' && (
+              <div className="space-y-6">
+                <h1 className="text-2xl font-bold">{question.title}</h1>
+                <div
+                  className="prose dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: question.problemStatement }}
+                />
+
+                {question.constraints?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Constraints:</h3>
+                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                      {question.constraints.map((constraint: string, i: number) => (
+                        <li key={i}>{constraint}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {question.hints?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4" />
+                      Hints
+                    </h3>
+                    <div className="space-y-2">
+                      {question.hints.map((hint: string, i: number) => (
+                        <div
+                          key={i}
+                          className="p-3 rounded-lg border cursor-pointer hover:bg-muted"
+                          onClick={() => setShowHint(showHint === i ? null : i)}
+                        >
+                          <p className="text-sm font-medium">Hint {i + 1}</p>
+                          {showHint === i && (
+                            <p className="text-sm text-muted-foreground mt-1">{hint}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'solution' && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">Solution</h2>
+                {question.explanation ? (
+                  <div
+                    className="prose dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: question.explanation }}
+                  />
+                ) : (
+                  <p className="text-muted-foreground">Solution not available yet.</p>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'submissions' && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">Your Submissions</h2>
+                {!latestAttemptId ? (
+                  <p className="text-muted-foreground">
+                    Submit a solution to see its evaluation here.
+                  </p>
+                ) : isFetchingAttempt && !latestAttempt ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading submission result...
+                  </div>
+                ) : latestAttempt ? (
+                  <div className="space-y-4">
+                    <div className="rounded-lg border p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Latest submission</p>
+                          <p className="font-semibold">{latestAttempt.status}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Tests</p>
+                          <p className="font-semibold">
+                            {latestAttempt.testCasesPassed} / {latestAttempt.testCasesTotal}
+                          </p>
+                        </div>
+                      </div>
+                      {latestAttempt.aiScore !== null && latestAttempt.aiScore !== undefined && (
+                        <div className="mt-3 border-t pt-3">
+                          <p className="text-sm text-muted-foreground">AI score</p>
+                          <p className="text-2xl font-bold">{latestAttempt.aiScore}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {latestAttempt.feedback ? (
+                      <div className="rounded-lg border p-4">
+                        <h3 className="font-semibold mb-2">Feedback</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {latestAttempt.feedback.summary || 'Feedback generated.'}
+                        </p>
+                        {latestAttempt.feedback.improvementSuggestions?.length > 0 && (
+                          <ul className="mt-3 list-disc list-inside text-sm text-muted-foreground space-y-1">
+                            {latestAttempt.feedback.improvementSuggestions
+                              .slice(0, 3)
+                              .map((suggestion: string, index: number) => (
+                                <li key={index}>{suggestion}</li>
+                              ))}
+                          </ul>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Feedback is still being generated...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">Submission result unavailable.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel - Code Editor */}
+        <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
+          {/* Editor Toolbar */}
+          <div className="flex items-center justify-between p-3 border-b">
+            <select
+              value={language}
+              onChange={(e) => {
+                setLanguage(e.target.value)
+                if (question.starterCode?.[e.target.value]) {
+                  setCode(question.starterCode[e.target.value])
+                }
+              }}
+              className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+            >
+              {LANGUAGES.map((lang) => (
+                <option key={lang.id} value={lang.id}>
+                  {lang.name}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              {Math.floor((Date.now() - startTime.current) / 60000)}m{' '}
+              {Math.floor(((Date.now() - startTime.current) % 60000) / 1000)}s
+            </div>
+          </div>
+
+          {/* Code Editor */}
+          <div className="flex-1 min-h-[400px]">
+            <Editor
+              height="100%"
+              language={language}
+              value={code}
+              onChange={(value) => setCode(value || '')}
+              theme="vs-dark"
+              options={{
+                minimap: { enabled: false },
+                fontSize: 14,
+                lineNumbers: 'on',
+                roundedSelection: false,
+                scrollBeyondLastLine: false,
+                readOnly: false,
+                automaticLayout: true,
+              }}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="p-3 border-t flex justify-end gap-2">
+            <button
+              onClick={() => submitMutation.mutate()}
+              disabled={submitMutation.isPending || !code.trim()}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {submitMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              Submit
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

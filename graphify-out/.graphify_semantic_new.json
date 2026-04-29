@@ -1,0 +1,1082 @@
+{
+  "nodes": [
+    {
+      "id": "server_express_app",
+      "label": "Express App",
+      "file_type": "code",
+      "source_file": "backend/src/server.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "server_socket_io",
+      "label": "Socket.IO Server",
+      "file_type": "code",
+      "source_file": "backend/src/server.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "auth_middleware_authenticate",
+      "label": "authenticate Middleware",
+      "file_type": "code",
+      "source_file": "backend/src/middleware/auth.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "auth_middleware_generate_tokens",
+      "label": "generateTokens",
+      "file_type": "code",
+      "source_file": "backend/src/middleware/auth.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "auth_middleware_parse_duration",
+      "label": "parseDurationToSeconds",
+      "file_type": "code",
+      "source_file": "backend/src/middleware/auth.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "validate_middleware",
+      "label": "validate Middleware",
+      "file_type": "code",
+      "source_file": "backend/src/middleware/validate.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "error_handler_api_error",
+      "label": "ApiError Class",
+      "file_type": "code",
+      "source_file": "backend/src/middleware/errorHandler.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "error_handler_async_handler",
+      "label": "asyncHandler Wrapper",
+      "file_type": "code",
+      "source_file": "backend/src/middleware/errorHandler.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "ai_service_evaluate_answer",
+      "label": "AIService.evaluateAnswer",
+      "file_type": "code",
+      "source_file": "backend/src/services/ai.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "ai_service_generate_interview_question",
+      "label": "AIService.generateInterviewQuestion",
+      "file_type": "code",
+      "source_file": "backend/src/services/ai.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "ai_service_evaluate_interview_answer",
+      "label": "AIService.evaluateInterviewAnswer",
+      "file_type": "code",
+      "source_file": "backend/src/services/ai.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "ai_service_analyze_resume",
+      "label": "AIService.analyzeResume",
+      "file_type": "code",
+      "source_file": "backend/src/services/ai.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "ai_service_generate_summary",
+      "label": "AIService.generateInterviewSummary",
+      "file_type": "code",
+      "source_file": "backend/src/services/ai.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "attempt_service_submit",
+      "label": "AttemptService.submitAttempt",
+      "file_type": "code",
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "attempt_service_evaluate",
+      "label": "AttemptService.evaluateAttempt (private)",
+      "file_type": "code",
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "attempt_service_run_test_cases",
+      "label": "AttemptService.runTestCases (mock)",
+      "file_type": "code",
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "attempt_service_update_skills",
+      "label": "AttemptService.updateUserSkills",
+      "file_type": "code",
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "attempt_service_spaced_rep",
+      "label": "AttemptService.updateSpacedRepetition",
+      "file_type": "code",
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "interview_service_create",
+      "label": "InterviewService.createInterview",
+      "file_type": "code",
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "interview_service_start",
+      "label": "InterviewService.startInterview",
+      "file_type": "code",
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "interview_service_generate_question",
+      "label": "InterviewService.generateNextQuestion",
+      "file_type": "code",
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "interview_service_submit_answer",
+      "label": "InterviewService.submitAnswer",
+      "file_type": "code",
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "interview_service_complete",
+      "label": "InterviewService.completeInterview",
+      "file_type": "code",
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "auth_service_register",
+      "label": "AuthService.register",
+      "file_type": "code",
+      "source_file": "backend/src/services/auth.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "auth_service_login",
+      "label": "AuthService.login",
+      "file_type": "code",
+      "source_file": "backend/src/services/auth.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "auth_service_refresh",
+      "label": "AuthService.refreshToken",
+      "file_type": "code",
+      "source_file": "backend/src/services/auth.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "question_service_get_recommended",
+      "label": "QuestionService.getRecommendedQuestions",
+      "file_type": "code",
+      "source_file": "backend/src/services/question.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "question_service_get_by_slug",
+      "label": "QuestionService.getQuestionBySlug",
+      "file_type": "code",
+      "source_file": "backend/src/services/question.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "resume_service_upload",
+      "label": "ResumeService.uploadResume",
+      "file_type": "code",
+      "source_file": "backend/src/services/resume.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "resume_service_parse",
+      "label": "ResumeService.parseResume",
+      "file_type": "code",
+      "source_file": "backend/src/services/resume.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "analytics_service_get_user",
+      "label": "AnalyticsService.getUserAnalytics",
+      "file_type": "code",
+      "source_file": "backend/src/services/analytics.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_api_service",
+      "label": "ApiService (Axios client)",
+      "file_type": "code",
+      "source_file": "frontend/src/services/api.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_auth_store",
+      "label": "useAuthStore (Zustand)",
+      "file_type": "code",
+      "source_file": "frontend/src/store/authStore.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_app",
+      "label": "App Router",
+      "file_type": "code",
+      "source_file": "frontend/src/App.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_dashboard",
+      "label": "DashboardPage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/DashboardPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_question_page",
+      "label": "QuestionPage (Monaco Editor)",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/QuestionPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_mock_interview",
+      "label": "MockInterviewPage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/MockInterviewPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_interview_session",
+      "label": "InterviewSessionPage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/InterviewSessionPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_practice_page",
+      "label": "PracticePage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/PracticePage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_analytics_page",
+      "label": "AnalyticsPage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/AnalyticsPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_resume_page",
+      "label": "ResumePage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/ResumePage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_spaced_rep_page",
+      "label": "SpacedRepetitionPage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/SpacedRepetitionPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_learning_path_page",
+      "label": "LearningPathPage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/LearningPathPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_profile_page",
+      "label": "ProfilePage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/ProfilePage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_login_page",
+      "label": "LoginPage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/LoginPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "frontend_register_page",
+      "label": "RegisterPage",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/RegisterPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "mock_code_execution",
+      "label": "Mock Code Execution (TODO sandbox)",
+      "file_type": "code",
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "enum_mismatch_bug",
+      "label": "Enum Casing Bug (active vs ACTIVE)",
+      "file_type": "code",
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "interview_status_mismatch",
+      "label": "Interview Status Enum Mismatch",
+      "file_type": "code",
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "doc_system_design",
+      "label": "System Design Doc",
+      "file_type": "document",
+      "source_file": "docs/01-SYSTEM-DESIGN.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "doc_database_design",
+      "label": "Database Design Doc",
+      "file_type": "document",
+      "source_file": "docs/02-DATABASE-DESIGN.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "doc_backend_design",
+      "label": "Backend Design Doc",
+      "file_type": "document",
+      "source_file": "docs/03-BACKEND-DESIGN.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prisma_schema",
+      "label": "Prisma Schema (27 models)",
+      "file_type": "code",
+      "source_file": "backend/prisma/schema.prisma",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "openai_integration",
+      "label": "OpenAI GPT Integration",
+      "file_type": "code",
+      "source_file": "backend/src/services/ai.service.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "jwt_auth_flow",
+      "label": "JWT Auth Flow",
+      "file_type": "code",
+      "source_file": "backend/src/middleware/auth.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "redis_cache",
+      "label": "Redis Cache Layer",
+      "file_type": "code",
+      "source_file": "backend/src/config/redis.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "zod_validation",
+      "label": "Zod Schema Validation",
+      "file_type": "code",
+      "source_file": "backend/src/middleware/validate.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "attempt_service_submit",
+      "target": "attempt_service_evaluate",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "attempt_service_evaluate",
+      "target": "attempt_service_run_test_cases",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "attempt_service_evaluate",
+      "target": "ai_service_evaluate_answer",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "attempt_service_evaluate",
+      "target": "attempt_service_update_skills",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "attempt_service_evaluate",
+      "target": "attempt_service_spaced_rep",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "attempt_service_run_test_cases",
+      "target": "mock_code_execution",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "attempt_service_spaced_rep",
+      "target": "enum_mismatch_bug",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "interview_service_start",
+      "target": "interview_service_generate_question",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "interview_service_generate_question",
+      "target": "ai_service_generate_interview_question",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "interview_service_submit_answer",
+      "target": "ai_service_evaluate_interview_answer",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "interview_service_complete",
+      "target": "ai_service_generate_summary",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "interview_service_create",
+      "target": "interview_status_mismatch",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.9,
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "weight": 0.9
+    },
+    {
+      "source": "resume_service_parse",
+      "target": "ai_service_analyze_resume",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/resume.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "ai_service_evaluate_answer",
+      "target": "openai_integration",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/ai.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "ai_service_generate_interview_question",
+      "target": "openai_integration",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/ai.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "auth_service_register",
+      "target": "auth_middleware_generate_tokens",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/auth.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "auth_service_login",
+      "target": "auth_middleware_generate_tokens",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/auth.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "auth_middleware_generate_tokens",
+      "target": "auth_middleware_parse_duration",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/middleware/auth.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "auth_middleware_authenticate",
+      "target": "jwt_auth_flow",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/middleware/auth.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_api_service",
+      "target": "jwt_auth_flow",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/services/api.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_api_service",
+      "target": "frontend_auth_store",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/services/api.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_auth_store",
+      "target": "frontend_api_service",
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/store/authStore.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_question_page",
+      "target": "frontend_api_service",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/pages/QuestionPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_mock_interview",
+      "target": "frontend_api_service",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/pages/MockInterviewPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_interview_session",
+      "target": "frontend_api_service",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/pages/InterviewSessionPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_dashboard",
+      "target": "frontend_api_service",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/pages/DashboardPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_analytics_page",
+      "target": "frontend_api_service",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/pages/AnalyticsPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_auth_store",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/App.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "validate_middleware",
+      "target": "zod_validation",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/middleware/validate.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "server_express_app",
+      "target": "auth_middleware_authenticate",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.9,
+      "source_file": "backend/src/server.ts",
+      "source_location": null,
+      "weight": 0.9
+    },
+    {
+      "source": "server_express_app",
+      "target": "redis_cache",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/server.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "server_express_app",
+      "target": "server_socket_io",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/server.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "doc_system_design",
+      "target": "openai_integration",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/01-SYSTEM-DESIGN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "doc_database_design",
+      "target": "prisma_schema",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/02-DATABASE-DESIGN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "doc_backend_design",
+      "target": "server_express_app",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/03-BACKEND-DESIGN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "ai_service_evaluate_answer",
+      "target": "ai_service_evaluate_interview_answer",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "backend/src/services/ai.service.ts",
+      "source_location": null,
+      "weight": 0.75
+    },
+    {
+      "source": "mock_code_execution",
+      "target": "ai_service_evaluate_answer",
+      "relation": "shares_data_with",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "weight": 0.8
+    },
+    {
+      "source": "question_service_get_recommended",
+      "target": "redis_cache",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "backend/src/services/question.service.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "attempt_service_update_skills",
+      "target": "prisma_schema",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "backend/src/services/attempt.service.ts",
+      "source_location": null,
+      "weight": 0.85
+    },
+    {
+      "source": "interview_service_generate_question",
+      "target": "resume_service_upload",
+      "relation": "shares_data_with",
+      "confidence": "INFERRED",
+      "confidence_score": 0.7,
+      "source_file": "backend/src/services/interview.service.ts",
+      "source_location": null,
+      "weight": 0.7
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "ai_powered_evaluation_flow",
+      "label": "AI-Powered Evaluation Pipeline",
+      "nodes": [
+        "attempt_service_submit",
+        "attempt_service_evaluate",
+        "ai_service_evaluate_answer",
+        "attempt_service_update_skills"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "backend/src/services/attempt.service.ts"
+    },
+    {
+      "id": "interview_ai_flow",
+      "label": "AI Mock Interview Flow",
+      "nodes": [
+        "interview_service_start",
+        "interview_service_generate_question",
+        "ai_service_generate_interview_question",
+        "interview_service_submit_answer",
+        "ai_service_evaluate_interview_answer",
+        "interview_service_complete",
+        "ai_service_generate_summary"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "backend/src/services/interview.service.ts"
+    },
+    {
+      "id": "auth_flow",
+      "label": "JWT Authentication Flow",
+      "nodes": [
+        "auth_service_login",
+        "auth_middleware_generate_tokens",
+        "frontend_auth_store",
+        "frontend_api_service"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "backend/src/middleware/auth.ts"
+    }
+  ],
+  "input_tokens": 45000,
+  "output_tokens": 2500
+}

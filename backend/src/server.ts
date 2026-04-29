@@ -25,6 +25,7 @@ import { resumeRouter } from './routes/resume.routes';
 import { analyticsRouter } from './routes/analytics.routes';
 import { learningPathRouter } from './routes/learning-path.routes';
 import { spacedRepetitionRouter } from './routes/spaced-repetition.routes';
+import { adminRoutes } from './routes/admin.routes';
 
 // Initialize Express app
 const app = express();
@@ -143,6 +144,7 @@ app.use('/api/v1/resumes', resumeRouter);
 app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/learning-paths', learningPathRouter);
 app.use('/api/v1/spaced-repetition', spacedRepetitionRouter);
+app.use('/api/v1/admin', adminRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {

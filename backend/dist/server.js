@@ -29,6 +29,7 @@ const resume_routes_1 = require("./routes/resume.routes");
 const analytics_routes_1 = require("./routes/analytics.routes");
 const learning_path_routes_1 = require("./routes/learning-path.routes");
 const spaced_repetition_routes_1 = require("./routes/spaced-repetition.routes");
+const admin_routes_1 = require("./routes/admin.routes");
 // Initialize Express app
 const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
@@ -134,6 +135,7 @@ app.use('/api/v1/resumes', resume_routes_1.resumeRouter);
 app.use('/api/v1/analytics', analytics_routes_1.analyticsRouter);
 app.use('/api/v1/learning-paths', learning_path_routes_1.learningPathRouter);
 app.use('/api/v1/spaced-repetition', spaced_repetition_routes_1.spacedRepetitionRouter);
+app.use('/api/v1/admin', admin_routes_1.adminRoutes);
 // Socket.IO connection handling
 io.on('connection', (socket) => {
     logger_1.logger.info(`Client connected: ${socket.id}`);

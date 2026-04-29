@@ -14,6 +14,12 @@ import { SpacedRepetitionPage } from './pages/SpacedRepetitionPage'
 import { LearningPathPage } from './pages/LearningPathPage'
 import { LearningPathDetailPage } from './pages/LearningPathDetailPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { AdminLayout } from './components/AdminLayout'
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
+import { AdminUsersPage } from './pages/admin/AdminUsersPage'
+import { AdminQuestionsPage } from './pages/admin/AdminQuestionsPage'
+import { AdminInterviewsPage } from './pages/admin/AdminInterviewsPage'
+import { AdminResumesPage } from './pages/admin/AdminResumesPage'
 
 function App() {
   // const { isAuthenticated } = useAuthStore()
@@ -21,6 +27,7 @@ function App() {
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const isHydrated = useAuthStore((state) => state.isHydrated)
+  const user = useAuthStore((state) => state.user)
 
 
   if (!isHydrated) {
@@ -88,6 +95,30 @@ function App() {
         <Route 
           path="/profile" 
           element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} 
+        />
+      </Route>
+
+      {/* Admin Routes */}
+      <Route element={<AdminLayout />}>
+        <Route 
+          path="/admin" 
+          element={(isAuthenticated && user?.role === 'admin') ? <AdminDashboardPage /> : <Navigate to="/dashboard" />} 
+        />
+        <Route 
+          path="/admin/users" 
+          element={(isAuthenticated && user?.role === 'admin') ? <AdminUsersPage /> : <Navigate to="/dashboard" />} 
+        />
+        <Route 
+          path="/admin/questions" 
+          element={(isAuthenticated && user?.role === 'admin') ? <AdminQuestionsPage /> : <Navigate to="/dashboard" />} 
+        />
+        <Route 
+          path="/admin/mock-interviews" 
+          element={(isAuthenticated && user?.role === 'admin') ? <AdminInterviewsPage /> : <Navigate to="/dashboard" />} 
+        />
+        <Route 
+          path="/admin/resumes" 
+          element={(isAuthenticated && user?.role === 'admin') ? <AdminResumesPage /> : <Navigate to="/dashboard" />} 
         />
       </Route>
 

@@ -36,7 +36,16 @@ const daysAgo = (days: number): Date => {
 
 async function resetSeedUsers() {
   await prisma.user.deleteMany({
-    where: { email: { in: seedEmails } },
+    where: { 
+      OR: [
+        { email: { in: seedEmails } },
+        { email: { startsWith: 'user' } }
+      ]
+    },
+  });
+  
+  await prisma.question.deleteMany({
+    where: { slug: { startsWith: 'generated-question-' } }
   });
 }
 
@@ -1024,6 +1033,149 @@ async function seedBilling(userId: string) {
   });
 }
 
+async function seedBulkData(
+  passwordHash: string,
+  skills: Record<string, any>,
+  companies: Record<string, any>,
+  questions: Record<string, any>
+) {
+  console.log('Seeding bulk data for realistic environment...');
+  
+  const firstNames = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 'Michael', 'Linda', 'William', 'Elizabeth', 'David', 'Barbara', 'Richard', 'Susan', 'Joseph', 'Jessica', 'Thomas', 'Sarah', 'Charles', 'Karen'];
+  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
+  
+  const bulkUsers = [];
+  for (let i = 0; i < 60; i++) {
+    const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
+    bulkUsers.push({
+      email: `user${i}_${fn.toLowerCase()}@example.com`,
+      passwordHash,
+      fullName: `${fn} ${ln}`,
+      role: Math.random() > 0.9 ? UserRole.premium : UserRole.user,
+      isPremium: Math.random() > 0.8,
+      emailVerified: true,
+      createdAt: daysAgo(Math.floor(Math.random() * 90)),
+      lastLoginAt: daysAgo(Math.floor(Math.random() * 15)),
+      loginCount: Math.floor(Math.random() * 50),
+    });
+  }
+  await prisma.user.createMany({ data: bulkUsers, skipDuplicates: true });
+  const allBulkUsers = await prisma.user.findMany({
+    where: { email: { startsWith: 'user' } }
+  });
+
+  const bulkQuestions = [];
+  const qTypes = [QuestionType.CODING, QuestionType.SYSTEM_DESIGN, QuestionType.BEHAVIORAL];
+  const difficulties = [Difficulty.easy, Difficulty.medium, Difficulty.hard, Difficulty.expert];
+  const skillList = Object.values(skills) as any[];
+  
+  for (let i = 0; i < 40; i++) {
+    const s = skillList[Math.floor(Math.random() * skillList.length)];
+    bulkQuestions.push({
+      skillId: s.id,
+      title: `Generated Question ${i + 1}`,
+      slug: `generated-question-${i + 1}`,
+      description: `A comprehensive practice scenario for ${s.name}.`,
+      problemStatement: `<p>Please solve this advanced problem related to ${s.name}. Consider edge cases and optimize for time complexity.</p>`,
+      difficulty: difficulties[Math.floor(Math.random() * difficulties.length)],
+      type: qTypes[Math.floor(Math.random() * qTypes.length)],
+      acceptanceRate: parseFloat((20 + Math.random() * 60).toFixed(1)),
+      totalAttempts: Math.floor(Math.random() * 2000),
+      totalSolves: Math.floor(Math.random() * 1000),
+      isActive: true,
+      testCases: [],
+      createdAt: daysAgo(Math.floor(Math.random() * 90)),
+    });
+  }
+  await prisma.question.createMany({ data: bulkQuestions, skipDuplicates: true });
+  const allQuestions = await prisma.question.findMany();
+
+  const interviewStatuses = [InterviewStatus.SCHEDULED, InterviewStatus.IN_PROGRESS, InterviewStatus.COMPLETED, InterviewStatus.CANCELLED];
+  const compList = Object.values(companies) as any[];
+  const interviewData = [];
+  for (const u of allBulkUsers) {
+    const num = Math.floor(Math.random() * 4); 
+    for(let k=0; k<num; k++) {
+      const status = interviewStatuses[Math.floor(Math.random() * interviewStatuses.length)];
+      const comp = compList[Math.floor(Math.random() * compList.length)];
+      interviewData.push({
+        userId: u.id,
+        title: `${comp.name} Mock Session`,
+        interviewType: InterviewType.TECHNICAL,
+        difficulty: difficulties[Math.floor(Math.random() * difficulties.length)],
+        targetCompanyId: comp.id,
+        status,
+        durationMinutes: 45,
+        scheduledAt: daysAgo(Math.floor(Math.random() * 60) - 15), 
+        overallScore: status === InterviewStatus.COMPLETED ? Math.floor(Math.random() * 50 + 50) : null,
+        createdAt: daysAgo(Math.floor(Math.random() * 90)),
+      });
+    }
+  }
+  await prisma.interviewSession.createMany({ data: interviewData });
+
+  const resumeStatuses = ['PENDING', 'PARSED', 'FAILED'];
+  const resumeData = [];
+  for (const u of allBulkUsers) {
+    if (Math.random() > 0.4) {
+      const status = resumeStatuses[Math.floor(Math.random() * resumeStatuses.length)];
+      resumeData.push({
+        userId: u.id,
+        fileName: `${u.fullName.replace(' ', '_')}_Resume.pdf`,
+        fileUrl: `/uploads/${u.fullName.replace(' ', '_')}_Resume.pdf`,
+        fileType: 'application/pdf',
+        fileSize: Math.floor(Math.random() * 500000) + 100000,
+        parsingStatus: status,
+        uploadedAt: daysAgo(Math.floor(Math.random() * 60)),
+        isActive: true,
+      });
+    }
+  }
+  await prisma.resume.createMany({ data: resumeData });
+
+  const attemptStatuses = [AttemptStatus.ACCEPTED, AttemptStatus.WRONG_ANSWER, AttemptStatus.TIME_LIMIT_EXCEEDED, AttemptStatus.COMPILATION_ERROR];
+  const attemptData = [];
+  for (const u of allBulkUsers) {
+    const num = Math.floor(Math.random() * 15) + 3; 
+    for(let k=0; k<num; k++) {
+      const q = allQuestions[Math.floor(Math.random() * allQuestions.length)];
+      attemptData.push({
+        userId: u.id,
+        questionId: q.id,
+        language: 'javascript',
+        status: attemptStatuses[Math.floor(Math.random() * attemptStatuses.length)],
+        timeSpent: Math.floor(Math.random() * 1500),
+        testCasesTotal: 5,
+        testCasesPassed: Math.floor(Math.random() * 6),
+        submittedAt: daysAgo(Math.floor(Math.random() * 90)),
+        attemptNumber: 1
+      });
+    }
+  }
+  await prisma.attempt.createMany({ data: attemptData });
+
+  const userSkillData = [];
+  for (const u of allBulkUsers) {
+    const s = skillList[Math.floor(Math.random() * skillList.length)];
+    userSkillData.push({
+        userId: u.id,
+        skillId: s.id,
+        proficiencyLevel: Math.floor(Math.random() * 100),
+        xpPoints: Math.floor(Math.random() * 500),
+        questionsAttempted: Math.floor(Math.random() * 50),
+        questionsSolved: Math.floor(Math.random() * 30),
+        accuracyRate: Math.random() * 100,
+        avgTimePerQuestion: Math.floor(Math.random() * 600),
+        streakDays: Math.floor(Math.random() * 14),
+        lastPracticedAt: daysAgo(Math.floor(Math.random() * 10)),
+    });
+  }
+  await prisma.userSkill.createMany({ data: userSkillData, skipDuplicates: true });
+
+  console.log(`Bulk seeded: ${bulkUsers.length} users, ${bulkQuestions.length} questions, ${interviewData.length} mock interviews, ${resumeData.length} resumes, ${attemptData.length} attempts.`);
+}
+
 async function main() {
   console.log('Seeding database...');
 
@@ -1045,6 +1197,9 @@ async function main() {
   await seedAnalytics(users.testUser.id);
   await seedActivity(users.testUser.id);
   await seedBilling(users.premiumUser.id);
+
+  // Run the new bulk data seed
+  await seedBulkData(passwordHash, skills, companies, questions);
 
   console.log('Seed completed.');
   console.log('Accounts:');

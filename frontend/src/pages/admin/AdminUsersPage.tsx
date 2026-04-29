@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Crown,
   User,
+  Mic,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

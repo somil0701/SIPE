@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '../../services/adminApi';
-import { FileText, Download, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 export function AdminResumesPage() {
   const [page, setPage] = useState(1);

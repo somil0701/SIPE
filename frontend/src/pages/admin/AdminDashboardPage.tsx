@@ -5,7 +5,6 @@ import {
   Code2,
   Mic,
   FileText,
-  Map,
   DollarSign,
   UserPlus
 } from 'lucide-react';
@@ -19,10 +18,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { adminApi } from '../../services/adminApi';
-import { useAuthStore } from '../../store/authStore';
-
 export function AdminDashboardPage() {
-  const { user } = useAuthStore();
 
   const { data: stats } = useQuery({
     queryKey: ['admin-stats'],

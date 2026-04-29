@@ -154,7 +154,7 @@ export function AdminQuestionForm({ question, onClose }: { question?: any, onClo
                 className="w-full px-4 py-2 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 <option value="" disabled>Select a skill</option>
-                {skills?.data?.map((skill: any) => (
+                {skills?.map((skill: any) => (
                   <option key={skill.id} value={skill.id}>
                     {skill.name}
                   </option>

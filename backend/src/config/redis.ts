@@ -51,9 +51,9 @@ redis.on('end', () => {
 });
 
 // Connect on startup
-redis.connect().catch((error) => {
-  logger.error('Redis initial connection failed', { error });
-});
+// redis.connect().catch((error) => {
+  // logger.error('Redis initial connection failed', { error });
+// });
 
 // Cache key helpers
 export const cacheKeys = {

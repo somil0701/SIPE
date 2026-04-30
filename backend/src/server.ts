@@ -40,16 +40,17 @@ const io = new Server(httpServer, {
 });
 
 // Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-}));
+// app.use(helmet({
+//   contentSecurityPolicy: {
+//     directives: {
+//       defaultSrc: ["'self'"],
+//       styleSrc: ["'self'", "'unsafe-inline'"],
+//       scriptSrc: ["'self'"],
+//       imgSrc: ["'self'", "data:", "https:"],
+//     },
+//   },
+// }));
+app.use(helmet());
 
 app.use(cors({
   origin: env.CORS_ORIGIN,
@@ -89,50 +90,65 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(compression());
 
 // Logging
-app.use(morgan('combined', {
-  stream: {
-    write: (message: string) => logger.info(message.trim()),
-  },
-}));
+// app.use(morgan('combined', {
+//   stream: {
+//     write: (message: string) => logger.info(message.trim()),
+//   },
+// }));
+app.use(morgan('combined'));
 
 // Request ID
 app.use(requestId);
 
+// Root Route
+app.get('/', (_req, res) => {
+  res.status(200).send('Backend is live');
+});
+
 // Health check endpoint (before auth)
+// app.get('/health', async (_req, res) => {
+//   const healthcheck = {
+//     uptime: process.uptime(),
+//     message: 'OK',
+//     timestamp: new Date().toISOString(),
+//     services: {
+//       database: 'unknown',
+//       // redis: 'unknown',
+//       redis: 'disabled',
+//     },
+//   };
+
+//   try {
+//     // Check database
+//     await prisma.$queryRaw`SELECT 1`;
+//     healthcheck.services.database = 'connected';
+//   } catch (error) {
+//     healthcheck.services.database = 'disconnected';
+//     logger.error('Database health check failed', { error });
+//   }
+
+//   try {
+//     // Check Redis
+//     // await redis.ping();
+//     healthcheck.services.redis = 'connected';
+//   } catch (error) {
+//     healthcheck.services.redis = 'disconnected';
+//     logger.error('Redis health check failed', { error });
+//   }
+
+//   const isHealthy = healthcheck.services.database === 'connected' && 
+//                     healthcheck.services.redis === 'connected';
+
+//   res.status(isHealthy ? 200 : 503).json(healthcheck);
+// });
+
 app.get('/health', async (_req, res) => {
-  const healthcheck = {
-    uptime: process.uptime(),
-    message: 'OK',
-    timestamp: new Date().toISOString(),
-    services: {
-      database: 'unknown',
-      // redis: 'unknown',
-      redis: 'disabled',
-    },
-  };
-
   try {
-    // Check database
     await prisma.$queryRaw`SELECT 1`;
-    healthcheck.services.database = 'connected';
-  } catch (error) {
-    healthcheck.services.database = 'disconnected';
-    logger.error('Database health check failed', { error });
+    res.status(200).json({ status: 'ok', database: 'connected' });
+  } catch {
+    res.status(503).json({ status: 'error', database: 'disconnected' });
   }
-
-  try {
-    // Check Redis
-    // await redis.ping();
-    healthcheck.services.redis = 'connected';
-  } catch (error) {
-    healthcheck.services.redis = 'disconnected';
-    logger.error('Redis health check failed', { error });
-  }
-
-  const isHealthy = healthcheck.services.database === 'connected' && 
-                    healthcheck.services.redis === 'connected';
-
-  res.status(isHealthy ? 200 : 503).json(healthcheck);
 });
 
 // API Routes

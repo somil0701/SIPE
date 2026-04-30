@@ -16,7 +16,7 @@ const socket_io_1 = require("socket.io");
 const env_1 = require("./config/env");
 const logger_1 = require("./config/logger");
 const database_1 = require("./config/database");
-const redis_1 = require("./config/redis");
+// import { redis } from './config/redis';
 const errorHandler_1 = require("./middleware/errorHandler");
 const requestId_1 = require("./middleware/requestId");
 // Import routes
@@ -42,16 +42,17 @@ const io = new socket_io_1.Server(httpServer, {
 });
 exports.io = io;
 // Security middleware
-app.use((0, helmet_1.default)({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "https:"],
-        },
-    },
-}));
+// app.use(helmet({
+//   contentSecurityPolicy: {
+//     directives: {
+//       defaultSrc: ["'self'"],
+//       styleSrc: ["'self'", "'unsafe-inline'"],
+//       scriptSrc: ["'self'"],
+//       imgSrc: ["'self'", "data:", "https:"],
+//     },
+//   },
+// }));
+app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
     origin: env_1.env.CORS_ORIGIN,
     credentials: true,
@@ -85,45 +86,58 @@ app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
 // Compression
 app.use((0, compression_1.default)());
 // Logging
-app.use((0, morgan_1.default)('combined', {
-    stream: {
-        write: (message) => logger_1.logger.info(message.trim()),
-    },
-}));
+// app.use(morgan('combined', {
+//   stream: {
+//     write: (message: string) => logger.info(message.trim()),
+//   },
+// }));
+app.use((0, morgan_1.default)('combined'));
 // Request ID
 app.use(requestId_1.requestId);
+// Root Route
+app.get('/', (_req, res) => {
+    res.status(200).send('Backend is live');
+});
 // Health check endpoint (before auth)
+// app.get('/health', async (_req, res) => {
+//   const healthcheck = {
+//     uptime: process.uptime(),
+//     message: 'OK',
+//     timestamp: new Date().toISOString(),
+//     services: {
+//       database: 'unknown',
+//       // redis: 'unknown',
+//       redis: 'disabled',
+//     },
+//   };
+//   try {
+//     // Check database
+//     await prisma.$queryRaw`SELECT 1`;
+//     healthcheck.services.database = 'connected';
+//   } catch (error) {
+//     healthcheck.services.database = 'disconnected';
+//     logger.error('Database health check failed', { error });
+//   }
+//   try {
+//     // Check Redis
+//     // await redis.ping();
+//     healthcheck.services.redis = 'connected';
+//   } catch (error) {
+//     healthcheck.services.redis = 'disconnected';
+//     logger.error('Redis health check failed', { error });
+//   }
+//   const isHealthy = healthcheck.services.database === 'connected' && 
+//                     healthcheck.services.redis === 'connected';
+//   res.status(isHealthy ? 200 : 503).json(healthcheck);
+// });
 app.get('/health', async (_req, res) => {
-    const healthcheck = {
-        uptime: process.uptime(),
-        message: 'OK',
-        timestamp: new Date().toISOString(),
-        services: {
-            database: 'unknown',
-            redis: 'unknown',
-        },
-    };
     try {
-        // Check database
         await database_1.prisma.$queryRaw `SELECT 1`;
-        healthcheck.services.database = 'connected';
+        res.status(200).json({ status: 'ok', database: 'connected' });
     }
-    catch (error) {
-        healthcheck.services.database = 'disconnected';
-        logger_1.logger.error('Database health check failed', { error });
+    catch {
+        res.status(503).json({ status: 'error', database: 'disconnected' });
     }
-    try {
-        // Check Redis
-        await redis_1.redis.ping();
-        healthcheck.services.redis = 'connected';
-    }
-    catch (error) {
-        healthcheck.services.redis = 'disconnected';
-        logger_1.logger.error('Redis health check failed', { error });
-    }
-    const isHealthy = healthcheck.services.database === 'connected' &&
-        healthcheck.services.redis === 'connected';
-    res.status(isHealthy ? 200 : 503).json(healthcheck);
 });
 // API Routes
 app.use('/api/v1/auth', authLimiter, auth_routes_1.authRouter);
@@ -186,7 +200,7 @@ const gracefulShutdown = async (signal) => {
     await database_1.prisma.$disconnect();
     logger_1.logger.info('Database connection closed');
     // Close Redis connection
-    await redis_1.redis.quit();
+    // await redis.quit();
     logger_1.logger.info('Redis connection closed');
     process.exit(0);
 };

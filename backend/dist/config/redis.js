@@ -24,9 +24,10 @@ const redisOptions = {
         const delay = Math.min(times * 50, 2000);
         return delay;
     },
-    maxRetriesPerRequest: 3,
-    enableReadyCheck: true,
+    maxRetriesPerRequest: 1,
+    enableReadyCheck: false,
     lazyConnect: true,
+    tls: {},
 };
 // Create Redis client
 const redis = new ioredis_1.default(env_1.env.REDIS_URL, redisOptions);
@@ -48,9 +49,9 @@ redis.on('end', () => {
     logger_1.logger.warn('Redis connection ended');
 });
 // Connect on startup
-redis.connect().catch((error) => {
-    logger_1.logger.error('Redis initial connection failed', { error });
-});
+// redis.connect().catch((error) => {
+// logger.error('Redis initial connection failed', { error });
+// });
 // Cache key helpers
 exports.cacheKeys = {
     // User cache

@@ -11,7 +11,7 @@ import { Server } from 'socket.io';
 import { env } from './config/env';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
-import { redis } from './config/redis';
+// import { redis } from './config/redis';
 import { errorHandler } from './middleware/errorHandler';
 import { requestId } from './middleware/requestId';
 
@@ -106,7 +106,8 @@ app.get('/health', async (_req, res) => {
     timestamp: new Date().toISOString(),
     services: {
       database: 'unknown',
-      redis: 'unknown',
+      // redis: 'unknown',
+      redis: 'disabled',
     },
   };
 
@@ -121,7 +122,7 @@ app.get('/health', async (_req, res) => {
 
   try {
     // Check Redis
-    await redis.ping();
+    // await redis.ping();
     healthcheck.services.redis = 'connected';
   } catch (error) {
     healthcheck.services.redis = 'disconnected';
@@ -208,7 +209,7 @@ const gracefulShutdown = async (signal: string) => {
   logger.info('Database connection closed');
 
   // Close Redis connection
-  await redis.quit();
+  // await redis.quit();
   logger.info('Redis connection closed');
 
   process.exit(0);

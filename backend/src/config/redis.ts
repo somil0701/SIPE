@@ -20,9 +20,10 @@ const redisOptions: RedisOptions = {
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
-  maxRetriesPerRequest: 3,
-  enableReadyCheck: true,
+  maxRetriesPerRequest: 1,
+  enableReadyCheck: false,
   lazyConnect: true,
+  tls: {},
 };
 
 // Create Redis client
@@ -59,29 +60,29 @@ export const cacheKeys = {
   // User cache
   user: (userId: string) => `user:${userId}`,
   userSession: (sessionId: string) => `session:${sessionId}`,
-  
+
   // Question cache
   question: (questionId: string) => `question:${questionId}`,
   questionsList: (params: string) => `questions:list:${params}`,
-  
+
   // User skills cache
   userSkills: (userId: string) => `user:${userId}:skills`,
   userSkill: (userId: string, skillId: string) => `user:${userId}:skill:${skillId}`,
-  
+
   // Attempt cache
   userAttempts: (userId: string) => `user:${userId}:attempts`,
   attempt: (attemptId: string) => `attempt:${attemptId}`,
-  
+
   // Analytics cache
   userAnalytics: (userId: string) => `user:${userId}:analytics`,
   leaderboard: (type: string) => `leaderboard:${type}`,
-  
+
   // Rate limiting
   rateLimit: (key: string) => `ratelimit:${key}`,
-  
+
   // Spaced repetition
   dueReviews: (userId: string) => `user:${userId}:due-reviews`,
-  
+
   // General
   stats: 'app:stats',
   health: 'app:health',

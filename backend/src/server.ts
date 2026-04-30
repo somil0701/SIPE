@@ -151,6 +151,21 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+app.get("/health/db", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({
+      status: "ok",
+      db: "connected"
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      db: "failed"
+    });
+  }
+});
+
 // API Routes
 app.use('/api/v1/auth', authLimiter, authRouter);
 app.use('/api/v1/users', userRouter);

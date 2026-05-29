@@ -132,12 +132,32 @@ class JudgeService {
     await fs.mkdir(rootDir, { recursive: true });
     const workDir = await fs.mkdtemp(path.join(rootDir, 'submission-'));
 
-    try {
-      await fs.writeFile(path.join(workDir, runner.sourceFile), code, 'utf8');
-      return await callback(workDir);
-    } finally {
-      await fs.rm(workDir, { recursive: true, force: true });
-    }
+
+  try {
+    const sourcePath = path.join(workDir, runner.sourceFile);
+
+    await fs.chmod(workDir, 0o755);
+
+    await fs.writeFile(sourcePath, code, 'utf8');
+
+    await fs.chmod(sourcePath, 0o644);
+
+    const stat = await fs.stat(sourcePath);
+console.log("SOURCE MODE:", stat.mode.toString(8));
+
+const dirStat = await fs.stat(workDir);
+console.log("DIR MODE:", dirStat.mode.toString(8));
+    return await callback(workDir);
+  } finally {
+    await fs.rm(workDir, { recursive: true, force: true });
+  }
+
+  //   try {
+  //     await fs.writeFile(path.join(workDir, runner.sourceFile), code, 'utf8');
+  //     return await callback(workDir);
+  //   } finally {
+  //     await fs.rm(workDir, { recursive: true, force: true });
+  //   }
   }
 
   private async compileIfNeeded(

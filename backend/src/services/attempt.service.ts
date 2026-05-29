@@ -52,7 +52,7 @@ class AttemptService {
         code,
         language,
         timeSpent,
-        status: PrismaAttemptStatus.QUEUED,
+        status: PrismaAttemptStatus.PENDING,
         attemptNumber: previousAttempts + 1,
       },
     });
@@ -468,7 +468,7 @@ class AttemptService {
 
   private toPrismaAttemptStatus(status: AttemptStatus | string): PrismaAttemptStatus {
     const statusMap: Record<string, PrismaAttemptStatus> = {
-      QUEUED: PrismaAttemptStatus.QUEUED,
+      QUEUED: PrismaAttemptStatus.PENDING,
       PENDING: PrismaAttemptStatus.PENDING,
       running: PrismaAttemptStatus.RUNNING,
       RUNNING: PrismaAttemptStatus.RUNNING,
@@ -486,7 +486,7 @@ class AttemptService {
       partially_accepted: PrismaAttemptStatus.PARTIALLY_ACCEPTED,
     };
 
-    return statusMap[status] ?? PrismaAttemptStatus.QUEUED;
+    return statusMap[status] ?? PrismaAttemptStatus.PENDING;
   }
 }
 

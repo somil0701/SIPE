@@ -2,6 +2,7 @@ export type JudgeLanguage = 'javascript' | 'python' | 'cpp' | 'java';
 
 export type JudgeVerdict =
   | 'QUEUED'
+  | 'PENDING'
   | 'RUNNING'
   | 'ACCEPTED'
   | 'WRONG_ANSWER'

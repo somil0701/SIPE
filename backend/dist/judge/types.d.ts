@@ -1,5 +1,5 @@
 export type JudgeLanguage = 'javascript' | 'python' | 'cpp' | 'java';
-export type JudgeVerdict = 'QUEUED' | 'RUNNING' | 'ACCEPTED' | 'WRONG_ANSWER' | 'TIME_LIMIT_EXCEEDED' | 'RUNTIME_ERROR' | 'COMPILATION_ERROR';
+export type JudgeVerdict = 'QUEUED' | 'PENDING' | 'RUNNING' | 'ACCEPTED' | 'WRONG_ANSWER' | 'TIME_LIMIT_EXCEEDED' | 'RUNTIME_ERROR' | 'COMPILATION_ERROR';
 export interface JudgeTestCase {
     input: string;
     expectedOutput: string;

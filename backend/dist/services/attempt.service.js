@@ -45,7 +45,7 @@ class AttemptService {
                 code,
                 language,
                 timeSpent,
-                status: client_1.AttemptStatus.QUEUED,
+                status: client_1.AttemptStatus.PENDING,
                 attemptNumber: previousAttempts + 1,
             },
         });
@@ -389,7 +389,7 @@ class AttemptService {
     }
     toPrismaAttemptStatus(status) {
         const statusMap = {
-            QUEUED: client_1.AttemptStatus.QUEUED,
+            QUEUED: client_1.AttemptStatus.PENDING,
             PENDING: client_1.AttemptStatus.PENDING,
             running: client_1.AttemptStatus.RUNNING,
             RUNNING: client_1.AttemptStatus.RUNNING,
@@ -406,7 +406,7 @@ class AttemptService {
             PARTIALLY_ACCEPTED: client_1.AttemptStatus.PARTIALLY_ACCEPTED,
             partially_accepted: client_1.AttemptStatus.PARTIALLY_ACCEPTED,
         };
-        return statusMap[status] ?? client_1.AttemptStatus.QUEUED;
+        return statusMap[status] ?? client_1.AttemptStatus.PENDING;
     }
 }
 // Export singleton instance

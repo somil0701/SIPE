@@ -133,31 +133,17 @@ class JudgeService {
     const workDir = await fs.mkdtemp(path.join(rootDir, 'submission-'));
 
 
-  try {
-    const sourcePath = path.join(workDir, runner.sourceFile);
+    await fs.chmod(workDir, 0o777); // Fix: allow docker container user to read/write
 
-    await fs.chmod(workDir, 0o755);
+    try {
+      const sourcePath = path.join(workDir, runner.sourceFile);
+      await fs.writeFile(sourcePath, code, 'utf8');
+      await fs.chmod(sourcePath, 0o666); // Ensure file is accessible
 
-    await fs.writeFile(sourcePath, code, 'utf8');
-
-    await fs.chmod(sourcePath, 0o644);
-
-    const stat = await fs.stat(sourcePath);
-console.log("SOURCE MODE:", stat.mode.toString(8));
-
-const dirStat = await fs.stat(workDir);
-console.log("DIR MODE:", dirStat.mode.toString(8));
-    return await callback(workDir);
-  } finally {
-    await fs.rm(workDir, { recursive: true, force: true });
-  }
-
-  //   try {
-  //     await fs.writeFile(path.join(workDir, runner.sourceFile), code, 'utf8');
-  //     return await callback(workDir);
-  //   } finally {
-  //     await fs.rm(workDir, { recursive: true, force: true });
-  //   }
+      return await callback(workDir);
+    } finally {
+      await fs.rm(workDir, { recursive: true, force: true });
+    }
   }
 
   private async compileIfNeeded(
@@ -166,24 +152,12 @@ console.log("DIR MODE:", dirStat.mode.toString(8));
   ): Promise<{ message: string; executionTime: number } | null> {
     if (!runner.compileCommand) return null;
 
-    // const compile = await dockerRunner.run({
-    //   image: runner.image,
-    //   workDir,
-    //   command: runner.compileCommand,
-    //   timeoutMs: env.JUDGE_COMPILE_TIMEOUT_MS,
-    // });
-
-    console.log("COMPILING IN:", workDir);
-console.log("COMMAND:", runner.compileCommand);
-
-const compile = await dockerRunner.run({
-  image: runner.image,
-  workDir,
-  command: runner.compileCommand,
-  timeoutMs: env.JUDGE_COMPILE_TIMEOUT_MS,
-});
-
-console.log("COMPILE RESULT:", JSON.stringify(compile, null, 2));
+    const compile = await dockerRunner.run({
+      image: runner.image,
+      workDir,
+      command: runner.compileCommand,
+      timeoutMs: env.JUDGE_COMPILE_TIMEOUT_MS,
+    });
 
     if (compile.timedOut) {
       return {

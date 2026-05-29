@@ -81,6 +81,9 @@ export class DockerRunner {
       let timedOut = false;
       let settled = false;
 
+      console.log("DOCKER CMD:");
+console.log(env.DOCKER_BINARY, args.join(" "));
+
       const child = spawn(env.DOCKER_BINARY, args, {
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],

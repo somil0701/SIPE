@@ -166,12 +166,24 @@ console.log("DIR MODE:", dirStat.mode.toString(8));
   ): Promise<{ message: string; executionTime: number } | null> {
     if (!runner.compileCommand) return null;
 
-    const compile = await dockerRunner.run({
-      image: runner.image,
-      workDir,
-      command: runner.compileCommand,
-      timeoutMs: env.JUDGE_COMPILE_TIMEOUT_MS,
-    });
+    // const compile = await dockerRunner.run({
+    //   image: runner.image,
+    //   workDir,
+    //   command: runner.compileCommand,
+    //   timeoutMs: env.JUDGE_COMPILE_TIMEOUT_MS,
+    // });
+
+    console.log("COMPILING IN:", workDir);
+console.log("COMMAND:", runner.compileCommand);
+
+const compile = await dockerRunner.run({
+  image: runner.image,
+  workDir,
+  command: runner.compileCommand,
+  timeoutMs: env.JUDGE_COMPILE_TIMEOUT_MS,
+});
+
+console.log("COMPILE RESULT:", JSON.stringify(compile, null, 2));
 
     if (compile.timedOut) {
       return {

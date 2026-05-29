@@ -64,7 +64,7 @@ export class DockerRunner {
       'ALL',
       '--security-opt',
       'no-new-privileges',
-      '--read-only',
+      // '--read-only',
       '--tmpfs',
       '/tmp:rw,nosuid,nodev,size=64m',
       '-v',

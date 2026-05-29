@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,46 +5,39 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  // directUrl = env("DIRECT_URL")
 }
 
-// ============================================
-// CORE MODELS
-// ============================================
-
 model User {
-  id                  String    @id @default(uuid())
-  email               String    @unique
-  passwordHash        String    @map("password_hash")
-  fullName            String    @map("full_name")
-  avatarUrl           String?   @map("avatar_url")
-  role                UserRole  @default(user)
-  isPremium           Boolean   @default(false) @map("is_premium")
-  premiumExpiresAt    DateTime? @map("premium_expires_at")
-  emailVerified       Boolean   @default(false) @map("email_verified")
-  emailVerifiedAt     DateTime? @map("email_verified_at")
-  lastLoginAt         DateTime? @map("last_login_at")
-  loginCount          Int       @default(0) @map("login_count")
-  timezone            String    @default("UTC")
-  preferredLanguage   String    @default("javascript") @map("preferred_language")
-  studyGoalMinutes    Int       @default(60) @map("study_goal_minutes")
-  onboardingCompleted Boolean   @default(false) @map("onboarding_completed")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
-  deletedAt           DateTime? @map("deleted_at")
-
-  // Relations
-  userSkills        UserSkill[]
-  attempts          Attempt[]
-  interviewSessions InterviewSession[]
-  resumes           Resume[]
-  learningPaths     LearningPath[]
-  spacedRepetitions SpacedRepetition[]
-  analyticsDaily    AnalyticsDaily[]
-  userActivities    UserActivity[]
-  subscriptions     Subscription[]
-  payments          Payment[]
-  attemptFeedback   AttemptFeedback[]
+  id                  String             @id @default(uuid())
+  email               String             @unique
+  passwordHash        String             @map("password_hash")
+  fullName            String             @map("full_name")
+  avatarUrl           String?            @map("avatar_url")
+  role                UserRole           @default(user)
+  isPremium           Boolean            @default(false) @map("is_premium")
+  premiumExpiresAt    DateTime?          @map("premium_expires_at")
+  emailVerified       Boolean            @default(false) @map("email_verified")
+  emailVerifiedAt     DateTime?          @map("email_verified_at")
+  lastLoginAt         DateTime?          @map("last_login_at")
+  loginCount          Int                @default(0) @map("login_count")
+  timezone            String             @default("UTC")
+  preferredLanguage   String             @default("javascript") @map("preferred_language")
+  studyGoalMinutes    Int                @default(60) @map("study_goal_minutes")
+  onboardingCompleted Boolean            @default(false) @map("onboarding_completed")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  deletedAt           DateTime?          @map("deleted_at")
+  analyticsDaily      AnalyticsDaily[]
+  attemptFeedback     AttemptFeedback[]
+  attempts            Attempt[]
+  interviewSessions   InterviewSession[]
+  learningPaths       LearningPath[]
+  payments            Payment[]
+  resumes             Resume[]
+  spacedRepetitions   SpacedRepetition[]
+  subscriptions       Subscription[]
+  userActivities      UserActivity[]
+  userSkills          UserSkill[]
 
   @@index([email])
   @@index([role])
@@ -55,49 +45,31 @@ model User {
   @@map("users")
 }
 
-enum UserRole {
-  user
-  premium
-  admin
-  interviewer
-}
-
 model Skill {
-  id              String        @id @default(uuid())
+  id              String         @id @default(uuid())
   name            String
-  slug            String        @unique
+  slug            String         @unique
   description     String?
   category        SkillCategory
-  difficultyLevel Int?          @map("difficulty_level")
-  parentId        String?       @map("parent_id")
-  iconUrl         String?       @map("icon_url")
-  colorCode       String?       @map("color_code")
-  estimatedHours  Int?          @map("estimated_hours")
+  difficultyLevel Int?           @map("difficulty_level")
+  parentId        String?        @map("parent_id")
+  iconUrl         String?        @map("icon_url")
+  colorCode       String?        @map("color_code")
+  estimatedHours  Int?           @map("estimated_hours")
   prerequisites   String[]
-  isActive        Boolean       @default(true) @map("is_active")
-  displayOrder    Int           @default(0) @map("display_order")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-
-  // Relations
-  parent        Skill?         @relation("SkillParent", fields: [parentId], references: [id])
-  children      Skill[]        @relation("SkillParent")
-  userSkills    UserSkill[]
-  questions     Question[]
-  learningPaths LearningPath[]
+  isActive        Boolean        @default(true) @map("is_active")
+  displayOrder    Int            @default(0) @map("display_order")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  learningPaths   LearningPath[]
+  questions       Question[]
+  parent          Skill?         @relation("SkillParent", fields: [parentId], references: [id])
+  children        Skill[]        @relation("SkillParent")
+  userSkills      UserSkill[]
 
   @@index([category])
   @@index([slug])
   @@map("skills")
-}
-
-enum SkillCategory {
-  DATA_STRUCTURES   @map("data-structures")
-  ALGORITHMS        @map("algorithms")
-  SYSTEM_DESIGN     @map("system-design")
-  BEHAVIORAL        @map("behavioral")
-  LANGUAGE_SPECIFIC @map("language-specific")
-  FRAMEWORK         @map("framework")
 }
 
 model UserSkill {
@@ -114,10 +86,8 @@ model UserSkill {
   lastPracticedAt    DateTime? @map("last_practiced_at")
   lastUpdated        DateTime  @updatedAt @map("last_updated")
   createdAt          DateTime  @default(now()) @map("created_at")
-
-  // Relations
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skill              Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, skillId])
   @@index([userId])
@@ -126,53 +96,47 @@ model UserSkill {
   @@map("user_skills")
 }
 
-// ============================================
-// QUESTION BANK
-// ============================================
-
 model Question {
-  id                     String       @id @default(uuid())
-  skillId                String       @map("skill_id")
+  id                     String             @id @default(uuid())
+  skillId                String             @map("skill_id")
   title                  String
-  slug                   String       @unique
+  slug                   String             @unique
   description            String
-  problemStatement       String       @map("problem_statement")
+  problemStatement       String             @map("problem_statement")
   difficulty             Difficulty
   type                   QuestionType
-  starterCode            Json?        @map("starter_code")
-  solutionCode           Json?        @map("solution_code")
-  optimalTimeComplexity  String?      @map("optimal_time_complexity")
-  optimalSpaceComplexity String?      @map("optimal_space_complexity")
+  starterCode            Json?              @map("starter_code")
+  solutionCode           Json?              @map("solution_code")
+  optimalTimeComplexity  String?            @map("optimal_time_complexity")
+  optimalSpaceComplexity String?            @map("optimal_space_complexity")
   hints                  String[]
-  testCases              Json         @map("test_cases")
+  testCases              Json               @map("test_cases")
   constraints            String[]
-  followUpQuestions      String[]     @map("follow_up_questions")
-  companyTags            String[]     @map("company_tags")
-  topicTags              String[]     @map("topic_tags")
-  leetcodeId             String?      @map("leetcode_id")
-  hackerrankId           String?      @map("hackerrank_id")
-  acceptanceRate         Float        @default(0) @map("acceptance_rate")
-  totalAttempts          Int          @default(0) @map("total_attempts")
-  totalSolves            Int          @default(0) @map("total_solves")
-  avgTimeSpent           Int          @default(0) @map("avg_time_spent")
-  baseDifficultyScore    Float        @default(50) @map("base_difficulty_score")
-  adaptiveWeight         Float        @default(1) @map("adaptive_weight")
+  followUpQuestions      String[]           @map("follow_up_questions")
+  companyTags            String[]           @map("company_tags")
+  topicTags              String[]           @map("topic_tags")
+  leetcodeId             String?            @map("leetcode_id")
+  hackerrankId           String?            @map("hackerrank_id")
+  acceptanceRate         Float              @default(0) @map("acceptance_rate")
+  totalAttempts          Int                @default(0) @map("total_attempts")
+  totalSolves            Int                @default(0) @map("total_solves")
+  avgTimeSpent           Int                @default(0) @map("avg_time_spent")
+  baseDifficultyScore    Float              @default(50) @map("base_difficulty_score")
+  adaptiveWeight         Float              @default(1) @map("adaptive_weight")
   explanation            String?
-  videoSolutionUrl       String?      @map("video_solution_url")
-  articleUrl             String?      @map("article_url")
-  isPremium              Boolean      @default(false) @map("is_premium")
-  isActive               Boolean      @default(true) @map("is_active")
-  verifiedBy             String?      @map("verified_by")
-  createdAt              DateTime     @default(now()) @map("created_at")
-  updatedAt              DateTime     @updatedAt @map("updated_at")
-
-  // Relations
-  skill             Skill              @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  attempts          Attempt[]
-  questionTags      QuestionTag[]
-  questionCompanies QuestionCompany[]
-  learningPathItems LearningPathItem[]
-  spacedRepetitions SpacedRepetition[]
+  videoSolutionUrl       String?            @map("video_solution_url")
+  articleUrl             String?            @map("article_url")
+  isPremium              Boolean            @default(false) @map("is_premium")
+  isActive               Boolean            @default(true) @map("is_active")
+  verifiedBy             String?            @map("verified_by")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+  attempts               Attempt[]
+  learningPathItems      LearningPathItem[]
+  questionCompanies      QuestionCompany[]
+  questionTags           QuestionTag[]
+  skill                  Skill              @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  spacedRepetitions      SpacedRepetition[]
 
   @@index([skillId])
   @@index([difficulty])
@@ -183,58 +147,40 @@ model Question {
   @@map("questions")
 }
 
-enum Difficulty {
-  easy
-  medium
-  hard
-  expert
-}
-
-enum QuestionType {
-  CODING
-  SYSTEM_DESIGN @map("system-design")
-  BEHAVIORAL
-  THEORETICAL
-  QUIZ
-}
-
 model Tag {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  category  String?
-  createdAt DateTime @default(now()) @map("created_at")
-
+  id           String        @id @default(uuid())
+  name         String        @unique
+  category     String?
+  createdAt    DateTime      @default(now()) @map("created_at")
   questionTags QuestionTag[]
 
   @@map("tags")
 }
 
 model QuestionTag {
-  id         String @id @default(uuid())
-  questionId String @map("question_id")
-  tagId      String @map("tag_id")
-
-  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  questionId String   @map("question_id")
+  tagId      String   @map("tag_id")
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@unique([questionId, tagId])
   @@map("question_tags")
 }
 
 model Company {
-  id               String   @id @default(uuid())
-  name             String   @unique
-  slug             String   @unique
-  logoUrl          String?  @map("logo_url")
-  description      String?
-  website          String?
-  difficultyRating Float?   @map("difficulty_rating")
-  interviewProcess String?  @map("interview_process")
-  createdAt        DateTime @default(now()) @map("created_at")
-
-  questionCompanies QuestionCompany[]
+  id                String             @id @default(uuid())
+  name              String             @unique
+  slug              String             @unique
+  logoUrl           String?            @map("logo_url")
+  description       String?
+  website           String?
+  difficultyRating  Float?             @map("difficulty_rating")
+  interviewProcess  String?            @map("interview_process")
+  createdAt         DateTime           @default(now()) @map("created_at")
   interviewSessions InterviewSession[]
   learningPaths     LearningPath[]
+  questionCompanies QuestionCompany[]
 
   @@map("companies")
 }
@@ -245,45 +191,38 @@ model QuestionCompany {
   companyId   String    @map("company_id")
   frequency   Int       @default(1)
   lastAskedAt DateTime? @map("last_asked_at")
-
-  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@unique([questionId, companyId])
   @@map("question_companies")
 }
 
-// ============================================
-// ATTEMPTS & SUBMISSIONS
-// ============================================
-
 model Attempt {
-  id                 String        @id @default(uuid())
-  userId             String        @map("user_id")
-  questionId         String        @map("question_id")
+  id                 String                   @id @default(uuid())
+  userId             String                   @map("user_id")
+  questionId         String                   @map("question_id")
   code               String?
   language           String
-  status             AttemptStatus @default(QUEUED)
-  timeSpent          Int           @map("time_spent")
-  executionTime      Int?          @map("execution_time")
-  memoryUsed         Int?          @map("memory_used")
-  testCasesPassed    Int           @default(0) @map("test_cases_passed")
-  testCasesTotal     Int           @default(0) @map("test_cases_total")
-  aiScore            Int?          @map("ai_score")
-  aiFeedback         Json?         @map("ai_feedback")
-  submittedAt        DateTime      @default(now()) @map("submitted_at")
-  isPractice         Boolean       @default(true) @map("is_practice")
-  interviewSessionId String?       @map("interview_session_id")
-  attemptNumber      Int           @default(1) @map("attempt_number")
-  previousAttemptId  String?       @map("previous_attempt_id")
-
-  // Relations
-  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  question          Question                 @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  attemptTestCases  AttemptTestCase[]
-  feedback          AttemptFeedback?
-  learningPathItems LearningPathItem[]
-  spacedRepReviews  SpacedRepetitionReview[]
+  status             AttemptStatus            @default(PENDING)
+  timeSpent          Int                      @map("time_spent")
+  executionTime      Int?                     @map("execution_time")
+  memoryUsed         Int?                     @map("memory_used")
+  testCasesPassed    Int                      @default(0) @map("test_cases_passed")
+  testCasesTotal     Int                      @default(0) @map("test_cases_total")
+  aiScore            Int?                     @map("ai_score")
+  aiFeedback         Json?                    @map("ai_feedback")
+  submittedAt        DateTime                 @default(now()) @map("submitted_at")
+  isPractice         Boolean                  @default(true) @map("is_practice")
+  interviewSessionId String?                  @map("interview_session_id")
+  attemptNumber      Int                      @default(1) @map("attempt_number")
+  previousAttemptId  String?                  @map("previous_attempt_id")
+  feedback           AttemptFeedback?
+  attemptTestCases   AttemptTestCase[]
+  question           Question                 @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningPathItems  LearningPathItem[]
+  spacedRepReviews   SpacedRepetitionReview[]
 
   @@index([userId])
   @@index([questionId])
@@ -291,18 +230,6 @@ model Attempt {
   @@index([submittedAt])
   @@index([userId, questionId])
   @@map("attempts")
-}
-
-enum AttemptStatus {
-  QUEUED              @map("queued")
-  PENDING             @map("pending")
-  RUNNING             @map("running")
-  ACCEPTED            @map("accepted")
-  WRONG_ANSWER        @map("wrong_answer")
-  TIME_LIMIT_EXCEEDED @map("time_limit_exceeded")
-  RUNTIME_ERROR       @map("runtime_error")
-  COMPILATION_ERROR   @map("compilation_error")
-  PARTIALLY_ACCEPTED  @map("partially_accepted")
 }
 
 model AttemptTestCase {
@@ -316,8 +243,7 @@ model AttemptTestCase {
   executionTime  Int?     @map("execution_time")
   errorMessage   String?  @map("error_message")
   createdAt      DateTime @default(now()) @map("created_at")
-
-  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  attempt        Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
   @@map("attempt_test_cases")
 }
@@ -343,46 +269,38 @@ model AttemptFeedback {
   relatedQuestions       String[] @map("related_questions")
   generatedAt            DateTime @default(now()) @map("generated_at")
   modelVersion           String?  @map("model_version")
-
-  // Relations
-  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempt                Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("attempt_feedback")
 }
 
-// ============================================
-// MOCK INTERVIEWS
-// ============================================
-
 model InterviewSession {
-  id                  String          @id @default(uuid())
-  userId              String          @map("user_id")
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
   title               String?
-  interviewType       InterviewType   @map("interview_type")
-  difficulty          Difficulty      @default(medium)
-  targetCompanyId     String?         @map("target_company_id")
-  scheduledAt         DateTime?       @map("scheduled_at")
-  startedAt           DateTime?       @map("started_at")
-  endedAt             DateTime?       @map("ended_at")
-  durationMinutes     Int             @default(60) @map("duration_minutes")
-  status              InterviewStatus @default(SCHEDULED)
-  overallScore        Int?            @map("overall_score")
-  technicalScore      Int?            @map("technical_score")
-  communicationScore  Int?            @map("communication_score")
-  problemSolvingScore Int?            @map("problem_solving_score")
-  aiInterviewerConfig Json?           @map("ai_interviewer_config")
+  interviewType       InterviewType       @map("interview_type")
+  difficulty          Difficulty          @default(medium)
+  targetCompanyId     String?             @map("target_company_id")
+  scheduledAt         DateTime?           @map("scheduled_at")
+  startedAt           DateTime?           @map("started_at")
+  endedAt             DateTime?           @map("ended_at")
+  durationMinutes     Int                 @default(60) @map("duration_minutes")
+  status              InterviewStatus     @default(SCHEDULED)
+  overallScore        Int?                @map("overall_score")
+  technicalScore      Int?                @map("technical_score")
+  communicationScore  Int?                @map("communication_score")
+  problemSolvingScore Int?                @map("problem_solving_score")
+  aiInterviewerConfig Json?               @map("ai_interviewer_config")
   transcript          String?
-  summaryFeedback     String?         @map("summary_feedback")
+  summaryFeedback     String?             @map("summary_feedback")
   strengths           String[]
-  areasToImprove      String[]        @map("areas_to_improve")
-  createdAt           DateTime        @default(now()) @map("created_at")
-  updatedAt           DateTime        @updatedAt @map("updated_at")
-
-  // Relations
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  targetCompany      Company?            @relation(fields: [targetCompanyId], references: [id])
-  interviewQuestions InterviewQuestion[]
+  areasToImprove      String[]            @map("areas_to_improve")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  interviewQuestions  InterviewQuestion[]
+  targetCompany       Company?            @relation(fields: [targetCompanyId], references: [id])
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
@@ -390,67 +308,45 @@ model InterviewSession {
   @@map("interview_sessions")
 }
 
-enum InterviewType {
-  TECHNICAL     @map("technical")
-  BEHAVIORAL    @map("behavioral")
-  MIXED         @map("mixed")
-  SYSTEM_DESIGN @map("system-design")
-}
-
-enum InterviewStatus {
-  SCHEDULED   @map("scheduled")
-  IN_PROGRESS @map("in_progress")
-  COMPLETED   @map("completed")
-  CANCELLED   @map("cancelled")
-  ABANDONED   @map("abandoned")
-}
-
 model InterviewQuestion {
-  id                 String    @id @default(uuid())
-  interviewSessionId String    @map("interview_session_id")
-  questionId         String?   @map("question_id")
-  questionText       String    @map("question_text")
-  questionType       String?   @map("question_type")
-  expectedTopics     String[]  @map("expected_topics")
-  userAnswer         String?   @map("user_answer")
-  answerSubmittedAt  DateTime? @map("answer_submitted_at")
-  aiEvaluation       String?   @map("ai_evaluation")
+  id                 String           @id @default(uuid())
+  interviewSessionId String           @map("interview_session_id")
+  questionId         String?          @map("question_id")
+  questionText       String           @map("question_text")
+  questionType       String?          @map("question_type")
+  expectedTopics     String[]         @map("expected_topics")
+  userAnswer         String?          @map("user_answer")
+  answerSubmittedAt  DateTime?        @map("answer_submitted_at")
+  aiEvaluation       String?          @map("ai_evaluation")
   score              Int?
-  followUpNeeded     Boolean   @default(false) @map("follow_up_needed")
-  questionOrder      Int       @map("question_order")
-  createdAt          DateTime  @default(now()) @map("created_at")
-
-  interviewSession InterviewSession @relation(fields: [interviewSessionId], references: [id], onDelete: Cascade)
+  followUpNeeded     Boolean          @default(false) @map("follow_up_needed")
+  questionOrder      Int              @map("question_order")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  interviewSession   InterviewSession @relation(fields: [interviewSessionId], references: [id], onDelete: Cascade)
 
   @@map("interview_questions")
 }
 
-// ============================================
-// RESUME ANALYSIS
-// ============================================
-
 model Resume {
-  id              String    @id @default(uuid())
-  userId          String    @map("user_id")
-  fileName        String    @map("file_name")
-  fileUrl         String    @map("file_url")
-  fileType        String    @map("file_type")
-  fileSize        Int       @map("file_size")
-  parsedText      String?   @map("parsed_text")
-  parsedData      Json?     @map("parsed_data")
-  skillsDetected  Json?     @map("skills_detected")
-  experienceYears Float?    @map("experience_years")
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  fileName        String        @map("file_name")
+  fileUrl         String        @map("file_url")
+  fileType        String        @map("file_type")
+  fileSize        Int           @map("file_size")
+  parsedText      String?       @map("parsed_text")
+  parsedData      Json?         @map("parsed_data")
+  skillsDetected  Json?         @map("skills_detected")
+  experienceYears Float?        @map("experience_years")
   education       Json?
   projects        Json?
-  parsingStatus   String    @default("PENDING") @map("parsing_status")
-  parsingError    String?   @map("parsing_error")
-  isActive        Boolean   @default(true) @map("is_active")
-  uploadedAt      DateTime  @default(now()) @map("uploaded_at")
-  parsedAt        DateTime? @map("parsed_at")
-
-  // Relations
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  resumeSkills ResumeSkill[]
+  parsingStatus   String        @default("PENDING") @map("parsing_status")
+  parsingError    String?       @map("parsing_error")
+  isActive        Boolean       @default(true) @map("is_active")
+  uploadedAt      DateTime      @default(now()) @map("uploaded_at")
+  parsedAt        DateTime?     @map("parsed_at")
+  resumeSkills    ResumeSkill[]
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("resumes")
@@ -465,50 +361,36 @@ model ResumeSkill {
   yearsExperience Float?   @map("years_experience")
   context         String?
   createdAt       DateTime @default(now()) @map("created_at")
-
-  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resume          Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@map("resume_skills")
 }
 
-// ============================================
-// ADAPTIVE LEARNING & SPACED REPETITION
-// ============================================
-
 model LearningPath {
-  id                   String     @id @default(uuid())
-  userId               String     @map("user_id")
+  id                   String             @id @default(uuid())
+  userId               String             @map("user_id")
   name                 String
   description          String?
-  targetSkillId        String?    @map("target_skill_id")
-  targetCompanyId      String?    @map("target_company_id")
-  totalItems           Int        @default(0) @map("total_items")
-  completedItems       Int        @default(0) @map("completed_items")
-  progressPercentage   Float      @default(0) @map("progress_percentage")
-  estimatedHours       Int?       @map("estimated_hours")
-  startDate            DateTime?  @map("start_date")
-  targetCompletionDate DateTime?  @map("target_completion_date")
-  actualCompletionDate DateTime?  @map("actual_completion_date")
-  status               PathStatus @default(ACTIVE)
-  createdAt            DateTime   @default(now()) @map("created_at")
-  updatedAt            DateTime   @updatedAt @map("updated_at")
-
-  // Relations
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  targetSkill   Skill?             @relation(fields: [targetSkillId], references: [id])
-  targetCompany Company?           @relation(fields: [targetCompanyId], references: [id])
-  pathItems     LearningPathItem[]
+  targetSkillId        String?            @map("target_skill_id")
+  targetCompanyId      String?            @map("target_company_id")
+  totalItems           Int                @default(0) @map("total_items")
+  completedItems       Int                @default(0) @map("completed_items")
+  progressPercentage   Float              @default(0) @map("progress_percentage")
+  estimatedHours       Int?               @map("estimated_hours")
+  startDate            DateTime?          @map("start_date")
+  targetCompletionDate DateTime?          @map("target_completion_date")
+  actualCompletionDate DateTime?          @map("actual_completion_date")
+  status               PathStatus         @default(ACTIVE)
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  pathItems            LearningPathItem[]
+  targetCompany        Company?           @relation(fields: [targetCompanyId], references: [id])
+  targetSkill          Skill?             @relation(fields: [targetSkillId], references: [id])
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
   @@map("learning_paths")
-}
-
-enum PathStatus {
-  ACTIVE
-  PAUSED
-  COMPLETED
-  ABANDONED
 }
 
 model LearningPathItem {
@@ -526,48 +408,31 @@ model LearningPathItem {
   completedAt      DateTime?      @map("completed_at")
   attemptId        String?        @map("attempt_id")
   createdAt        DateTime       @default(now()) @map("created_at")
-
-  learningPath LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
-  question     Question?    @relation(fields: [questionId], references: [id])
-  attempt      Attempt?     @relation(fields: [attemptId], references: [id])
+  attempt          Attempt?       @relation(fields: [attemptId], references: [id])
+  learningPath     LearningPath   @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  question         Question?      @relation(fields: [questionId], references: [id])
 
   @@map("learning_path_items")
 }
 
-enum PathItemType {
-  QUESTION
-  LESSON
-  REVIEW
-  MILESTONE
-}
-
-enum PathItemStatus {
-  PENDING
-  IN_PROGRESS @map("in_progress")
-  COMPLETED
-  SKIPPED
-}
-
 model SpacedRepetition {
-  id                String                 @id @default(uuid())
-  userId            String                 @map("user_id")
-  questionId        String                 @map("question_id")
-  interval          Int                    @default(1)
-  repetitions       Int                    @default(0)
-  easeFactor        Float                  @default(2.50) @map("ease_factor")
-  nextReviewDate    DateTime               @map("next_review_date")
-  lastReviewedAt    DateTime?              @map("last_reviewed_at")
-  reviewCount       Int                    @default(0) @map("review_count")
-  successfulReviews Int                    @default(0) @map("successful_reviews")
-  failedReviews     Int                    @default(0) @map("failed_reviews")
-  status            SpacedRepetitionStatus @default(ACTIVE)
-  createdAt         DateTime               @default(now()) @map("created_at")
-  updatedAt         DateTime               @updatedAt @map("updated_at")
-
-  // Relations
-  user     User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  question Question                 @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  reviews  SpacedRepetitionReview[]
+  id                String                   @id @default(uuid())
+  userId            String                   @map("user_id")
+  questionId        String                   @map("question_id")
+  interval          Int                      @default(1)
+  repetitions       Int                      @default(0)
+  easeFactor        Float                    @default(2.50) @map("ease_factor")
+  nextReviewDate    DateTime                 @map("next_review_date")
+  lastReviewedAt    DateTime?                @map("last_reviewed_at")
+  reviewCount       Int                      @default(0) @map("review_count")
+  successfulReviews Int                      @default(0) @map("successful_reviews")
+  failedReviews     Int                      @default(0) @map("failed_reviews")
+  status            SpacedRepetitionStatus   @default(ACTIVE)
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+  question          Question                 @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews           SpacedRepetitionReview[]
 
   @@unique([userId, questionId])
   @@index([userId])
@@ -576,32 +441,21 @@ model SpacedRepetition {
   @@map("spaced_repetition")
 }
 
-enum SpacedRepetitionStatus {
-  ACTIVE
-  MASTERED
-  PAUSED
-}
-
 model SpacedRepetitionReview {
-  id               String   @id @default(uuid())
-  srId             String   @map("sr_id")
-  attemptId        String?  @map("attempt_id")
-  qualityRating    Int      @map("quality_rating")
-  reviewedAt       DateTime @default(now()) @map("reviewed_at")
-  previousInterval Int      @map("previous_interval")
-  newInterval      Int      @map("new_interval")
-  previousEf       Float    @map("previous_ef")
-  newEf            Float    @map("new_ef")
-
-  spacedRepetition SpacedRepetition @relation(fields: [srId], references: [id], onDelete: Cascade)
+  id               String           @id @default(uuid())
+  srId             String           @map("sr_id")
+  attemptId        String?          @map("attempt_id")
+  qualityRating    Int              @map("quality_rating")
+  reviewedAt       DateTime         @default(now()) @map("reviewed_at")
+  previousInterval Int              @map("previous_interval")
+  newInterval      Int              @map("new_interval")
+  previousEf       Float            @map("previous_ef")
+  newEf            Float            @map("new_ef")
   attempt          Attempt?         @relation(fields: [attemptId], references: [id])
+  spacedRepetition SpacedRepetition @relation(fields: [srId], references: [id], onDelete: Cascade)
 
   @@map("spaced_repetition_reviews")
 }
-
-// ============================================
-// ANALYTICS & TRACKING
-// ============================================
 
 model AnalyticsDaily {
   id                 String   @id @default(uuid())
@@ -623,9 +477,7 @@ model AnalyticsDaily {
   streakDay          Int      @default(0) @map("streak_day")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId, date])
@@ -639,19 +491,13 @@ model UserActivity {
   activityType String   @map("activity_type")
   metadata     Json?
   createdAt    DateTime @default(now()) @map("created_at")
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([activityType])
   @@index([createdAt])
   @@map("user_activities")
 }
-
-// ============================================
-// SUBSCRIPTIONS & PAYMENTS
-// ============================================
 
 model Subscription {
   id                            String             @id @default(uuid())
@@ -669,14 +515,116 @@ model Subscription {
   cancellationReason            String?            @map("cancellation_reason")
   createdAt                     DateTime           @default(now()) @map("created_at")
   updatedAt                     DateTime           @updatedAt @map("updated_at")
-
-  // Relations
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payments Payment[]
+  payments                      Payment[]
+  user                          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
   @@map("subscriptions")
+}
+
+model Payment {
+  id                      String        @id @default(uuid())
+  subscriptionId          String?       @map("subscription_id")
+  userId                  String        @map("user_id")
+  amount                  Float
+  currency                String        @default("USD")
+  status                  PaymentStatus
+  paymentProvider         String?       @map("payment_provider")
+  paymentProviderChargeId String?       @map("payment_provider_charge_id")
+  invoiceUrl              String?       @map("invoice_url")
+  createdAt               DateTime      @default(now()) @map("created_at")
+  completedAt             DateTime?     @map("completed_at")
+  subscription            Subscription? @relation(fields: [subscriptionId], references: [id])
+  user                    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("payments")
+}
+
+enum UserRole {
+  user
+  premium
+  admin
+  interviewer
+}
+
+enum SkillCategory {
+  DATA_STRUCTURES   @map("data-structures")
+  ALGORITHMS        @map("algorithms")
+  SYSTEM_DESIGN     @map("system-design")
+  BEHAVIORAL        @map("behavioral")
+  LANGUAGE_SPECIFIC @map("language-specific")
+  FRAMEWORK         @map("framework")
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+  expert
+}
+
+enum QuestionType {
+  CODING
+  SYSTEM_DESIGN @map("system-design")
+  BEHAVIORAL
+  THEORETICAL
+  QUIZ
+}
+
+enum AttemptStatus {
+  PENDING             @map("pending")
+  RUNNING             @map("running")
+  ACCEPTED            @map("accepted")
+  WRONG_ANSWER        @map("wrong_answer")
+  TIME_LIMIT_EXCEEDED @map("time_limit_exceeded")
+  RUNTIME_ERROR       @map("runtime_error")
+  COMPILATION_ERROR   @map("compilation_error")
+  PARTIALLY_ACCEPTED  @map("partially_accepted")
+}
+
+enum InterviewType {
+  TECHNICAL     @map("technical")
+  BEHAVIORAL    @map("behavioral")
+  MIXED         @map("mixed")
+  SYSTEM_DESIGN @map("system-design")
+}
+
+enum InterviewStatus {
+  SCHEDULED   @map("scheduled")
+  IN_PROGRESS @map("in_progress")
+  COMPLETED   @map("completed")
+  CANCELLED   @map("cancelled")
+  ABANDONED   @map("abandoned")
+}
+
+enum PathStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ABANDONED
+}
+
+enum PathItemType {
+  QUESTION
+  LESSON
+  REVIEW
+  MILESTONE
+}
+
+enum PathItemStatus {
+  PENDING
+  IN_PROGRESS @map("in_progress")
+  COMPLETED
+  SKIPPED
+}
+
+enum SpacedRepetitionStatus {
+  ACTIVE
+  MASTERED
+  PAUSED
 }
 
 enum PlanType {
@@ -696,28 +644,6 @@ enum SubscriptionStatus {
   CANCELLED
   EXPIRED
   PAUSED
-}
-
-model Payment {
-  id                      String        @id @default(uuid())
-  subscriptionId          String?       @map("subscription_id")
-  userId                  String        @map("user_id")
-  amount                  Float
-  currency                String        @default("USD")
-  status                  PaymentStatus
-  paymentProvider         String?       @map("payment_provider")
-  paymentProviderChargeId String?       @map("payment_provider_charge_id")
-  invoiceUrl              String?       @map("invoice_url")
-  createdAt               DateTime      @default(now()) @map("created_at")
-  completedAt             DateTime?     @map("completed_at")
-
-  // Relations
-  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([status])
-  @@map("payments")
 }
 
 enum PaymentStatus {

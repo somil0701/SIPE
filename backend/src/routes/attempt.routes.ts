@@ -11,13 +11,36 @@ const router = Router();
 const submitAttemptSchema = z.object({
   questionId: z.string().uuid('Invalid question ID'),
   code: z.string().min(1, 'Code is required'),
-  language: z.enum(['javascript', 'typescript', 'python', 'java', 'cpp', 'csharp', 'go', 'rust', 'ruby']),
+  language: z.enum(['javascript', 'python', 'java', 'cpp']),
   timeSpent: z.number().int().min(0, 'Time spent must be positive'),
+});
+
+const runCodeSchema = z.object({
+  questionId: z.string().uuid('Invalid question ID'),
+  code: z.string().min(1, 'Code is required'),
+  language: z.enum(['javascript', 'python', 'java', 'cpp']),
+  input: z.string().default(''),
 });
 
 const getAttemptsQuerySchema = z.object({
   questionId: z.string().uuid().optional(),
-  status: z.enum(['PENDING', 'running', 'ACCEPTED', 'wrong_answer', 'time_limit_exceeded', 'RUNTIME_ERROR', 'compilation_error', 'PARTIALLY_ACCEPTED']).optional(),
+  status: z.enum([
+    'QUEUED',
+    'PENDING',
+    'RUNNING',
+    'running',
+    'ACCEPTED',
+    'WRONG_ANSWER',
+    'wrong_answer',
+    'TIME_LIMIT_EXCEEDED',
+    'time_limit_exceeded',
+    'RUNTIME_ERROR',
+    'runtime_error',
+    'COMPILATION_ERROR',
+    'compilation_error',
+    'PARTIALLY_ACCEPTED',
+    'partially_accepted',
+  ]).optional(),
   page: z.string().transform(Number).default('1'),
   limit: z.string().transform(Number).default('20'),
 });
@@ -38,6 +61,25 @@ router.post(
       success: true,
       data: attempt,
       message: 'Solution submitted successfully. Evaluation in progress.',
+    });
+  })
+);
+
+/**
+ * @route   POST /api/v1/attempts/run
+ * @desc    Run code once with custom stdin without saving an attempt
+ * @access  Private
+ */
+router.post(
+  '/run',
+  authenticate,
+  validate({ body: runCodeSchema }),
+  asyncHandler(async (req, res) => {
+    const result = await attemptService.runCode(req.user!.id, req.body);
+
+    res.json({
+      success: true,
+      data: result,
     });
   })
 );

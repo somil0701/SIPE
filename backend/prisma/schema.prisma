@@ -8,7 +8,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -263,7 +263,7 @@ model Attempt {
   questionId         String        @map("question_id")
   code               String?
   language           String
-  status             AttemptStatus @default(PENDING)
+  status             AttemptStatus @default(QUEUED)
   timeSpent          Int           @map("time_spent")
   executionTime      Int?          @map("execution_time")
   memoryUsed         Int?          @map("memory_used")
@@ -294,6 +294,7 @@ model Attempt {
 }
 
 enum AttemptStatus {
+  QUEUED              @map("queued")
   PENDING             @map("pending")
   RUNNING             @map("running")
   ACCEPTED            @map("accepted")

@@ -1,4 +1,3 @@
-import vm from 'vm';
 import {
   AttemptStatus as PrismaAttemptStatus,
   SpacedRepetitionStatus as PrismaSpacedRepetitionStatus,
@@ -10,7 +9,8 @@ import { ApiError } from '../middleware/errorHandler';
 import { aiService } from './ai.service';
 import { questionService } from './question.service';
 import { analyticsService } from './analytics.service';
-import { Attempt, AttemptInput, AttemptFeedback, AttemptStatus } from '../types';
+import { judgeService } from '../judge/judge.service';
+import { Attempt, AttemptInput, AttemptFeedback, AttemptStatus, RunCodeInput } from '../types';
 
 /**
  * Attempt Service
@@ -52,7 +52,7 @@ class AttemptService {
         code,
         language,
         timeSpent,
-        status: 'PENDING',
+        status: PrismaAttemptStatus.QUEUED,
         attemptNumber: previousAttempts + 1,
       },
     });
@@ -77,6 +77,11 @@ class AttemptService {
     timeSpent: number
   ): Promise<void> {
     try {
+      await prisma.attempt.update({
+        where: { id: attemptId },
+        data: { status: PrismaAttemptStatus.RUNNING },
+      });
+
       // Get question with test cases
       const question = await prisma.question.findUnique({
         where: { id: questionId },
@@ -86,36 +91,25 @@ class AttemptService {
         throw new Error('Question not found');
       }
 
-      const testCases = question.testCases as any[];
-      
-      // Run test cases (simplified - in production, use a sandboxed execution environment)
-      const testResults = await this.runTestCases(code, language, testCases);
-
-      const testCasesPassed = testResults.filter((r) => r.passed).length;
-      const allPassed = testCasesPassed === testResults.length;
-
-      // Determine status
-      let status: PrismaAttemptStatus = PrismaAttemptStatus.WRONG_ANSWER;
-      if (allPassed) {
-        status = PrismaAttemptStatus.ACCEPTED;
-      } else if (testCasesPassed > 0) {
-        status = PrismaAttemptStatus.PARTIALLY_ACCEPTED;
-      }
+      const testCases = Array.isArray(question.testCases) ? question.testCases : [];
+      const judgeResult = await judgeService.judgeSubmission(code, language, testCases);
+      const status = this.toPrismaAttemptStatus(judgeResult.verdict);
 
       // Update attempt with results
       await prisma.attempt.update({
         where: { id: attemptId },
         data: {
           status,
-          testCasesPassed,
-          testCasesTotal: testResults.length,
+          testCasesPassed: judgeResult.testCasesPassed,
+          testCasesTotal: judgeResult.testCasesTotal,
+          executionTime: judgeResult.executionTime,
         },
       });
 
       // Save test case results
-      if (testResults.length > 0) {
+      if (judgeResult.results.length > 0) {
         await prisma.attemptTestCase.createMany({
-          data: testResults.map((result) => ({
+          data: judgeResult.results.map((result) => ({
             attemptId,
             testCaseIndex: result.index,
             input: result.input,
@@ -123,7 +117,7 @@ class AttemptService {
             actualOutput: result.actual,
             passed: result.passed,
             executionTime: result.executionTime,
-            errorMessage: result.error,
+            errorMessage: result.error ?? (result.verdict === 'COMPILATION_ERROR' ? judgeResult.compileOutput : undefined),
           })),
         });
       }
@@ -192,125 +186,19 @@ class AttemptService {
   }
 
   /**
-   * Run test cases (simplified mock implementation)
-   * In production, this would use a sandboxed code execution service
+   * Run code once with custom stdin without creating a persisted attempt.
    */
-  private async runTestCases(
-    code: string,
-    language: string,
-    testCases: any[]
-  ): Promise<
-    {
-      index: number;
-      input: string;
-      expected: string;
-      actual: string;
-      passed: boolean;
-      executionTime: number;
-      error?: string;
-    }[]
-  > {
-    if (!testCases.length) {
-      return [
-        {
-          index: 0,
-          input: 'No test cases configured',
-          expected: 'Submission accepted for manual review',
-          actual: 'Submission accepted for manual review',
-          passed: true,
-          executionTime: 0,
-        },
-      ];
-    }
-
-    if (!['javascript', 'typescript'].includes(language)) {
-      return testCases.map((tc, index) => ({
-        index,
-        input: this.stringifyTestValue(tc.input ?? tc.args ?? ''),
-        expected: this.stringifyTestValue(tc.expected ?? tc.expectedOutput ?? ''),
-        actual: '',
-        passed: false,
-        executionTime: 0,
-        error: `Local evaluator currently executes JavaScript/TypeScript submissions only; received ${language}.`,
-      }));
-    }
-
-    const functionName = this.detectFunctionName(code);
-
-    return testCases.map((tc, index) => {
-      const startedAt = Date.now();
-      const args = Array.isArray(tc.args)
-        ? tc.args
-        : Array.isArray(tc.input)
-          ? tc.input
-          : [tc.input];
-      const expectedValue = tc.expected ?? tc.expectedOutput;
-
-      try {
-        const sandbox = {
-          __args: args,
-          __result: undefined as unknown,
-          console: { log: () => undefined },
-          module: { exports: {} },
-          exports: {},
-        };
-        const context = vm.createContext(sandbox);
-        const script = new vm.Script(`
-${code}
-;__result = ${tc.functionName || functionName}(...__args);
-`);
-        script.runInContext(context, { timeout: 1000 });
-
-        const actualValue = sandbox.__result;
-        const passed = this.valuesEqual(actualValue, expectedValue);
-
-        return {
-          index,
-          input: this.stringifyTestValue(args),
-          expected: this.stringifyTestValue(expectedValue),
-          actual: this.stringifyTestValue(actualValue),
-          passed,
-          executionTime: Date.now() - startedAt,
-        };
-      } catch (error) {
-        return {
-          index,
-          input: this.stringifyTestValue(args),
-          expected: this.stringifyTestValue(expectedValue),
-          actual: '',
-          passed: false,
-          executionTime: Date.now() - startedAt,
-          error: error instanceof Error ? error.message : 'Execution failed',
-        };
-      }
+  async runCode(_userId: string, input: RunCodeInput) {
+    const question = await prisma.question.findUnique({
+      where: { id: input.questionId },
+      select: { id: true },
     });
-  }
 
-  private detectFunctionName(code: string): string {
-    const declarationMatch = code.match(/function\s+([A-Za-z_$][\w$]*)\s*\(/);
-    if (declarationMatch?.[1]) return declarationMatch[1];
-
-    const assignmentMatch = code.match(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/);
-    if (assignmentMatch?.[1]) return assignmentMatch[1];
-
-    throw new Error('Could not detect a callable function in the submitted code');
-  }
-
-  private stringifyTestValue(value: unknown): string {
-    if (typeof value === 'string') return value;
-    return JSON.stringify(value);
-  }
-
-  private valuesEqual(actual: unknown, expected: unknown): boolean {
-    if (typeof expected === 'string') {
-      try {
-        return JSON.stringify(actual) === JSON.stringify(JSON.parse(expected));
-      } catch {
-        return String(actual) === expected;
-      }
+    if (!question) {
+      throw ApiError.notFound('Question not found');
     }
 
-    return JSON.stringify(actual) === JSON.stringify(expected);
+    return judgeService.runCustomInput(input.code, input.language, input.input ?? '');
   }
 
   /**
@@ -580,21 +468,25 @@ ${code}
 
   private toPrismaAttemptStatus(status: AttemptStatus | string): PrismaAttemptStatus {
     const statusMap: Record<string, PrismaAttemptStatus> = {
+      QUEUED: PrismaAttemptStatus.QUEUED,
       PENDING: PrismaAttemptStatus.PENDING,
       running: PrismaAttemptStatus.RUNNING,
       RUNNING: PrismaAttemptStatus.RUNNING,
       ACCEPTED: PrismaAttemptStatus.ACCEPTED,
-      wrong_answer: PrismaAttemptStatus.WRONG_ANSWER,
       WRONG_ANSWER: PrismaAttemptStatus.WRONG_ANSWER,
+      wrong_answer: PrismaAttemptStatus.WRONG_ANSWER,
+      accepted: PrismaAttemptStatus.ACCEPTED,
       time_limit_exceeded: PrismaAttemptStatus.TIME_LIMIT_EXCEEDED,
       TIME_LIMIT_EXCEEDED: PrismaAttemptStatus.TIME_LIMIT_EXCEEDED,
       RUNTIME_ERROR: PrismaAttemptStatus.RUNTIME_ERROR,
+      runtime_error: PrismaAttemptStatus.RUNTIME_ERROR,
       compilation_error: PrismaAttemptStatus.COMPILATION_ERROR,
       COMPILATION_ERROR: PrismaAttemptStatus.COMPILATION_ERROR,
       PARTIALLY_ACCEPTED: PrismaAttemptStatus.PARTIALLY_ACCEPTED,
+      partially_accepted: PrismaAttemptStatus.PARTIALLY_ACCEPTED,
     };
 
-    return statusMap[status] ?? PrismaAttemptStatus.PENDING;
+    return statusMap[status] ?? PrismaAttemptStatus.QUEUED;
   }
 }
 

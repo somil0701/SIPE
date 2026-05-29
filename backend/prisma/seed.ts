@@ -76,7 +76,7 @@ async function seedUsers(passwordHash: string) {
       isPremium: true,
       premiumExpiresAt: daysAgo(-45),
       emailVerified: true,
-      preferredLanguage: 'typescript',
+      preferredLanguage: 'javascript',
       studyGoalMinutes: 90,
       onboardingCompleted: true,
     },
@@ -270,21 +270,175 @@ async function seedQuestions(
   companies: Awaited<ReturnType<typeof seedCompanies>>,
   tags: Awaited<ReturnType<typeof seedTags>>
 ) {
-  const starterTwoSum = `function twoSum(nums, target) {
-  // Return the indices of two numbers that add up to target.
-}`;
+  const starterTwoSum = {
+    javascript: `const fs = require('fs');
+const data = fs.readFileSync(0, 'utf8').trim().split(/\\s+/).map(Number);
+let idx = 0;
+const n = data[idx++];
+const nums = data.slice(idx, idx + n);
+idx += n;
+const target = data[idx];
 
-  const starterPalindrome = `function isPalindrome(s) {
-  // Return true when s is a palindrome after removing non-alphanumeric characters.
-}`;
+// TODO: print the two indices separated by a space.
+`,
+    python: `import sys
 
-  const starterMaxProfit = `function maxProfit(prices) {
-  // Return the best profit from one buy and one sell.
-}`;
+data = list(map(int, sys.stdin.read().strip().split()))
+idx = 0
+n = data[idx]
+idx += 1
+nums = data[idx:idx + n]
+idx += n
+target = data[idx]
 
-  const starterClimb = `function climbStairs(n) {
-  // Return how many distinct ways you can climb to the top.
-}`;
+# TODO: print the two indices separated by a space.
+`,
+    cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    vector<int> nums(n);
+    for (int i = 0; i < n; i++) cin >> nums[i];
+    int target;
+    cin >> target;
+
+    // TODO: print the two indices separated by a space.
+    return 0;
+}
+`,
+    java: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt();
+        int[] nums = new int[n];
+        for (int i = 0; i < n; i++) nums[i] = sc.nextInt();
+        int target = sc.nextInt();
+
+        // TODO: print the two indices separated by a space.
+    }
+}
+`,
+  };
+
+  const starterPalindrome = {
+    javascript: `const fs = require('fs');
+const s = fs.readFileSync(0, 'utf8').replace(/\\r?\\n$/, '');
+
+// TODO: print true if s is a valid palindrome, otherwise false.
+`,
+    python: `import sys
+
+s = sys.stdin.read().rstrip("\\n")
+
+# TODO: print true if s is a valid palindrome, otherwise false.
+`,
+    cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    string s;
+    getline(cin, s);
+
+    // TODO: print true if s is a valid palindrome, otherwise false.
+    return 0;
+}
+`,
+    java: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        String s = sc.hasNextLine() ? sc.nextLine() : "";
+
+        // TODO: print true if s is a valid palindrome, otherwise false.
+    }
+}
+`,
+  };
+
+  const starterMaxProfit = {
+    javascript: `const fs = require('fs');
+const data = fs.readFileSync(0, 'utf8').trim().split(/\\s+/).map(Number);
+const n = data[0];
+const prices = data.slice(1, 1 + n);
+
+// TODO: print the maximum profit.
+`,
+    python: `import sys
+
+data = list(map(int, sys.stdin.read().strip().split()))
+n = data[0]
+prices = data[1:1 + n]
+
+# TODO: print the maximum profit.
+`,
+    cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    vector<int> prices(n);
+    for (int i = 0; i < n; i++) cin >> prices[i];
+
+    // TODO: print the maximum profit.
+    return 0;
+}
+`,
+    java: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt();
+        int[] prices = new int[n];
+        for (int i = 0; i < n; i++) prices[i] = sc.nextInt();
+
+        // TODO: print the maximum profit.
+    }
+}
+`,
+  };
+
+  const starterClimb = {
+    javascript: `const fs = require('fs');
+const n = Number(fs.readFileSync(0, 'utf8').trim());
+
+// TODO: print the number of distinct ways.
+`,
+    python: `import sys
+
+n = int(sys.stdin.read().strip())
+
+# TODO: print the number of distinct ways.
+`,
+    cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+
+    // TODO: print the number of distinct ways.
+    return 0;
+}
+`,
+    java: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt();
+
+        // TODO: print the number of distinct ways.
+    }
+}
+`,
+  };
 
   const questionInputs = [
     {
@@ -295,19 +449,15 @@ async function seedQuestions(
       problemStatement: '<p>Given an array of integers <code>nums</code> and an integer <code>target</code>, return indices of the two numbers such that they add up to target.</p>',
       difficulty: Difficulty.easy,
       type: QuestionType.CODING,
-      starterCode: {
-        javascript: starterTwoSum,
-        typescript: starterTwoSum,
-        python: 'def two_sum(nums, target):\n    pass',
-      },
+      starterCode: starterTwoSum,
       solutionCode: {
         javascript: 'function twoSum(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const need = target - nums[i];\n    if (seen.has(need)) return [seen.get(need), i];\n    seen.set(nums[i], i);\n  }\n  return [];\n}',
       },
       hints: ['Use a hash map to remember previous numbers.', 'For each number, check whether target - number has been seen.'],
       testCases: [
-        { functionName: 'twoSum', args: [[2, 7, 11, 15], 9], expected: [0, 1], isExample: true },
-        { functionName: 'twoSum', args: [[3, 2, 4], 6], expected: [1, 2], isExample: true },
-        { functionName: 'twoSum', args: [[3, 3], 6], expected: [0, 1], isExample: false },
+        { input: '4\n2 7 11 15\n9', expectedOutput: '0 1', isExample: true },
+        { input: '4\n3 2 4 8\n6', expectedOutput: '1 2', isExample: true },
+        { input: '2\n3 3\n6', expectedOutput: '0 1', isExample: false },
       ],
       constraints: ['2 <= nums.length <= 10^4', '-10^9 <= nums[i] <= 10^9', 'Exactly one valid answer exists.'],
       followUpQuestions: ['How would you handle multiple valid pairs?', 'Can you solve this in one pass?'],
@@ -326,14 +476,14 @@ async function seedQuestions(
       problemStatement: '<p>Return true if <code>s</code> is a palindrome after converting uppercase letters to lowercase and removing non-alphanumeric characters.</p>',
       difficulty: Difficulty.easy,
       type: QuestionType.CODING,
-      starterCode: { javascript: starterPalindrome, typescript: starterPalindrome },
+      starterCode: starterPalindrome,
       solutionCode: {
         javascript: 'function isPalindrome(s) {\n  let left = 0;\n  let right = s.length - 1;\n  const isAlphaNum = (c) => /[a-z0-9]/i.test(c);\n  while (left < right) {\n    while (left < right && !isAlphaNum(s[left])) left++;\n    while (left < right && !isAlphaNum(s[right])) right--;\n    if (s[left].toLowerCase() !== s[right].toLowerCase()) return false;\n    left++;\n    right--;\n  }\n  return true;\n}',
       },
       hints: ['Use two pointers.', 'Skip characters that are not letters or digits.'],
       testCases: [
-        { functionName: 'isPalindrome', args: ['A man, a plan, a canal: Panama'], expected: true, isExample: true },
-        { functionName: 'isPalindrome', args: ['race a car'], expected: false, isExample: true },
+        { input: 'A man, a plan, a canal: Panama', expectedOutput: 'true', isExample: true },
+        { input: 'race a car', expectedOutput: 'false', isExample: true },
       ],
       constraints: ['1 <= s.length <= 2 * 10^5'],
       followUpQuestions: ['What changes if Unicode normalization is required?'],
@@ -352,14 +502,14 @@ async function seedQuestions(
       problemStatement: '<p>You are given prices where <code>prices[i]</code> is the price on day i. Return the maximum profit from one buy and one sell.</p>',
       difficulty: Difficulty.easy,
       type: QuestionType.CODING,
-      starterCode: { javascript: starterMaxProfit, typescript: starterMaxProfit },
+      starterCode: starterMaxProfit,
       solutionCode: {
         javascript: 'function maxProfit(prices) {\n  let minPrice = Infinity;\n  let best = 0;\n  for (const price of prices) {\n    minPrice = Math.min(minPrice, price);\n    best = Math.max(best, price - minPrice);\n  }\n  return best;\n}',
       },
       hints: ['Track the lowest price seen so far.', 'Update the best profit at every step.'],
       testCases: [
-        { functionName: 'maxProfit', args: [[7, 1, 5, 3, 6, 4]], expected: 5, isExample: true },
-        { functionName: 'maxProfit', args: [[7, 6, 4, 3, 1]], expected: 0, isExample: true },
+        { input: '6\n7 1 5 3 6 4', expectedOutput: '5', isExample: true },
+        { input: '5\n7 6 4 3 1', expectedOutput: '0', isExample: true },
       ],
       constraints: ['1 <= prices.length <= 10^5'],
       followUpQuestions: ['How does the solution change with multiple transactions?'],
@@ -378,15 +528,15 @@ async function seedQuestions(
       problemStatement: '<p>You can climb either 1 or 2 steps. Given <code>n</code>, return how many distinct ways you can reach the top.</p>',
       difficulty: Difficulty.easy,
       type: QuestionType.CODING,
-      starterCode: { javascript: starterClimb, typescript: starterClimb },
+      starterCode: starterClimb,
       solutionCode: {
         javascript: 'function climbStairs(n) {\n  let a = 1;\n  let b = 1;\n  for (let i = 2; i <= n; i++) {\n    [a, b] = [b, a + b];\n  }\n  return b;\n}',
       },
       hints: ['The recurrence is the same as Fibonacci.', 'Keep only the previous two values.'],
       testCases: [
-        { functionName: 'climbStairs', args: [2], expected: 2, isExample: true },
-        { functionName: 'climbStairs', args: [3], expected: 3, isExample: true },
-        { functionName: 'climbStairs', args: [5], expected: 8, isExample: false },
+        { input: '2', expectedOutput: '2', isExample: true },
+        { input: '3', expectedOutput: '3', isExample: true },
+        { input: '5', expectedOutput: '8', isExample: false },
       ],
       constraints: ['1 <= n <= 45'],
       followUpQuestions: ['What if you can take up to k steps?'],

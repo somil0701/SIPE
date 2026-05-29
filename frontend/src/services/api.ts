@@ -257,6 +257,8 @@ export const questionsApi = {
 export const attemptsApi = {
   submit: (data: { questionId: string; code: string; language: string; timeSpent: number }) =>
     api.post<any>('/attempts', data),
+  run: (data: { questionId: string; code: string; language: string; input: string }) =>
+    api.post<any>('/attempts/run', data),
   getAll: (params?: Record<string, string | number>) =>
     api.get<any>('/attempts', { params }),
   getById: (id: string) => api.get<any>(`/attempts/${id}`),

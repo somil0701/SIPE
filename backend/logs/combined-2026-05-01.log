@@ -1,0 +1,4 @@
+{"environment":"production","level":"info","message":"SIGINT received. Starting graceful shutdown...","service":"interview-prep-api","timestamp":"2026-04-30T19:13:21.695Z"}
+{"environment":"production","level":"info","message":"HTTP server closed","service":"interview-prep-api","timestamp":"2026-04-30T19:13:21.705Z"}
+{"environment":"production","level":"info","message":"Socket.IO server closed","service":"interview-prep-api","timestamp":"2026-04-30T19:13:21.706Z"}
+{"environment":"production","level":"info","message":"Database connection closed","service":"interview-prep-api","timestamp":"2026-04-30T19:13:21.712Z"}

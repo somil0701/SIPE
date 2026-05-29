@@ -1,10 +1,6 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.attemptService = void 0;
-const vm_1 = __importDefault(require("vm"));
 const client_1 = require("@prisma/client");
 const database_1 = require("../config/database");
 const redis_1 = require("../config/redis");
@@ -13,6 +9,7 @@ const errorHandler_1 = require("../middleware/errorHandler");
 const ai_service_1 = require("./ai.service");
 const question_service_1 = require("./question.service");
 const analytics_service_1 = require("./analytics.service");
+const judge_service_1 = require("../judge/judge.service");
 /**
  * Attempt Service
  *
@@ -48,7 +45,7 @@ class AttemptService {
                 code,
                 language,
                 timeSpent,
-                status: 'PENDING',
+                status: client_1.AttemptStatus.QUEUED,
                 attemptNumber: previousAttempts + 1,
             },
         });
@@ -63,6 +60,10 @@ class AttemptService {
      */
     async evaluateAttempt(attemptId, userId, questionId, code, language, timeSpent) {
         try {
+            await database_1.prisma.attempt.update({
+                where: { id: attemptId },
+                data: { status: client_1.AttemptStatus.RUNNING },
+            });
             // Get question with test cases
             const question = await database_1.prisma.question.findUnique({
                 where: { id: questionId },
@@ -70,32 +71,23 @@ class AttemptService {
             if (!question) {
                 throw new Error('Question not found');
             }
-            const testCases = question.testCases;
-            // Run test cases (simplified - in production, use a sandboxed execution environment)
-            const testResults = await this.runTestCases(code, language, testCases);
-            const testCasesPassed = testResults.filter((r) => r.passed).length;
-            const allPassed = testCasesPassed === testResults.length;
-            // Determine status
-            let status = client_1.AttemptStatus.WRONG_ANSWER;
-            if (allPassed) {
-                status = client_1.AttemptStatus.ACCEPTED;
-            }
-            else if (testCasesPassed > 0) {
-                status = client_1.AttemptStatus.PARTIALLY_ACCEPTED;
-            }
+            const testCases = Array.isArray(question.testCases) ? question.testCases : [];
+            const judgeResult = await judge_service_1.judgeService.judgeSubmission(code, language, testCases);
+            const status = this.toPrismaAttemptStatus(judgeResult.verdict);
             // Update attempt with results
             await database_1.prisma.attempt.update({
                 where: { id: attemptId },
                 data: {
                     status,
-                    testCasesPassed,
-                    testCasesTotal: testResults.length,
+                    testCasesPassed: judgeResult.testCasesPassed,
+                    testCasesTotal: judgeResult.testCasesTotal,
+                    executionTime: judgeResult.executionTime,
                 },
             });
             // Save test case results
-            if (testResults.length > 0) {
+            if (judgeResult.results.length > 0) {
                 await database_1.prisma.attemptTestCase.createMany({
-                    data: testResults.map((result) => ({
+                    data: judgeResult.results.map((result) => ({
                         attemptId,
                         testCaseIndex: result.index,
                         input: result.input,
@@ -103,7 +95,7 @@ class AttemptService {
                         actualOutput: result.actual,
                         passed: result.passed,
                         executionTime: result.executionTime,
-                        errorMessage: result.error,
+                        errorMessage: result.error ?? (result.verdict === 'COMPILATION_ERROR' ? judgeResult.compileOutput : undefined),
                     })),
                 });
             }
@@ -163,104 +155,17 @@ class AttemptService {
         }
     }
     /**
-     * Run test cases (simplified mock implementation)
-     * In production, this would use a sandboxed code execution service
+     * Run code once with custom stdin without creating a persisted attempt.
      */
-    async runTestCases(code, language, testCases) {
-        if (!testCases.length) {
-            return [
-                {
-                    index: 0,
-                    input: 'No test cases configured',
-                    expected: 'Submission accepted for manual review',
-                    actual: 'Submission accepted for manual review',
-                    passed: true,
-                    executionTime: 0,
-                },
-            ];
-        }
-        if (!['javascript', 'typescript'].includes(language)) {
-            return testCases.map((tc, index) => ({
-                index,
-                input: this.stringifyTestValue(tc.input ?? tc.args ?? ''),
-                expected: this.stringifyTestValue(tc.expected ?? tc.expectedOutput ?? ''),
-                actual: '',
-                passed: false,
-                executionTime: 0,
-                error: `Local evaluator currently executes JavaScript/TypeScript submissions only; received ${language}.`,
-            }));
-        }
-        const functionName = this.detectFunctionName(code);
-        return testCases.map((tc, index) => {
-            const startedAt = Date.now();
-            const args = Array.isArray(tc.args)
-                ? tc.args
-                : Array.isArray(tc.input)
-                    ? tc.input
-                    : [tc.input];
-            const expectedValue = tc.expected ?? tc.expectedOutput;
-            try {
-                const sandbox = {
-                    __args: args,
-                    __result: undefined,
-                    console: { log: () => undefined },
-                    module: { exports: {} },
-                    exports: {},
-                };
-                const context = vm_1.default.createContext(sandbox);
-                const script = new vm_1.default.Script(`
-${code}
-;__result = ${tc.functionName || functionName}(...__args);
-`);
-                script.runInContext(context, { timeout: 1000 });
-                const actualValue = sandbox.__result;
-                const passed = this.valuesEqual(actualValue, expectedValue);
-                return {
-                    index,
-                    input: this.stringifyTestValue(args),
-                    expected: this.stringifyTestValue(expectedValue),
-                    actual: this.stringifyTestValue(actualValue),
-                    passed,
-                    executionTime: Date.now() - startedAt,
-                };
-            }
-            catch (error) {
-                return {
-                    index,
-                    input: this.stringifyTestValue(args),
-                    expected: this.stringifyTestValue(expectedValue),
-                    actual: '',
-                    passed: false,
-                    executionTime: Date.now() - startedAt,
-                    error: error instanceof Error ? error.message : 'Execution failed',
-                };
-            }
+    async runCode(_userId, input) {
+        const question = await database_1.prisma.question.findUnique({
+            where: { id: input.questionId },
+            select: { id: true },
         });
-    }
-    detectFunctionName(code) {
-        const declarationMatch = code.match(/function\s+([A-Za-z_$][\w$]*)\s*\(/);
-        if (declarationMatch?.[1])
-            return declarationMatch[1];
-        const assignmentMatch = code.match(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/);
-        if (assignmentMatch?.[1])
-            return assignmentMatch[1];
-        throw new Error('Could not detect a callable function in the submitted code');
-    }
-    stringifyTestValue(value) {
-        if (typeof value === 'string')
-            return value;
-        return JSON.stringify(value);
-    }
-    valuesEqual(actual, expected) {
-        if (typeof expected === 'string') {
-            try {
-                return JSON.stringify(actual) === JSON.stringify(JSON.parse(expected));
-            }
-            catch {
-                return String(actual) === expected;
-            }
+        if (!question) {
+            throw errorHandler_1.ApiError.notFound('Question not found');
         }
-        return JSON.stringify(actual) === JSON.stringify(expected);
+        return judge_service_1.judgeService.runCustomInput(input.code, input.language, input.input ?? '');
     }
     /**
      * Get attempt by ID
@@ -484,20 +389,24 @@ ${code}
     }
     toPrismaAttemptStatus(status) {
         const statusMap = {
+            QUEUED: client_1.AttemptStatus.QUEUED,
             PENDING: client_1.AttemptStatus.PENDING,
             running: client_1.AttemptStatus.RUNNING,
             RUNNING: client_1.AttemptStatus.RUNNING,
             ACCEPTED: client_1.AttemptStatus.ACCEPTED,
-            wrong_answer: client_1.AttemptStatus.WRONG_ANSWER,
             WRONG_ANSWER: client_1.AttemptStatus.WRONG_ANSWER,
+            wrong_answer: client_1.AttemptStatus.WRONG_ANSWER,
+            accepted: client_1.AttemptStatus.ACCEPTED,
             time_limit_exceeded: client_1.AttemptStatus.TIME_LIMIT_EXCEEDED,
             TIME_LIMIT_EXCEEDED: client_1.AttemptStatus.TIME_LIMIT_EXCEEDED,
             RUNTIME_ERROR: client_1.AttemptStatus.RUNTIME_ERROR,
+            runtime_error: client_1.AttemptStatus.RUNTIME_ERROR,
             compilation_error: client_1.AttemptStatus.COMPILATION_ERROR,
             COMPILATION_ERROR: client_1.AttemptStatus.COMPILATION_ERROR,
             PARTIALLY_ACCEPTED: client_1.AttemptStatus.PARTIALLY_ACCEPTED,
+            partially_accepted: client_1.AttemptStatus.PARTIALLY_ACCEPTED,
         };
-        return statusMap[status] ?? client_1.AttemptStatus.PENDING;
+        return statusMap[status] ?? client_1.AttemptStatus.QUEUED;
     }
 }
 // Export singleton instance

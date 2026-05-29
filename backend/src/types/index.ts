@@ -104,7 +104,8 @@ export interface Question {
 
 export interface TestCase {
   input: string;
-  expected: string;
+  expected?: string;
+  expectedOutput?: string;
   isExample: boolean;
   explanation?: string;
 }
@@ -144,12 +145,17 @@ export interface Attempt {
 }
 
 export type AttemptStatus = 
+  | 'QUEUED'
   | 'PENDING'
+  | 'RUNNING'
   | 'running'
   | 'ACCEPTED'
+  | 'WRONG_ANSWER'
   | 'wrong_answer'
+  | 'TIME_LIMIT_EXCEEDED'
   | 'time_limit_exceeded'
   | 'RUNTIME_ERROR'
+  | 'COMPILATION_ERROR'
   | 'compilation_error'
   | 'PARTIALLY_ACCEPTED';
 
@@ -158,6 +164,13 @@ export interface AttemptInput {
   code: string;
   language: string;
   timeSpent: number;
+}
+
+export interface RunCodeInput {
+  questionId: string;
+  code: string;
+  language: string;
+  input?: string;
 }
 
 export interface AttemptFeedback {

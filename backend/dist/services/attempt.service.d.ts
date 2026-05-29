@@ -1,4 +1,4 @@
-import { Attempt, AttemptInput, AttemptFeedback, AttemptStatus } from '../types';
+import { Attempt, AttemptInput, AttemptFeedback, AttemptStatus, RunCodeInput } from '../types';
 /**
  * Attempt Service
  *
@@ -18,13 +18,9 @@ declare class AttemptService {
      */
     private evaluateAttempt;
     /**
-     * Run test cases (simplified mock implementation)
-     * In production, this would use a sandboxed code execution service
+     * Run code once with custom stdin without creating a persisted attempt.
      */
-    private runTestCases;
-    private detectFunctionName;
-    private stringifyTestValue;
-    private valuesEqual;
+    runCode(_userId: string, input: RunCodeInput): Promise<import("../judge/types").JudgeRunResult>;
     /**
      * Get attempt by ID
      */

@@ -13,12 +13,34 @@ exports.attemptRouter = router;
 const submitAttemptSchema = zod_1.z.object({
     questionId: zod_1.z.string().uuid('Invalid question ID'),
     code: zod_1.z.string().min(1, 'Code is required'),
-    language: zod_1.z.enum(['javascript', 'typescript', 'python', 'java', 'cpp', 'csharp', 'go', 'rust', 'ruby']),
+    language: zod_1.z.enum(['javascript', 'python', 'java', 'cpp']),
     timeSpent: zod_1.z.number().int().min(0, 'Time spent must be positive'),
+});
+const runCodeSchema = zod_1.z.object({
+    questionId: zod_1.z.string().uuid('Invalid question ID'),
+    code: zod_1.z.string().min(1, 'Code is required'),
+    language: zod_1.z.enum(['javascript', 'python', 'java', 'cpp']),
+    input: zod_1.z.string().default(''),
 });
 const getAttemptsQuerySchema = zod_1.z.object({
     questionId: zod_1.z.string().uuid().optional(),
-    status: zod_1.z.enum(['PENDING', 'running', 'ACCEPTED', 'wrong_answer', 'time_limit_exceeded', 'RUNTIME_ERROR', 'compilation_error', 'PARTIALLY_ACCEPTED']).optional(),
+    status: zod_1.z.enum([
+        'QUEUED',
+        'PENDING',
+        'RUNNING',
+        'running',
+        'ACCEPTED',
+        'WRONG_ANSWER',
+        'wrong_answer',
+        'TIME_LIMIT_EXCEEDED',
+        'time_limit_exceeded',
+        'RUNTIME_ERROR',
+        'runtime_error',
+        'COMPILATION_ERROR',
+        'compilation_error',
+        'PARTIALLY_ACCEPTED',
+        'partially_accepted',
+    ]).optional(),
     page: zod_1.z.string().transform(Number).default('1'),
     limit: zod_1.z.string().transform(Number).default('20'),
 });
@@ -33,6 +55,18 @@ router.post('/', auth_1.authenticate, (0, validate_1.validate)({ body: submitAtt
         success: true,
         data: attempt,
         message: 'Solution submitted successfully. Evaluation in progress.',
+    });
+}));
+/**
+ * @route   POST /api/v1/attempts/run
+ * @desc    Run code once with custom stdin without saving an attempt
+ * @access  Private
+ */
+router.post('/run', auth_1.authenticate, (0, validate_1.validate)({ body: runCodeSchema }), (0, errorHandler_1.asyncHandler)(async (req, res) => {
+    const result = await attempt_service_1.attemptService.runCode(req.user.id, req.body);
+    res.json({
+        success: true,
+        data: result,
     });
 }));
 /**

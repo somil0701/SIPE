@@ -30,6 +30,18 @@ const envSchema = zod_1.z.object({
     // File Upload
     MAX_FILE_SIZE: zod_1.z.string().transform(Number).default('5242880'), // 5MB
     UPLOAD_DIR: zod_1.z.string().default('uploads'),
+    // Docker Judge
+    DOCKER_BINARY: zod_1.z.string().default('docker'),
+    JUDGE_TEMP_DIR: zod_1.z.string().default('tmp/judge'),
+    JUDGE_RUN_TIMEOUT_MS: zod_1.z.string().transform(Number).default('3000'),
+    JUDGE_COMPILE_TIMEOUT_MS: zod_1.z.string().transform(Number).default('10000'),
+    JUDGE_MEMORY_LIMIT: zod_1.z.string().default('128m'),
+    JUDGE_CPU_LIMIT: zod_1.z.string().default('0.5'),
+    JUDGE_PIDS_LIMIT: zod_1.z.string().transform(Number).default('64'),
+    JUDGE_IMAGE_JAVASCRIPT: zod_1.z.string().default('node:20-alpine'),
+    JUDGE_IMAGE_PYTHON: zod_1.z.string().default('python:3.12-alpine'),
+    JUDGE_IMAGE_CPP: zod_1.z.string().default('gcc:13-bookworm'),
+    JUDGE_IMAGE_JAVA: zod_1.z.string().default('eclipse-temurin:21-jdk-alpine'),
     // Email (optional)
     SMTP_HOST: zod_1.z.string().optional(),
     SMTP_PORT: zod_1.z.string().transform(Number).optional(),

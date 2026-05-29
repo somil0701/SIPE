@@ -109,6 +109,60 @@ interview-prep-engine/
    docker-compose up -d
    ```
 
+## Local Docker Judge Setup
+
+The coding judge executes submissions in temporary Docker containers. For the simplest local setup, run PostgreSQL and Redis with Docker, then run the backend on your host machine so it can call the Docker CLI.
+
+1. **Make sure Docker Desktop is running**
+   The default judge images are public official images, so Docker can pull them automatically on first run.
+
+2. **Configure backend environment**
+   ```env
+   DOCKER_BINARY="docker"
+   JUDGE_TEMP_DIR="tmp/judge"
+   JUDGE_RUN_TIMEOUT_MS=3000
+   JUDGE_COMPILE_TIMEOUT_MS=10000
+   JUDGE_MEMORY_LIMIT="128m"
+   JUDGE_CPU_LIMIT="0.5"
+   JUDGE_PIDS_LIMIT=64
+   JUDGE_IMAGE_JAVASCRIPT="node:20-alpine"
+   JUDGE_IMAGE_PYTHON="python:3.12-alpine"
+   JUDGE_IMAGE_CPP="gcc:13-bookworm"
+   JUDGE_IMAGE_JAVA="eclipse-temurin:21-jdk-alpine"
+   ```
+
+   Optional: if you want local custom tags instead, build the Dockerfiles in `backend/judge/docker/*` and set these env vars to those tags.
+
+3. **Apply Prisma updates**
+   ```bash
+   cd backend
+   npx prisma generate
+   npx prisma migrate deploy
+   ```
+
+4. **Run locally**
+   ```bash
+   docker-compose up -d postgres redis
+   cd backend
+   npm run dev
+   ```
+
+### Test Case Format
+
+Coding questions are judged with stdin/stdout test cases:
+
+```json
+[
+  {
+    "input": "4\n2 7 11 15\n9",
+    "expectedOutput": "0 1",
+    "isExample": true
+  }
+]
+```
+
+The judge trims surrounding whitespace before comparing stdout with `expectedOutput`.
+
 ## API Documentation
 
 ### Authentication
@@ -123,6 +177,7 @@ interview-prep-engine/
 
 ### Attempts
 - `POST /api/v1/attempts` - Submit solution
+- `POST /api/v1/attempts/run` - Run code once with custom stdin
 - `GET /api/v1/attempts/:id/feedback` - Get AI feedback
 
 ### Mock Interviews

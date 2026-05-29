@@ -13,6 +13,17 @@ export declare const env: {
     OPENAI_MODEL: string;
     MAX_FILE_SIZE: number;
     UPLOAD_DIR: string;
+    DOCKER_BINARY: string;
+    JUDGE_TEMP_DIR: string;
+    JUDGE_RUN_TIMEOUT_MS: number;
+    JUDGE_COMPILE_TIMEOUT_MS: number;
+    JUDGE_MEMORY_LIMIT: string;
+    JUDGE_CPU_LIMIT: string;
+    JUDGE_PIDS_LIMIT: number;
+    JUDGE_IMAGE_JAVASCRIPT: string;
+    JUDGE_IMAGE_PYTHON: string;
+    JUDGE_IMAGE_CPP: string;
+    JUDGE_IMAGE_JAVA: string;
     AWS_REGION: string;
     OPENAI_API_KEY?: string | undefined;
     SMTP_HOST?: string | undefined;

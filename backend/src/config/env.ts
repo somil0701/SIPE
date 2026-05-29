@@ -37,6 +37,19 @@ const envSchema = z.object({
   MAX_FILE_SIZE: z.string().transform(Number).default('5242880'), // 5MB
   UPLOAD_DIR: z.string().default('uploads'),
 
+  // Docker Judge
+  DOCKER_BINARY: z.string().default('docker'),
+  JUDGE_TEMP_DIR: z.string().default('tmp/judge'),
+  JUDGE_RUN_TIMEOUT_MS: z.string().transform(Number).default('3000'),
+  JUDGE_COMPILE_TIMEOUT_MS: z.string().transform(Number).default('10000'),
+  JUDGE_MEMORY_LIMIT: z.string().default('128m'),
+  JUDGE_CPU_LIMIT: z.string().default('0.5'),
+  JUDGE_PIDS_LIMIT: z.string().transform(Number).default('64'),
+  JUDGE_IMAGE_JAVASCRIPT: z.string().default('node:20-alpine'),
+  JUDGE_IMAGE_PYTHON: z.string().default('python:3.12-alpine'),
+  JUDGE_IMAGE_CPP: z.string().default('gcc:13-bookworm'),
+  JUDGE_IMAGE_JAVA: z.string().default('eclipse-temurin:21-jdk-alpine'),
+
   // Email (optional)
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().transform(Number).optional(),

@@ -82,7 +82,8 @@ export interface Question {
 
 export interface TestCase {
   input: string;
-  expected: string;
+  expected?: string;
+  expectedOutput?: string;
   isExample: boolean;
   explanation?: string;
 }
@@ -109,18 +110,36 @@ export interface Attempt {
     slug: string;
     difficulty: string;
   };
+  attemptTestCases?: AttemptTestCaseResult[];
   feedback?: AttemptFeedback;
 }
 
 export type AttemptStatus = 
+  | 'QUEUED'
   | 'PENDING'
+  | 'RUNNING'
   | 'running'
   | 'ACCEPTED'
+  | 'WRONG_ANSWER'
   | 'wrong_answer'
+  | 'TIME_LIMIT_EXCEEDED'
   | 'time_limit_exceeded'
   | 'RUNTIME_ERROR'
+  | 'runtime_error'
+  | 'COMPILATION_ERROR'
   | 'compilation_error'
   | 'PARTIALLY_ACCEPTED';
+
+export interface AttemptTestCaseResult {
+  id: string;
+  testCaseIndex: number;
+  input: string;
+  expectedOutput: string;
+  actualOutput?: string;
+  passed: boolean;
+  executionTime?: number;
+  errorMessage?: string;
+}
 
 export interface AttemptFeedback {
   id: string;

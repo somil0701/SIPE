@@ -51,7 +51,7 @@ export class DockerRunner {
       '--rm',
       '--name',
       containerName,
-      '-i',
+      // '-i',
       '--network',
       'none',
       '--memory',

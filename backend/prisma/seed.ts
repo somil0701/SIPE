@@ -1,3 +1,4 @@
+import { getNewQuestions } from './seedQuestions';
 import {
   AttemptStatus,
   BillingCycle,
@@ -589,6 +590,7 @@ public class Main {
       totalSolves: 18,
       explanation: '<p>Strong behavioral answers include context, personal ownership, and measurable outcome.</p>',
     },
+    ...getNewQuestions(skills),
   ];
 
   const questions: Record<string, Awaited<ReturnType<typeof prisma.question.upsert>>> = {};
@@ -1215,30 +1217,9 @@ async function seedBulkData(
     where: { email: { startsWith: 'user' } }
   });
 
-  const bulkQuestions = [];
-  const qTypes = [QuestionType.CODING, QuestionType.SYSTEM_DESIGN, QuestionType.BEHAVIORAL];
+  const bulkQuestions: any[] = [];
   const difficulties = [Difficulty.easy, Difficulty.medium, Difficulty.hard, Difficulty.expert];
   const skillList = Object.values(skills) as any[];
-  
-  for (let i = 0; i < 40; i++) {
-    const s = skillList[Math.floor(Math.random() * skillList.length)];
-    bulkQuestions.push({
-      skillId: s.id,
-      title: `Generated Question ${i + 1}`,
-      slug: `generated-question-${i + 1}`,
-      description: `A comprehensive practice scenario for ${s.name}.`,
-      problemStatement: `<p>Please solve this advanced problem related to ${s.name}. Consider edge cases and optimize for time complexity.</p>`,
-      difficulty: difficulties[Math.floor(Math.random() * difficulties.length)],
-      type: qTypes[Math.floor(Math.random() * qTypes.length)],
-      acceptanceRate: parseFloat((20 + Math.random() * 60).toFixed(1)),
-      totalAttempts: Math.floor(Math.random() * 2000),
-      totalSolves: Math.floor(Math.random() * 1000),
-      isActive: true,
-      testCases: [],
-      createdAt: daysAgo(Math.floor(Math.random() * 90)),
-    });
-  }
-  await prisma.question.createMany({ data: bulkQuestions, skipDuplicates: true });
   const allQuestions = await prisma.question.findMany();
 
   const interviewStatuses = [InterviewStatus.SCHEDULED, InterviewStatus.IN_PROGRESS, InterviewStatus.COMPLETED, InterviewStatus.CANCELLED];

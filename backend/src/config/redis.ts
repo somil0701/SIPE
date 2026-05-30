@@ -14,7 +14,7 @@ import { logger } from './logger';
 
 // Redis client options
 const redisOptions: RedisOptions = {
-  connectTimeout: 1000,
+  connectTimeout: 10000,
   enableOfflineQueue: false,
   retryStrategy: (times: number) => {
     const delay = Math.min(times * 50, 2000);
@@ -23,7 +23,7 @@ const redisOptions: RedisOptions = {
   maxRetriesPerRequest: 1,
   enableReadyCheck: false,
   lazyConnect: true,
-  tls: {},
+  family: 4,
 };
 
 // Create Redis client

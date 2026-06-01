@@ -18,12 +18,14 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
 
           script: |
+            set -e
+
             cd ~/SIPE/backend
 
             git fetch origin
             git reset --hard origin/main
 
-            npm ci
+            npm install
 
             npx prisma generate
 

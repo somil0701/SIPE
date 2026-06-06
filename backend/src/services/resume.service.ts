@@ -1,9 +1,9 @@
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import { ApiError } from '../middleware/errorHandler';
-import { aiService } from './ai.service';
-import { Resume, ResumeParsedData, DetectedSkill } from '../types';
-import pdfParse from 'pdf-parse';
+import { resumeParserService } from './resume-parser.service';
+import { resumeReviewService } from './resume-review.service';
+import { DetectedSkill, JobMatchAnalysis, Resume, ResumeParsedData } from '../types';
 
 /**
  * Resume Service
@@ -49,7 +49,7 @@ class ResumeService {
     });
 
     // Parse resume asynchronously
-    this.parseResume(resume.id, file.buffer).catch((error) => {
+    this.parseResume(resume.id, file).catch((error) => {
       logger.error('Resume parsing failed', { error, resumeId: resume.id });
     });
 
@@ -59,7 +59,15 @@ class ResumeService {
   /**
    * Parse resume content
    */
-  private async parseResume(resumeId: string, fileBuffer: Buffer): Promise<void> {
+  private async parseResume(
+    resumeId: string,
+    file: {
+      buffer: Buffer;
+      originalname: string;
+      mimetype: string;
+      size: number;
+    }
+  ): Promise<void> {
     try {
       // Update status to processing
       await prisma.resume.update({
@@ -67,12 +75,11 @@ class ResumeService {
         data: { parsingStatus: 'processing' },
       });
 
-      // Parse PDF
-      const pdfData = await pdfParse(fileBuffer);
-      const resumeText = pdfData.text;
+      // Parse PDF/DOCX text, then run AI-backed ATS review.
+      const parsedDocument = await resumeParserService.parse(file);
+      const resumeText = parsedDocument.text;
 
-      // Use AI to extract structured information
-      const analysis = await aiService.analyzeResume({ resumeText });
+      const analysis = await resumeReviewService.analyzeResume(resumeText);
 
       // Update resume with parsed data
       await prisma.resume.update({
@@ -90,24 +97,39 @@ class ResumeService {
       });
 
       // Save detected skills
-      for (const skill of analysis.skills) {
-        // Try to find matching skill in database
-        const dbSkill = await prisma.skill.findFirst({
-          where: {
-            name: { contains: skill.skillName, mode: 'insensitive' },
-            isActive: true,
-          },
-        });
+      const activeSkills = await prisma.skill.findMany({
+        where: { isActive: true },
+      });
 
-        await prisma.resumeSkill.create({
-          data: {
-            resumeId,
-            skillId: dbSkill?.id,
-            skillName: skill.skillName,
-            confidenceScore: skill.confidenceScore,
-            yearsExperience: skill.yearsExperience,
-            context: skill.context,
-          },
+      const resumeSkillsData = analysis.skills.map((skill) => {
+        const skillNameLower = skill.skillName.toLowerCase();
+        let dbSkillId = null;
+
+        // Try exact match first
+        const exactMatch = activeSkills.find((s) => s.name.toLowerCase() === skillNameLower);
+        if (exactMatch) {
+          dbSkillId = exactMatch.id;
+        } else {
+          // Fallback to partial match
+          const partialMatch = activeSkills.find((s) => s.name.toLowerCase().includes(skillNameLower));
+          if (partialMatch) {
+            dbSkillId = partialMatch.id;
+          }
+        }
+
+        return {
+          resumeId,
+          skillId: dbSkillId,
+          skillName: skill.skillName,
+          confidenceScore: skill.confidenceScore,
+          yearsExperience: skill.yearsExperience,
+          context: skill.context,
+        };
+      });
+
+      if (resumeSkillsData.length > 0) {
+        await prisma.resumeSkill.createMany({
+          data: resumeSkillsData,
         });
       }
 
@@ -124,6 +146,30 @@ class ResumeService {
 
       throw error;
     }
+  }
+
+  /**
+   * Match the active resume against a job description
+   */
+  async matchJobDescription(userId: string, jobDescription: string): Promise<JobMatchAnalysis> {
+    const resume = await prisma.resume.findFirst({
+      where: { userId, isActive: true },
+      orderBy: { uploadedAt: 'desc' },
+    });
+
+    if (!resume) {
+      throw ApiError.notFound('No active resume found');
+    }
+
+    if (resume.parsingStatus !== 'completed' || !resume.parsedText || !resume.parsedData) {
+      throw ApiError.badRequest('Resume must finish parsing before job matching is available');
+    }
+
+    return resumeReviewService.matchJobDescription(
+      resume.parsedText,
+      resume.parsedData as unknown as ResumeParsedData,
+      jobDescription
+    );
   }
 
   /**
@@ -219,11 +265,8 @@ class ResumeService {
 
     // Find missing important skills
     const missingSkills = allSkills
-      .filter(
-        (skill) =>
-          !detectedSkillNames.has(skill.name.toLowerCase()) &&
-          (skill.category === 'DATA_STRUCTURES' || skill.category === 'ALGORITHMS')
-      )
+      .filter((skill) => !detectedSkillNames.has(skill.name.toLowerCase()))
+      .sort((a, b) => (a.difficultyLevel || 5) - (b.difficultyLevel || 5))
       .slice(0, 10)
       .map((skill) => ({
         skillName: skill.name,

@@ -33,6 +33,10 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4-turbo-preview'),
 
+  // Groq
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
+
   // File Upload
   MAX_FILE_SIZE: z.string().transform(Number).default('5242880'), // 5MB
   UPLOAD_DIR: z.string().default('uploads'),

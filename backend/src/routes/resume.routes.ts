@@ -1,26 +1,52 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 import { resumeService } from '../services/resume.service';
 import { authenticate } from '../middleware/auth';
 import { asyncHandler, ApiError } from '../middleware/errorHandler';
 import { env } from '../config/env';
+import { validate } from '../middleware/validate';
+
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Configure multer for file upload
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      cb(null, uploadsDir);
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + '-' + file.originalname.replace(/[^a-zA-Z0-9.]/g, '_'));
+    },
+  }),
   limits: {
     fileSize: env.MAX_FILE_SIZE,
   },
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['application/pdf'];
-    if (allowedTypes.includes(file.mimetype)) {
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    const hasAllowedExtension = /\.(pdf|docx)$/i.test(file.originalname);
+    if (allowedTypes.includes(file.mimetype) || hasAllowedExtension) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF files are supported by the local parser.'));
+      cb(new Error('Invalid file type. Upload a PDF or DOCX resume.'));
     }
   },
+});
+
+const jobMatchSchema = z.object({
+  jobDescription: z.string().min(80, 'Job description must be at least 80 characters'),
 });
 
 /**
@@ -39,12 +65,13 @@ router.post(
 
     // In production, upload to S3/MinIO first
     // For now, use a local path
-    const fileUrl = `/uploads/${req.file.originalname}`;
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const buffer = await fs.promises.readFile(req.file.path);
 
     const resume = await resumeService.uploadResume(
       req.user!.id,
       {
-        buffer: req.file.buffer,
+        buffer,
         originalname: req.file.originalname,
         mimetype: req.file.mimetype,
         size: req.file.size,
@@ -143,6 +170,29 @@ router.get(
     res.json({
       success: true,
       data: questions,
+    });
+  })
+);
+
+/**
+ * @route   POST /api/v1/resumes/current/job-match
+ * @desc    Match active resume against a job description
+ * @access  Private
+ * NOTE: must be declared BEFORE /:id
+ */
+router.post(
+  '/current/job-match',
+  authenticate,
+  validate({ body: jobMatchSchema }),
+  asyncHandler(async (req, res) => {
+    const analysis = await resumeService.matchJobDescription(
+      req.user!.id,
+      req.body.jobDescription
+    );
+
+    res.json({
+      success: true,
+      data: analysis,
     });
   })
 );

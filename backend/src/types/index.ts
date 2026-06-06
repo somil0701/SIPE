@@ -144,7 +144,7 @@ export interface Attempt {
   isPractice: boolean;
 }
 
-export type AttemptStatus = 
+export type AttemptStatus =
   | 'QUEUED'
   | 'PENDING'
   | 'RUNNING'
@@ -267,11 +267,15 @@ export interface ResumeParsedData {
   name?: string;
   email?: string;
   phone?: string;
+  contactInfo?: ContactInformation;
   summary?: string;
   experience: WorkExperience[];
   education: Education[];
   projects: Project[];
   skills: string[];
+  certifications?: Certification[];
+  achievements?: string[];
+  review?: ResumeReviewAnalysis;
 }
 
 export interface WorkExperience {
@@ -280,6 +284,9 @@ export interface WorkExperience {
   startDate?: string;
   endDate?: string;
   description?: string;
+  bullets?: string[];
+  technologies?: string[];
+  location?: string;
 }
 
 export interface Education {
@@ -287,6 +294,8 @@ export interface Education {
   degree: string;
   field?: string;
   graduationDate?: string;
+  location?: string;
+  details?: string[];
 }
 
 export interface Project {
@@ -294,6 +303,9 @@ export interface Project {
   description?: string;
   technologies?: string[];
   link?: string;
+  role?: string;
+  impact?: string;
+  bullets?: string[];
 }
 
 export interface DetectedSkill {
@@ -302,6 +314,107 @@ export interface DetectedSkill {
   confidenceScore?: number;
   yearsExperience?: number;
   context?: string;
+}
+
+export interface ContactInformation {
+  email?: string;
+  phone?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
+}
+
+export interface Certification {
+  name: string;
+  issuer?: string;
+  date?: string;
+}
+
+export type SkillCategoryKey =
+  | 'programmingLanguages'
+  | 'frontend'
+  | 'backend'
+  | 'databases'
+  | 'devOps'
+  | 'cloud'
+  | 'aiMl'
+  | 'other';
+
+export type SkillCategoryAnalysis = Record<SkillCategoryKey, string[]>;
+
+export interface ScoreFactor {
+  key: string;
+  label: string;
+  score: number;
+  weight: number;
+  rationale: string;
+  evidence: string[];
+  suggestions: string[];
+}
+
+export interface PriorityImprovement {
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  recommendation: string;
+  impact?: string;
+}
+
+export interface ProjectAnalysis {
+  name: string;
+  technologies: string[];
+  qualityScore: number;
+  qualityRating: string;
+  descriptionQuality: string;
+  measurableImpact: boolean;
+  strengths: string[];
+  weaknesses: string[];
+  suggestedDescription: string;
+}
+
+export interface ExperienceAnalysis {
+  company: string;
+  title: string;
+  weakBullets: string[];
+  actionRewrites: string[];
+  quantificationIdeas: string[];
+  suggestions: string[];
+}
+
+export interface ResumeReviewAnalysis {
+  atsScore: number;
+  overallRating: string;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  missingSections: string[];
+  missingKeywords: string[];
+  priorityImprovements: PriorityImprovement[];
+  scoreBreakdown: ScoreFactor[];
+  projectAnalysis: ProjectAnalysis[];
+  experienceAnalysis: ExperienceAnalysis[];
+  skillAnalysis: SkillCategoryAnalysis;
+  generatedBy: 'groq' | 'local-fallback';
+  generatedAt: string;
+}
+
+export interface ResumeAnalysisResult {
+  parsedData: ResumeParsedData;
+  skills: DetectedSkill[];
+  review: ResumeReviewAnalysis;
+}
+
+export interface JobMatchAnalysis {
+  matchScore: number;
+  rating: string;
+  matchingSkills: string[];
+  missingSkills: string[];
+  matchingKeywords: string[];
+  missingKeywords: string[];
+  resumeImprovementSuggestions: string[];
+  scoreBreakdown: ScoreFactor[];
+  generatedBy: 'groq' | 'local-fallback';
+  generatedAt: string;
 }
 
 // ============================================

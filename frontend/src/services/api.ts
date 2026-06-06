@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/authStore'
-import { ApiResponse } from '../types'
+import { ApiResponse, JobMatchAnalysis, Resume } from '../types'
 
 const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000/api/v1'
 
@@ -302,13 +302,15 @@ export const resumeApi = {
   upload: (file: File) => {
     const formData = new FormData()
     formData.append('resume', file)
-    return api.post<any>('/resumes/upload', formData)
+    return api.post<Resume>('/resumes/upload', formData)
   },
-  getAll: () => api.get<any[]>('/resumes'),
-  getCurrent: () => api.get<any>('/resumes/current'),
+  getAll: () => api.get<Resume[]>('/resumes'),
+  getCurrent: () => api.get<Resume | null>('/resumes/current'),
   getSkillsGap: () => api.get<any>('/resumes/skills-gap/analysis'),
   getPersonalizedQuestions: (limit = 5) =>
     api.get<any[]>('/resumes/personalized-questions/list', { params: { limit } }),
+  matchJobDescription: (jobDescription: string) =>
+    api.post<JobMatchAnalysis>('/resumes/current/job-match', { jobDescription }),
   delete: (id: string) => api.delete<void>(`/resumes/${id}`),
 }
 

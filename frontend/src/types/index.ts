@@ -388,7 +388,7 @@ export interface ResumeReviewAnalysis {
   projectAnalysis: ProjectAnalysis[];
   experienceAnalysis: ExperienceAnalysis[];
   skillAnalysis: SkillCategoryAnalysis;
-  generatedBy: 'gemini' | 'local-fallback';
+  generatedBy: 'groq' | 'local-fallback';
   generatedAt: string;
 }
 
@@ -401,7 +401,7 @@ export interface JobMatchAnalysis {
   missingKeywords: string[];
   resumeImprovementSuggestions: string[];
   scoreBreakdown: ScoreFactor[];
-  generatedBy: 'gemini' | 'local-fallback';
+  generatedBy: 'groq' | 'local-fallback';
   generatedAt: string;
 }
 

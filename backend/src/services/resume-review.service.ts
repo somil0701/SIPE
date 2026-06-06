@@ -328,6 +328,8 @@ const aiResumeReviewSchema = z.object({
 });
 
 const jobMatchAdviceSchema = z.object({
+  matchingSkills: stringArraySchema.optional(),
+  missingSkills: stringArraySchema.optional(),
   resumeImprovementSuggestions: stringArraySchema,
   missingKeywords: stringArraySchema,
 });
@@ -422,9 +424,21 @@ class ResumeReviewService {
     const missingKeywords = jobKeywords.filter((keyword) =>
       !matchingKeywords.some((match) => match.toLowerCase() === keyword.toLowerCase())
     );
-    const skillCoverage = jobSkills.length ? matchingSkills.length / jobSkills.length : 0.55;
+    const localSuggestions = this.buildJobMatchSuggestions(missingSkills, missingKeywords, this.calculateRoleEvidence(parsedData, jobDescription));
+    const aiAdvice = await this.getGroqJobMatchAdvice(resumeText, jobDescription, {
+      matchingSkills,
+      missingSkills,
+      matchingKeywords,
+      missingKeywords,
+    });
+
+    const finalMatchingSkills = aiAdvice?.matchingSkills?.length ? aiAdvice.matchingSkills : matchingSkills;
+    const finalMissingSkills = aiAdvice?.missingSkills?.length ? aiAdvice.missingSkills : missingSkills;
+    const totalJobSkills = Math.max(jobSkills.length, finalMatchingSkills.length + finalMissingSkills.length) || 1;
+    const skillCoverage = finalMatchingSkills.length / totalJobSkills;
+    
     const keywordCoverage = jobKeywords.length ? matchingKeywords.length / jobKeywords.length : 0.5;
-    const roleEvidence = this.calculateRoleEvidence(parsedData, jobDescription);
+    const roleEvidenceScore = this.calculateRoleEvidence(parsedData, jobDescription);
 
     const factors: ScoreFactor[] = [
       {
@@ -432,9 +446,9 @@ class ResumeReviewService {
         label: 'Skill Alignment',
         score: this.toScore(skillCoverage),
         weight: 60,
-        rationale: `${matchingSkills.length} of ${jobSkills.length || 'available'} role skills appear in the resume.`,
-        evidence: matchingSkills.slice(0, 8),
-        suggestions: missingSkills.slice(0, 5).map((skill) => `Add credible evidence for ${skill} if you have used it.`),
+        rationale: `${finalMatchingSkills.length} relevant role skills appear in the resume.`,
+        evidence: finalMatchingSkills.slice(0, 8),
+        suggestions: finalMissingSkills.slice(0, 5).map((skill) => `Add credible evidence for ${skill} if you have used it.`),
       },
       {
         key: 'keyword_coverage',
@@ -448,7 +462,7 @@ class ResumeReviewService {
       {
         key: 'role_evidence',
         label: 'Role Evidence',
-        score: roleEvidence,
+        score: roleEvidenceScore,
         weight: 15,
         rationale: 'Measures whether the resume backs role keywords with experience or project evidence.',
         evidence: this.findRoleEvidence(parsedData, jobDescription).slice(0, 4),
@@ -456,21 +470,13 @@ class ResumeReviewService {
       },
     ];
 
-    const localSuggestions = this.buildJobMatchSuggestions(missingSkills, missingKeywords, roleEvidence);
-    const aiAdvice = await this.getGroqJobMatchAdvice(resumeText, jobDescription, {
-      matchingSkills,
-      missingSkills,
-      matchingKeywords,
-      missingKeywords,
-    });
-
     const matchScore = this.weightedScore(factors);
 
     return {
       matchScore,
       rating: this.ratingForScore(matchScore),
-      matchingSkills: matchingSkills.slice(0, 16),
-      missingSkills: missingSkills.slice(0, 16),
+      matchingSkills: finalMatchingSkills.slice(0, 16),
+      missingSkills: finalMissingSkills.slice(0, 16),
       matchingKeywords: matchingKeywords.slice(0, 16),
       missingKeywords: this.uniqueStrings([...(aiAdvice?.missingKeywords || []), ...missingKeywords]).slice(0, 16),
       resumeImprovementSuggestions: this.uniqueStrings([
@@ -554,6 +560,8 @@ ${resumeText.slice(0, 28000)}`;
     const prompt = `You are an ATS resume-to-job-description reviewer.
 Return ONLY valid JSON in this shape:
 {
+  "matchingSkills": ["skills explicitly listed in both the resume and JD"],
+  "missingSkills": ["important skills required by JD but missing from resume"],
   "resumeImprovementSuggestions": ["specific, truthful, role-targeted resume edits"],
   "missingKeywords": ["important JD keywords that are absent or weak in the resume"]
 }

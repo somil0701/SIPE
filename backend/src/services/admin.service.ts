@@ -1,4 +1,111 @@
 import { prisma } from '../config/database';
+import { ApiError } from '../middleware/errorHandler';
+
+const QUESTION_FIELDS = [
+  'skillId',
+  'title',
+  'slug',
+  'description',
+  'problemStatement',
+  'difficulty',
+  'type',
+  'starterCode',
+  'solutionCode',
+  'optimalTimeComplexity',
+  'optimalSpaceComplexity',
+  'hints',
+  'testCases',
+  'constraints',
+  'followUpQuestions',
+  'companyTags',
+  'topicTags',
+  'leetcodeId',
+  'hackerrankId',
+  'acceptanceRate',
+  'totalAttempts',
+  'totalSolves',
+  'avgTimeSpent',
+  'baseDifficultyScore',
+  'adaptiveWeight',
+  'explanation',
+  'videoSolutionUrl',
+  'articleUrl',
+  'isPremium',
+  'isActive',
+  'verifiedBy',
+];
+
+const REQUIRED_QUESTION_FIELDS = [
+  'skillId',
+  'title',
+  'slug',
+  'description',
+  'problemStatement',
+  'difficulty',
+  'type',
+  'hints',
+  'testCases',
+  'constraints',
+  'followUpQuestions',
+  'companyTags',
+  'topicTags',
+];
+
+const ARRAY_QUESTION_FIELDS = [
+  'hints',
+  'constraints',
+  'followUpQuestions',
+  'companyTags',
+  'topicTags',
+];
+
+const normalizeQuestionData = (data: any, requireRequiredFields = false) => {
+  if (!data || typeof data !== 'object') {
+    throw ApiError.badRequest('Question payload is required');
+  }
+
+  const normalized: any = {};
+  QUESTION_FIELDS.forEach((field) => {
+    if (data[field] !== undefined) {
+      normalized[field] = data[field];
+    }
+  });
+
+  ARRAY_QUESTION_FIELDS.forEach((field) => {
+    if (normalized[field] === undefined && requireRequiredFields) {
+      normalized[field] = [];
+    }
+  });
+
+  if (requireRequiredFields) {
+    const missingFields = REQUIRED_QUESTION_FIELDS.filter((field) => {
+      const value = normalized[field];
+      return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+    });
+
+    if (missingFields.length > 0) {
+      throw ApiError.validation('Question validation failed', {
+        fields: missingFields.map((field) => `${field} is required`),
+      });
+    }
+  }
+
+  if (normalized.testCases !== undefined && !Array.isArray(normalized.testCases)) {
+    throw ApiError.validation('Question validation failed', {
+      testCases: ['testCases must be an array'],
+    });
+  }
+
+  ARRAY_QUESTION_FIELDS.forEach((field) => {
+    if (normalized[field] !== undefined && !Array.isArray(normalized[field])) {
+      throw ApiError.validation('Question validation failed', {
+        [field]: [`${field} must be an array`],
+      });
+    }
+  });
+
+  return normalized;
+};
 
 export class AdminService {
   async getDashboardStats() {
@@ -188,28 +295,25 @@ export class AdminService {
   }
 
   async createQuestion(data: any) {
-    // Generate a simple testCases JSON array if not provided
-    if (!data.testCases) {
-      data.testCases = [{ input: "", expectedOutput: "" }];
-    }
+    const questionData = normalizeQuestionData(data, true);
+
     return prisma.question.create({
-      data
+      data: questionData
     });
   }
 
   async updateQuestion(id: string, data: any) {
+    const questionData = normalizeQuestionData(data);
+
     return prisma.question.update({
       where: { id },
-      data
+      data: questionData
     });
   }
 
   async deleteQuestion(id: string) {
-    // We could soft delete, but schema doesn't have deletedAt for Question.
-    // Instead we can mark isActive = false
-    return prisma.question.update({
-      where: { id },
-      data: { isActive: false }
+    return prisma.question.delete({
+      where: { id }
     });
   }
 

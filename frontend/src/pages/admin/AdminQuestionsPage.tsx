@@ -37,12 +37,12 @@ export function AdminQuestionsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminApi.deleteQuestion(id),
     onSuccess: () => {
-      toast.success('Question deactivated successfully');
+      toast.success('Question deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-questions'] });
       setActionMenuOpenId(null);
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to deactivate question');
+      toast.error(error.message || 'Failed to delete question');
     }
   });
 
@@ -208,10 +208,14 @@ export function AdminQuestionsPage() {
                           <div className="border-t my-1"></div>
                           
                           <button
-                            onClick={() => deleteMutation.mutate(question.id)}
+                            onClick={() => {
+                              if (window.confirm(`Delete "${question.title}"?`)) {
+                                deleteMutation.mutate(question.id);
+                              }
+                            }}
                             className="w-full px-4 py-2 text-sm text-red-600 hover:bg-muted flex items-center gap-2"
                           >
-                            <Trash2 className="w-4 h-4" /> Deactivate
+                            <Trash2 className="w-4 h-4" /> Delete
                           </button>
                         </div>
                       )}

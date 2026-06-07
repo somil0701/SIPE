@@ -98,6 +98,11 @@ class ApiService {
 
         const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
+        // Skip token refresh logic for auth routes to allow proper error handling in the UI
+        if (originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/register')) {
+          return Promise.reject(error)
+        }
+
         // Handle token expiration
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true

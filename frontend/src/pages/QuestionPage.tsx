@@ -752,31 +752,31 @@ export function QuestionPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="p-3 border-t flex items-center justify-between">
+          <div className="p-3 border-t flex items-center">
             <div id="vim-status" className="text-xs font-mono text-muted-foreground ml-2"></div>
-            <div className="flex justify-end gap-2">
+            <div className="flex items-center gap-2 ml-auto">
               <button
                 onClick={() => runMutation.mutate()}
-              disabled={runMutation.isPending || !code.trim()}
-              className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
-            >
-              {runMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              Run Code
-            </button>
-            <button
-              onClick={() => submitMutation.mutate()}
-              disabled={submitMutation.isPending || !code.trim()}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            >
-              {submitMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
+                disabled={runMutation.isPending || !code.trim()}
+                className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+              >
+                {runMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Run Code
+              </button>
+              <button
+                onClick={() => submitMutation.mutate()}
+                disabled={submitMutation.isPending || !code.trim()}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {submitMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
                 Submit
               </button>
             </div>

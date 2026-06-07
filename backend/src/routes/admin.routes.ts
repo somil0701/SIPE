@@ -172,4 +172,19 @@ router.get('/resumes', async (req, res, next) => {
   }
 });
 
+router.get('/resumes/:id/download', async (req, res, next) => {
+  try {
+    const file = await adminService.getResumeDownload(req.params.id);
+
+    res.setHeader('Content-Type', file.contentType);
+    res.download(file.filePath, file.downloadName, (error) => {
+      if (error && !res.headersSent) {
+        next(error);
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export const adminRoutes = router;

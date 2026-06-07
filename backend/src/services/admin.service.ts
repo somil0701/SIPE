@@ -1,5 +1,8 @@
 import { prisma } from '../config/database';
 import { ApiError } from '../middleware/errorHandler';
+import { env } from '../config/env';
+import fs from 'fs';
+import path from 'path';
 
 const QUESTION_FIELDS = [
   'skillId',
@@ -105,6 +108,42 @@ const normalizeQuestionData = (data: any, requireRequiredFields = false) => {
   });
 
   return normalized;
+};
+
+const uploadDirectories = Array.from(new Set([
+  path.resolve(process.cwd(), env.UPLOAD_DIR),
+  path.resolve(__dirname, '..', '..', env.UPLOAD_DIR),
+]));
+
+const getStoredResumeFileName = (fileUrl: string) => {
+  const parsedPath = fileUrl.split('?')[0].replace(/\\/g, '/');
+  const fileName = path.posix.basename(parsedPath);
+
+  if (!fileName || fileName === '.' || fileName === '..' || fileName.includes('/') || fileName.includes('\\')) {
+    throw ApiError.badRequest('Invalid resume filename');
+  }
+
+  if (fileName !== path.basename(fileName)) {
+    throw ApiError.badRequest('Invalid resume filename');
+  }
+
+  return fileName;
+};
+
+const getSafeResumeFilePaths = (fileUrl: string) => {
+  const fileName = getStoredResumeFileName(fileUrl);
+  const filePaths = uploadDirectories.map((uploadDirectory) => {
+    const filePath = path.resolve(uploadDirectory, fileName);
+    const relativePath = path.relative(uploadDirectory, filePath);
+
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+      throw ApiError.badRequest('Invalid resume file path');
+    }
+
+    return filePath;
+  });
+
+  return { fileName, filePaths };
 };
 
 export class AdminService {
@@ -369,7 +408,7 @@ export class AdminService {
 
     const where: any = {};
     if (options.status) {
-      where.status = options.status;
+      where.parsingStatus = options.status;
     }
 
     const [resumes, total] = await Promise.all([
@@ -385,14 +424,65 @@ export class AdminService {
       prisma.resume.count({ where })
     ]);
 
+    const resumeFiles = resumes.map((resume) => {
+      const { fileName: storedFileName } = getSafeResumeFilePaths(resume.fileUrl);
+
+      return {
+        id: resume.id,
+        fileName: storedFileName,
+        originalName: resume.fileName,
+        fileType: resume.fileType,
+        fileSize: resume.fileSize,
+        uploadedAt: resume.uploadedAt,
+        parsingStatus: resume.parsingStatus,
+        parsingError: resume.parsingError,
+        isActive: resume.isActive,
+        downloadUrl: `/api/v1/admin/resumes/${resume.id}/download`,
+        user: resume.user,
+      };
+    });
+
     return {
-      resumes,
+      resumes: resumeFiles,
       meta: {
         total,
         page,
         limit,
         totalPages: Math.ceil(total / limit)
       }
+    };
+  }
+
+  async getResumeDownload(resumeId: string) {
+    const resume = await prisma.resume.findUnique({
+      where: { id: resumeId },
+      select: {
+        id: true,
+        fileName: true,
+        fileUrl: true,
+        fileType: true,
+      },
+    });
+
+    if (!resume) {
+      throw ApiError.notFound('Resume not found');
+    }
+
+    const { fileName: storedFileName, filePaths } = getSafeResumeFilePaths(resume.fileUrl);
+
+    const filePath = filePaths.find((candidatePath) => fs.existsSync(candidatePath));
+
+    if (!filePath) {
+      throw ApiError.notFound('Resume file not found');
+    }
+
+    await fs.promises.access(filePath, fs.constants.R_OK);
+
+    return {
+      filePath,
+      storedFileName,
+      downloadName: resume.fileName || storedFileName,
+      contentType: resume.fileType || 'application/octet-stream',
     };
   }
 }

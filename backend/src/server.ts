@@ -7,7 +7,6 @@ import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import path from 'path';
 
 import { env } from './config/env';
 import { logger } from './config/logger';
@@ -87,9 +86,6 @@ const authLimiter = rateLimit({
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Serve uploaded files
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Compression
 app.use(compression());

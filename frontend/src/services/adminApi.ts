@@ -21,4 +21,6 @@ export const adminApi = {
 
   getResumes: (params?: { page?: number; limit?: number; status?: string }) => 
     api.getWithMeta<any[]>('/admin/resumes', { params }),
+  downloadResume: (id: string) =>
+    api.rawClient.get(`/admin/resumes/${id}/download`, { responseType: 'blob' }),
 };

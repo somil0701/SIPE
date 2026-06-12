@@ -17,6 +17,7 @@ import {
 import { questionsApi, attemptsApi } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { initVimMode } from 'monaco-vim'
+import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
 
 const LANGUAGES = [
   { id: 'javascript', name: 'JavaScript' },
@@ -312,9 +313,15 @@ export function QuestionPage() {
   const editorRef = useRef<any>(null)
   const vimAdapterRef = useRef<any>(null)
 
-  const { data: questionData, isLoading } = useQuery({
+  const {
+    data: questionData,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['question', slug],
     queryFn: () => questionsApi.getBySlug(slug!),
+    enabled: Boolean(slug),
   })
 
   const question = questionData
@@ -404,15 +411,42 @@ export function QuestionPage() {
   })
 
   if (isLoading) {
+    return <LoadingState message="Loading question..." bordered />
+  }
+
+  if (isError) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      <ErrorState
+        title="Unable to load question"
+        action={
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Retry
+          </button>
+        }
+      />
     )
   }
 
   if (!question) {
-    return <div className="text-center py-12">Question not found</div>
+    return (
+      <EmptyState
+        title="Question not found"
+        message="The question may have been removed or the link may be incorrect."
+        action={
+          <button
+            type="button"
+            onClick={() => navigate('/practice')}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Back to Practice
+          </button>
+        }
+      />
+    )
   }
 
   const latestAttemptRunning = isJudgeInProgress(latestAttempt?.status)
@@ -425,7 +459,7 @@ export function QuestionPage() {
         <button
           type="button"
           onClick={() => navigate('/practice')}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-2 rounded-lg text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to Practice
@@ -443,12 +477,15 @@ export function QuestionPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Left Panel - Problem Description */}
         <div className="rounded-xl border bg-card overflow-hidden">
-          <div className="flex border-b">
+          <div className="flex border-b" role="tablist" aria-label="Question details">
             {(['description', 'solution', 'submissions'] as const).map((tab) => (
               <button
+                type="button"
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 px-4 py-3 text-sm font-medium capitalize ${
+                role="tab"
+                aria-selected={activeTab === tab}
+                className={`flex-1 px-4 py-3 text-sm font-medium capitalize focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
                   activeTab === tab
                     ? 'border-b-2 border-primary text-primary'
                     : 'text-muted-foreground hover:text-foreground'
@@ -505,16 +542,18 @@ export function QuestionPage() {
                     </h3>
                     <div className="space-y-2">
                       {question.hints.map((hint: string, i: number) => (
-                        <div
+                        <button
+                          type="button"
                           key={i}
-                          className="p-3 rounded-lg border cursor-pointer hover:bg-muted"
+                          className="w-full p-3 rounded-lg border text-left hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           onClick={() => setShowHint(showHint === i ? null : i)}
+                          aria-expanded={showHint === i}
                         >
                           <p className="text-sm font-medium">Hint {i + 1}</p>
                           {showHint === i && (
                             <p className="text-sm text-muted-foreground mt-1">{hint}</p>
                           )}
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -657,8 +696,8 @@ export function QuestionPage() {
         {/* Right Panel - Code Editor */}
         <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
           {/* Editor Toolbar */}
-          <div className="flex items-center justify-between p-3 border-b">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-3 p-3 border-b sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <select
                 value={language}
                 onChange={(e) => {
@@ -667,7 +706,8 @@ export function QuestionPage() {
                   setRunResult(null)
                   setCode(getStarterCode(question, nextLanguage))
                 }}
-                className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Programming language"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang.id} value={lang.id}>
@@ -680,7 +720,7 @@ export function QuestionPage() {
                   type="checkbox" 
                   checked={vimMode}
                   onChange={(e) => setVimMode(e.target.checked)}
-                  className="rounded border-input bg-background"
+                  className="rounded border-input bg-background focus:ring-2 focus:ring-ring"
                 />
                 Vim Mode
               </label>
@@ -730,8 +770,9 @@ export function QuestionPage() {
               <textarea
                 value={customInput}
                 onChange={(e) => setCustomInput(e.target.value)}
-                className="h-36 w-full resize-none bg-background p-3 font-mono text-sm outline-none"
+                className="h-36 w-full resize-none bg-background p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-inset focus:ring-ring"
                 spellCheck={false}
+                aria-label="Custom input"
               />
             </div>
             <div>
@@ -746,20 +787,24 @@ export function QuestionPage() {
                   </span>
                 )}
               </div>
-              <pre className="h-36 overflow-auto whitespace-pre-wrap bg-zinc-950 p-3 font-mono text-xs text-zinc-100">
+              <pre
+                className="h-36 overflow-auto whitespace-pre-wrap bg-zinc-950 p-3 font-mono text-xs text-zinc-100"
+                aria-live="polite"
+              >
                 {getConsoleText(runResult)}
               </pre>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="p-3 border-t flex items-center">
-            <div id="vim-status" className="text-xs font-mono text-muted-foreground ml-2"></div>
-            <div className="flex items-center gap-2 ml-auto">
+          <div className="p-3 border-t flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div id="vim-status" className="text-xs font-mono text-muted-foreground sm:ml-2"></div>
+            <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
               <button
+                type="button"
                 onClick={() => runMutation.mutate()}
                 disabled={runMutation.isPending || !code.trim()}
-                className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {runMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -769,9 +814,10 @@ export function QuestionPage() {
                 Run Code
               </button>
               <button
+                type="button"
                 onClick={() => submitMutation.mutate()}
                 disabled={submitMutation.isPending || !code.trim()}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {submitMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

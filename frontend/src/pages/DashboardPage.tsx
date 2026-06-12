@@ -14,21 +14,37 @@ import {
 } from 'lucide-react'
 import { analyticsApi, questionsApi, interviewsApi } from '../services/api'
 import { useAuthStore } from '../store/authStore'
+import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
 
 export function DashboardPage() {
   const { user } = useAuthStore()
 
-  const { data: analytics } = useQuery({
+  const {
+    data: analytics,
+    isLoading: isAnalyticsLoading,
+    isError: isAnalyticsError,
+    refetch: refetchAnalytics,
+  } = useQuery({
     queryKey: ['analytics'],
     queryFn: () => analyticsApi.getUserAnalytics(),
   })
 
-  const { data: recommendedQuestions } = useQuery({
+  const {
+    data: recommendedQuestions,
+    isLoading: isRecommendedLoading,
+    isError: isRecommendedError,
+    refetch: refetchRecommended,
+  } = useQuery({
     queryKey: ['recommended-questions'],
     queryFn: () => questionsApi.getRecommended(3),
   })
 
-  const { data: interviews } = useQuery({
+  const {
+    data: interviews,
+    isLoading: isInterviewsLoading,
+    isError: isInterviewsError,
+    refetch: refetchInterviews,
+  } = useQuery({
     queryKey: ['recent-interviews'],
     queryFn: () => interviewsApi.getAll({ limit: 3 }),
   })
@@ -110,7 +126,37 @@ export function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
+        {isAnalyticsLoading ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="rounded-xl border bg-card p-6 shadow-sm"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-lg bg-muted animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+                  <div className="h-7 w-16 rounded bg-muted animate-pulse" />
+                </div>
+              </div>
+            </div>
+          ))
+        ) : isAnalyticsError ? (
+          <div className="sm:col-span-2 lg:col-span-4">
+            <ErrorState
+              title="Unable to load progress"
+              action={
+                <button
+                  type="button"
+                  onClick={() => refetchAnalytics()}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  Retry
+                </button>
+              }
+            />
+          </div>
+        ) : stats.map((stat) => (
           <div
             key={stat.name}
             className="rounded-xl border bg-card p-6 shadow-sm"
@@ -163,7 +209,7 @@ export function DashboardPage() {
         {/* Recommended Questions */}
         <div className="rounded-xl border bg-card shadow-sm">
           <div className="p-6 border-b">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Zap className="h-5 w-5 text-yellow-500" />
                 Recommended for You
@@ -178,10 +224,27 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="p-6">
-            {!recommendedQuestions || (Array.isArray(recommendedQuestions) && recommendedQuestions.length === 0) ? (
-              <p className="text-muted-foreground text-center py-4">
-                No recommendations yet. Start practicing to get personalized suggestions!
-              </p>
+            {isRecommendedLoading ? (
+              <LoadingState message="Loading recommendations..." bordered={false} />
+            ) : isRecommendedError ? (
+              <ErrorState
+                title="Unable to load recommendations"
+                bordered={false}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => refetchRecommended()}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    Retry
+                  </button>
+                }
+              />
+            ) : !recommendedQuestions || (Array.isArray(recommendedQuestions) && recommendedQuestions.length === 0) ? (
+              <EmptyState
+                message="No recommendations yet. Start practicing to get personalized suggestions!"
+                bordered={false}
+              />
             ) : (
               <div className="space-y-4">
                 {(Array.isArray(recommendedQuestions) ? recommendedQuestions : []).map((question: any) => (
@@ -212,7 +275,7 @@ export function DashboardPage() {
         {/* Recent Interviews */}
         <div className="rounded-xl border bg-card shadow-sm">
           <div className="p-6 border-b">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-blue-500" />
                 Recent Mock Interviews
@@ -227,19 +290,36 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="p-6">
-            {!interviews || (Array.isArray(interviews) ? interviews.length === 0 : !interviews) ? (
-              <div className="text-center py-4">
-                <p className="text-muted-foreground mb-4">
-                  No mock interviews yet. Start practicing today!
-                </p>
-                <Link
-                  to="/mock-interview"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  <Mic className="h-4 w-4" />
-                  Start Mock Interview
-                </Link>
-              </div>
+            {isInterviewsLoading ? (
+              <LoadingState message="Loading recent interviews..." bordered={false} />
+            ) : isInterviewsError ? (
+              <ErrorState
+                title="Unable to load interviews"
+                bordered={false}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => refetchInterviews()}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    Retry
+                  </button>
+                }
+              />
+            ) : !interviews || (Array.isArray(interviews) ? interviews.length === 0 : !interviews) ? (
+              <EmptyState
+                message="No mock interviews yet. Start practicing today!"
+                bordered={false}
+                action={
+                  <Link
+                    to="/mock-interview"
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <Mic className="h-4 w-4" />
+                    Start Mock Interview
+                  </Link>
+                }
+              />
             ) : (
               <div className="space-y-4">
                 {(Array.isArray(interviews) ? interviews : (interviews as any)?.interviews || []).map((interview: any) => (

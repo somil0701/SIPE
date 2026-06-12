@@ -421,15 +421,16 @@ export function QuestionPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
+          type="button"
           onClick={() => navigate('/practice')}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to Practice
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className={`px-3 py-1 rounded-full text-sm difficulty-${question.difficulty}`}>
             {question.difficulty}
           </span>

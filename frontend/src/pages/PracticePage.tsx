@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Search, ChevronRight, CheckCircle2, Circle } from 'lucide-react'
 import { questionsApi } from '../services/api'
+import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
 
 const difficulties = ['all', 'easy', 'medium', 'hard', 'expert']
 const types = ['all', 'coding', 'system-design', 'behavioral', 'theoretical']
@@ -13,7 +14,12 @@ export function PracticePage() {
   const [type, setType] = useState('all')
   const [page, setPage] = useState(1)
 
-  const { data: queryResult, isLoading } = useQuery({
+  const {
+    data: queryResult,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['questions', { search, difficulty, type, page }],
     queryFn: () =>
       questionsApi.getAll({
@@ -46,15 +52,23 @@ export function PracticePage() {
             type="text"
             placeholder="Search questions..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background pl-10 pr-4 py-2 text-sm"
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            className="w-full rounded-lg border border-input bg-background pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Search questions"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <select
             value={difficulty}
-            onChange={(e) => setDifficulty(e.target.value)}
-            className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            onChange={(e) => {
+              setDifficulty(e.target.value)
+              setPage(1)
+            }}
+            className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Filter by difficulty"
           >
             {difficulties.map((d) => (
               <option key={d} value={d}>
@@ -64,8 +78,12 @@ export function PracticePage() {
           </select>
           <select
             value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            onChange={(e) => {
+              setType(e.target.value)
+              setPage(1)
+            }}
+            className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Filter by question type"
           >
             {types.map((t) => (
               <option key={t} value={t}>
@@ -78,33 +96,41 @@ export function PracticePage() {
 
       {/* Questions List */}
       {isLoading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-          <p className="text-muted-foreground mt-4">Loading questions...</p>
-        </div>
+        <LoadingState message="Loading questions..." />
+      ) : isError ? (
+        <ErrorState
+          title="Unable to load questions"
+          action={
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Retry
+            </button>
+          }
+        />
       ) : questions.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No questions found</p>
-        </div>
+        <EmptyState message="No questions found" bordered={false} />
       ) : (
         <div className="space-y-3">
           {questions.map((question: any) => (
             <Link
               key={question.id}
               to={`/practice/${question.slug}`}
-              className="flex items-center justify-between p-4 rounded-xl border bg-card hover:shadow-md transition-shadow"
+              className="flex flex-col gap-3 p-4 rounded-xl border bg-card hover:shadow-md transition-shadow sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex min-w-0 items-start gap-4 sm:items-center">
                 {question.attemptStatus === 'ACCEPTED' ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500 sm:mt-0" />
                 ) : question.attemptStatus ? (
-                  <Circle className="h-5 w-5 text-yellow-500" />
+                  <Circle className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-500 sm:mt-0" />
                 ) : (
-                  <Circle className="h-5 w-5 text-muted-foreground" />
+                  <Circle className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground sm:mt-0" />
                 )}
-                <div>
+                <div className="min-w-0">
                   <h3 className="font-medium">{question.title}</h3>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
                     <span className={`text-xs px-2 py-0.5 rounded-full difficulty-${question.difficulty}`}>
                       {question.difficulty}
                     </span>
@@ -119,7 +145,7 @@ export function PracticePage() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between gap-4 pl-9 sm:pl-0">
                 <span className="text-sm text-muted-foreground">
                   {question.acceptanceRate}% acceptance
                 </span>

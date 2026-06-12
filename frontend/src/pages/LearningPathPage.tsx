@@ -42,7 +42,7 @@ export function LearningPathPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Learning Paths</h1>
           <p className="text-muted-foreground mt-1">
@@ -50,8 +50,9 @@ export function LearningPathPage() {
           </p>
         </div>
         <button
+          type="button"
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           Create Path

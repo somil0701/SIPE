@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Brain, Clock, CheckCircle2, TrendingUp, Calendar } from 'lucide-react'
 import { spacedRepetitionApi } from '../services/api'
+import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
 
 const QUALITY_RATINGS = [
   { value: 0, label: 'Complete blackout', color: 'bg-red-500' },
@@ -14,7 +15,12 @@ const QUALITY_RATINGS = [
 ]
 
 export function SpacedRepetitionPage() {
-  const { data: dueReviews, refetch: refetchDue } = useQuery({
+  const {
+    data: dueReviews,
+    isLoading: isDueLoading,
+    isError: isDueError,
+    refetch: refetchDue,
+  } = useQuery({
     queryKey: ['due-reviews'],
     queryFn: () => spacedRepetitionApi.getDue(10),
   })
@@ -31,6 +37,9 @@ export function SpacedRepetitionPage() {
       toast.success('Review recorded!')
       refetchDue()
       refetchStats()
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to record review')
     },
   })
 
@@ -90,14 +99,29 @@ export function SpacedRepetitionPage() {
           </h2>
         </div>
         <div className="p-6">
-          {dueList.length === 0 ? (
-            <div className="text-center py-12">
-              <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold">All caught up!</h3>
-              <p className="text-muted-foreground">
-                No questions due for review. Great job!
-              </p>
-            </div>
+          {isDueLoading ? (
+            <LoadingState message="Loading reviews..." />
+          ) : isDueError ? (
+            <ErrorState
+              title="Unable to load reviews"
+              bordered={false}
+              action={
+                <button
+                  type="button"
+                  onClick={() => refetchDue()}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  Retry
+                </button>
+              }
+            />
+          ) : dueList.length === 0 ? (
+            <EmptyState
+              title="All caught up!"
+              message="No questions due for review. Great job!"
+              icon={<CheckCircle2 className="h-12 w-12 text-green-500" />}
+              bordered={false}
+            />
           ) : (
             <div className="space-y-6">
               {dueList.map((item: any) => (
@@ -121,14 +145,16 @@ export function SpacedRepetitionPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-6 gap-2">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                     {QUALITY_RATINGS.map((rating) => (
                       <button
+                        type="button"
                         key={rating.value}
                         onClick={() => reviewMutation.mutate({ id: item.id, rating: rating.value })}
                         disabled={reviewMutation.isPending}
-                        className={`p-2 rounded-lg text-xs font-medium text-white ${rating.color} hover:opacity-90 disabled:opacity-50`}
+                        className={`min-h-10 p-2 rounded-lg text-xs font-medium text-white ${rating.color} hover:opacity-90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
                         title={rating.label}
+                        aria-label={`Rate recall ${rating.value}: ${rating.label}`}
                       >
                         {rating.value}
                       </button>

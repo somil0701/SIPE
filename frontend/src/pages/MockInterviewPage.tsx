@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Mic, Plus, Clock, ChevronRight, Loader2, Play, XCircle } from 'lucide-react'
 import { interviewsApi } from '../services/api'
+import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
 
 const INTERVIEW_TYPES = [
   { id: 'technical', name: 'Technical', description: 'Coding and algorithm questions' },
@@ -21,7 +22,12 @@ export function MockInterviewPage() {
   const [difficulty, setDifficulty] = useState('medium')
   const [duration, setDuration] = useState(60)
 
-  const { data: interviews, isLoading } = useQuery({
+  const {
+    data: interviews,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['interviews'],
     queryFn: () => interviewsApi.getAll(),
   })
@@ -45,7 +51,7 @@ export function MockInterviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Mock Interviews</h1>
           <p className="text-muted-foreground mt-1">
@@ -53,8 +59,9 @@ export function MockInterviewPage() {
           </p>
         </div>
         <button
+          type="button"
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           New Interview
@@ -63,23 +70,35 @@ export function MockInterviewPage() {
 
       {/* Interview List */}
       {isLoading ? (
-        <div className="text-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-        </div>
+        <LoadingState message="Loading interviews..." />
+      ) : isError ? (
+        <ErrorState
+          title="Unable to load interviews"
+          action={
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Retry
+            </button>
+          }
+        />
       ) : interviews?.length === 0 ? (
-        <div className="text-center py-12 rounded-xl border bg-card">
-          <Mic className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold">No interviews yet</h3>
-          <p className="text-muted-foreground mt-1 mb-4">
-            Start your first mock interview to practice
-          </p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Start Interview
-          </button>
-        </div>
+        <EmptyState
+          title="No interviews yet"
+          message="Start your first mock interview to practice"
+          icon={<Mic className="h-12 w-12 text-muted-foreground" />}
+          action={
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Start Interview
+            </button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(Array.isArray(interviews) ? interviews : []).map((interview: any) => (
@@ -151,11 +170,21 @@ export function MockInterviewPage() {
 
       {/* Create Interview Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-xl bg-white dark:bg-gray-900 p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div
+            className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-lg dark:bg-gray-900"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-interview-title"
+          >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold">New Mock Interview</h2>
-              <button onClick={() => setShowCreateModal(false)}>
+              <h2 id="new-interview-title" className="text-xl font-semibold">New Mock Interview</h2>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="rounded-lg p-1 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="Close new interview dialog"
+              >
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
@@ -166,9 +195,10 @@ export function MockInterviewPage() {
                 <div className="grid grid-cols-2 gap-2">
                   {INTERVIEW_TYPES.map((type) => (
                     <button
+                      type="button"
                       key={type.id}
                       onClick={() => setInterviewType(type.id)}
-                      className={`p-3 rounded-lg border text-left ${
+                      className={`p-3 rounded-lg border text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                         interviewType === type.id
                           ? 'border-primary bg-primary/5'
                           : 'hover:bg-muted'
@@ -186,9 +216,10 @@ export function MockInterviewPage() {
                 <div className="flex gap-2">
                   {DIFFICULTIES.map((d) => (
                     <button
+                      type="button"
                       key={d}
                       onClick={() => setDifficulty(d)}
-                      className={`flex-1 py-2 rounded-lg border text-sm capitalize ${
+                      className={`flex-1 py-2 rounded-lg border text-sm capitalize focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                         difficulty === d
                           ? 'border-primary bg-primary/5'
                           : 'hover:bg-muted'
@@ -215,9 +246,10 @@ export function MockInterviewPage() {
               </div>
 
               <button
+                type="button"
                 onClick={() => createMutation.mutate()}
                 disabled={createMutation.isPending}
-                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 Start Interview

@@ -50,11 +50,20 @@ export function Layout() {
           />
           <div className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-900">
             <div className="flex h-16 items-center justify-between px-4">
-              <Link to="/dashboard" className="flex items-center gap-2">
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                onClick={() => setSidebarOpen(false)}
+              >
                 <Brain className="h-8 w-8 text-primary" />
                 <span className="text-xl font-bold">InterviewPrep</span>
               </Link>
-              <button onClick={() => setSidebarOpen(false)}>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                className="rounded-lg p-2 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="Close navigation menu"
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
@@ -94,7 +103,10 @@ export function Layout() {
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col gap-2 border-r bg-background px-4 py-4">
-          <Link to="/dashboard" className="flex items-center gap-2 px-2 py-2">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 rounded-lg px-2 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
             <Brain className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold">InterviewPrep</span>
           </Link>
@@ -135,9 +147,11 @@ export function Layout() {
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
               <button
+                type="button"
                 onClick={handleLogout}
-                className="p-2 hover:bg-muted rounded-lg"
+                className="p-2 hover:bg-muted rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 title="Logout"
+                aria-label="Log out"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -150,10 +164,18 @@ export function Layout() {
       <div className="lg:pl-64">
         {/* Mobile header */}
         <div className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-4 lg:hidden">
-          <button onClick={() => setSidebarOpen(true)}>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="rounded-lg p-2 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label="Open navigation menu"
+          >
             <Menu className="h-6 w-6" />
           </button>
-          <Link to="/dashboard" className="flex items-center gap-2">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
             <Brain className="h-6 w-6 text-primary" />
             <span className="font-bold">InterviewPrep</span>
           </Link>

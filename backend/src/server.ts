@@ -23,12 +23,14 @@ import { attemptRouter } from './routes/attempt.routes';
 import { interviewRouter } from './routes/interview.routes';
 import { resumeRouter } from './routes/resume.routes';
 import { analyticsRouter } from './routes/analytics.routes';
+import { dashboardRouter } from './routes/dashboard.routes';
 import { learningPathRouter } from './routes/learning-path.routes';
 import { spacedRepetitionRouter } from './routes/spaced-repetition.routes';
 import { adminRoutes } from './routes/admin.routes';
 
 // Initialize Express app
 const app = express();
+app.set('etag', false);
 app.set("trust proxy", 1)
 const httpServer = createServer(app);
 
@@ -100,6 +102,30 @@ app.use(morgan('combined'));
 
 // Request ID
 app.use(requestId);
+
+app.use('/api', (req, res, next) => {
+  const start = Date.now();
+  res.setHeader('Cache-Control', 'no-store');
+
+  res.on('finish', () => {
+    const durationMs = Date.now() - start;
+    const logPayload = {
+      method: req.method,
+      path: req.originalUrl,
+      statusCode: res.statusCode,
+      durationMs,
+      requestId: req.requestId,
+    };
+
+    if (durationMs >= 1000) {
+      logger.warn('Slow API request', logPayload);
+    } else {
+      logger.info('API request completed', logPayload);
+    }
+  });
+
+  next();
+});
 
 // Root Route
 app.get('/', (_req, res) => {
@@ -175,6 +201,7 @@ app.use('/api/v1/attempts', attemptRouter);
 app.use('/api/v1/interviews', interviewRouter);
 app.use('/api/v1/resumes', resumeRouter);
 app.use('/api/v1/analytics', analyticsRouter);
+app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/learning-paths', learningPathRouter);
 app.use('/api/v1/spaced-repetition', spacedRepetitionRouter);
 app.use('/api/v1/admin', adminRoutes);

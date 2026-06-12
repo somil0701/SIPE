@@ -12,7 +12,7 @@ import {
   Zap,
   BookOpen,
 } from 'lucide-react'
-import { analyticsApi, questionsApi, interviewsApi } from '../services/api'
+import { dashboardApi } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
 
@@ -20,34 +20,18 @@ export function DashboardPage() {
   const { user } = useAuthStore()
 
   const {
-    data: analytics,
-    isLoading: isAnalyticsLoading,
-    isError: isAnalyticsError,
-    refetch: refetchAnalytics,
+    data: dashboard,
+    isLoading: isDashboardLoading,
+    isError: isDashboardError,
+    refetch: refetchDashboard,
   } = useQuery({
-    queryKey: ['analytics'],
-    queryFn: () => analyticsApi.getUserAnalytics(),
+    queryKey: ['dashboard-summary'],
+    queryFn: () => dashboardApi.getSummary(),
   })
 
-  const {
-    data: recommendedQuestions,
-    isLoading: isRecommendedLoading,
-    isError: isRecommendedError,
-    refetch: refetchRecommended,
-  } = useQuery({
-    queryKey: ['recommended-questions'],
-    queryFn: () => questionsApi.getRecommended(3),
-  })
-
-  const {
-    data: interviews,
-    isLoading: isInterviewsLoading,
-    isError: isInterviewsError,
-    refetch: refetchInterviews,
-  } = useQuery({
-    queryKey: ['recent-interviews'],
-    queryFn: () => interviewsApi.getAll({ limit: 3 }),
-  })
+  const analytics = dashboard?.analytics
+  const recommendedQuestions = dashboard?.recommendedQuestions || []
+  const interviews = dashboard?.recentInterviews || []
 
   const stats = [
     {
@@ -126,7 +110,7 @@ export function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {isAnalyticsLoading ? (
+        {isDashboardLoading ? (
           Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
@@ -141,14 +125,14 @@ export function DashboardPage() {
               </div>
             </div>
           ))
-        ) : isAnalyticsError ? (
+        ) : isDashboardError ? (
           <div className="sm:col-span-2 lg:col-span-4">
             <ErrorState
               title="Unable to load progress"
               action={
                 <button
                   type="button"
-                  onClick={() => refetchAnalytics()}
+                  onClick={() => refetchDashboard()}
                   className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   Retry
@@ -224,16 +208,16 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="p-6">
-            {isRecommendedLoading ? (
+            {isDashboardLoading ? (
               <LoadingState message="Loading recommendations..." bordered={false} />
-            ) : isRecommendedError ? (
+            ) : isDashboardError ? (
               <ErrorState
                 title="Unable to load recommendations"
                 bordered={false}
                 action={
                   <button
                     type="button"
-                    onClick={() => refetchRecommended()}
+                    onClick={() => refetchDashboard()}
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     Retry
@@ -290,16 +274,16 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="p-6">
-            {isInterviewsLoading ? (
+            {isDashboardLoading ? (
               <LoadingState message="Loading recent interviews..." bordered={false} />
-            ) : isInterviewsError ? (
+            ) : isDashboardError ? (
               <ErrorState
                 title="Unable to load interviews"
                 bordered={false}
                 action={
                   <button
                     type="button"
-                    onClick={() => refetchInterviews()}
+                    onClick={() => refetchDashboard()}
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     Retry

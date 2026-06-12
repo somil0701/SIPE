@@ -76,6 +76,7 @@ export const cacheKeys = {
 
   // Analytics cache
   userAnalytics: (userId: string) => `user:${userId}:analytics`,
+  dashboard: (userId: string) => `user:${userId}:dashboard`,
   leaderboard: (type: string) => `leaderboard:${type}`,
 
   // Rate limiting

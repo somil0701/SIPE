@@ -231,45 +231,49 @@ class QuestionService {
     // Get questions for weak skills
     const recommendedQuestions: Question[] = [];
 
-    for (const userSkill of weakSkills.slice(0, 3)) {
-      const questions = await prisma.question.findMany({
-        where: {
-          skillId: userSkill.skillId,
-          isActive: true,
-          difficulty: this.mapProficiencyToDifficulty(userSkill.proficiencyLevel),
-          // Exclude already solved questions
-          NOT: {
-            attempts: {
-              some: {
-                userId,
-                status: 'ACCEPTED',
+    const weakSkillQuestionGroups = await Promise.all(
+      weakSkills.slice(0, 3).map((userSkill) =>
+        prisma.question.findMany({
+          where: {
+            skillId: userSkill.skillId,
+            isActive: true,
+            difficulty: this.mapProficiencyToDifficulty(userSkill.proficiencyLevel),
+            // Exclude already solved questions
+            NOT: {
+              attempts: {
+                some: {
+                  userId,
+                  status: 'ACCEPTED',
+                },
               },
             },
           },
-        },
-        select: {
-          id: true,
-          skillId: true,
-          title: true,
-          slug: true,
-          description: true,
-          problemStatement: true,
-          difficulty: true,
-          type: true,
-          starterCode: true,
-          hints: true,
-          testCases: true,
-          constraints: true,
-          companyTags: true,
-          topicTags: true,
-          acceptanceRate: true,
-          explanation: true,
-          isPremium: true,
-        },
-        take: Math.ceil(limit / weakSkills.length),
-        orderBy: { acceptanceRate: 'desc' },
-      });
+          select: {
+            id: true,
+            skillId: true,
+            title: true,
+            slug: true,
+            description: true,
+            problemStatement: true,
+            difficulty: true,
+            type: true,
+            starterCode: true,
+            hints: true,
+            testCases: true,
+            constraints: true,
+            companyTags: true,
+            topicTags: true,
+            acceptanceRate: true,
+            explanation: true,
+            isPremium: true,
+          },
+          take: Math.ceil(limit / Math.max(weakSkills.length, 1)),
+          orderBy: { acceptanceRate: 'desc' },
+        })
+      )
+    );
 
+    for (const questions of weakSkillQuestionGroups) {
       recommendedQuestions.push(...(questions.map((question) => serializeQuestion(question)) as unknown as Question[]));
     }
 

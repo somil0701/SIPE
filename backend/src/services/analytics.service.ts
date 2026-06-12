@@ -30,20 +30,19 @@ class AnalyticsService {
       return cached;
     }
 
-    // Get user stats
-    const stats = await this.getUserStats(userId);
-
-    // Get skill breakdown
-    const skillBreakdown = await this.getSkillBreakdown(userId);
-
-    // Get weekly progress
-    const weeklyProgress = await this.getWeeklyProgress(userId);
-
-    // Get difficulty breakdown
-    const difficultyBreakdown = await this.getDifficultyBreakdown(userId);
-
-    // Get streak info
-    const { currentStreak, longestStreak } = await this.getStreakInfo(userId);
+    const [
+      stats,
+      skillBreakdown,
+      weeklyProgress,
+      difficultyBreakdown,
+      { currentStreak, longestStreak },
+    ] = await Promise.all([
+      this.getUserStats(userId),
+      this.getSkillBreakdown(userId),
+      this.getWeeklyProgress(userId),
+      this.getDifficultyBreakdown(userId),
+      this.getStreakInfo(userId),
+    ]);
 
     const analytics: UserAnalytics = {
       userId,

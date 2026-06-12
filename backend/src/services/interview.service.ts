@@ -115,22 +115,23 @@ class InterviewService {
     const where: any = { userId };
     if (status) where.status = this.toPrismaInterviewStatus(status);
 
-    const interviews = await prisma.interviewSession.findMany({
-      where,
-      include: {
-        targetCompany: {
-          select: { name: true, logoUrl: true },
+    const [interviews, total] = await Promise.all([
+      prisma.interviewSession.findMany({
+        where,
+        include: {
+          targetCompany: {
+            select: { name: true, logoUrl: true },
+          },
+          _count: {
+            select: { interviewQuestions: true },
+          },
         },
-        _count: {
-          select: { interviewQuestions: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
-
-    const total = await prisma.interviewSession.count({ where });
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.interviewSession.count({ where }),
+    ]);
 
     return {
       interviews: interviews.map((interview) => serializeInterview(interview)) as unknown as InterviewSession[],

@@ -28,6 +28,7 @@ const redisOptions: RedisOptions = {
 
 // Create Redis client
 const redis = new Redis(env.REDIS_URL, redisOptions);
+const CACHE_OPERATION_TIMEOUT_MS = 750;
 
 // Event handlers
 redis.on('connect', () => {
@@ -99,6 +100,40 @@ export const cacheTTL = {
   default: 60 * 10, // 10 minutes
 };
 
+async function withCacheTimeout<T>(
+  operation: Promise<T>,
+  fallback: T,
+  operationName: string,
+  key: string
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error(`Redis ${operationName} timed out`)),
+          CACHE_OPERATION_TIMEOUT_MS
+        );
+      }),
+    ]);
+  } catch (error) {
+    operation.catch(() => undefined);
+    logger.warn('Cache operation skipped', {
+      operation: operationName,
+      key,
+      timeoutMs: CACHE_OPERATION_TIMEOUT_MS,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return fallback;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 // Cache helper functions
 export const cache = {
   /**
@@ -106,7 +141,7 @@ export const cache = {
    */
   async get<T>(key: string): Promise<T | null> {
     try {
-      const data = await redis.get(key);
+      const data = await withCacheTimeout(redis.get(key), null, 'get', key);
       if (!data) return null;
       return JSON.parse(data) as T;
     } catch (error) {
@@ -122,9 +157,9 @@ export const cache = {
     try {
       const serialized = JSON.stringify(value);
       if (ttlSeconds) {
-        await redis.setex(key, ttlSeconds, serialized);
+        await withCacheTimeout(redis.setex(key, ttlSeconds, serialized), 'OK', 'setex', key);
       } else {
-        await redis.set(key, serialized);
+        await withCacheTimeout(redis.set(key, serialized), 'OK', 'set', key);
       }
     } catch (error) {
       logger.error('Cache set error', { key, error });
@@ -136,7 +171,7 @@ export const cache = {
    */
   async del(key: string): Promise<void> {
     try {
-      await redis.del(key);
+      await withCacheTimeout(redis.del(key), 0, 'del', key);
     } catch (error) {
       logger.error('Cache delete error', { key, error });
     }
@@ -161,7 +196,7 @@ export const cache = {
    */
   async exists(key: string): Promise<boolean> {
     try {
-      const result = await redis.exists(key);
+      const result = await withCacheTimeout(redis.exists(key), 0, 'exists', key);
       return result === 1;
     } catch (error) {
       logger.error('Cache exists error', { key, error });
@@ -174,7 +209,7 @@ export const cache = {
    */
   async increment(key: string, amount = 1): Promise<number> {
     try {
-      return await redis.incrby(key, amount);
+      return await withCacheTimeout(redis.incrby(key, amount), 0, 'incrby', key);
     } catch (error) {
       logger.error('Cache increment error', { key, error });
       return 0;
@@ -186,7 +221,7 @@ export const cache = {
    */
   async expire(key: string, seconds: number): Promise<void> {
     try {
-      await redis.expire(key, seconds);
+      await withCacheTimeout(redis.expire(key, seconds), 0, 'expire', key);
     } catch (error) {
       logger.error('Cache expire error', { key, error });
     }
@@ -197,7 +232,7 @@ export const cache = {
    */
   async ttl(key: string): Promise<number> {
     try {
-      return await redis.ttl(key);
+      return await withCacheTimeout(redis.ttl(key), -1, 'ttl', key);
     } catch (error) {
       logger.error('Cache TTL error', { key, error });
       return -1;
@@ -209,7 +244,7 @@ export const cache = {
    */
   async zadd(key: string, score: number, member: string): Promise<void> {
     try {
-      await redis.zadd(key, score, member);
+      await withCacheTimeout(redis.zadd(key, score, member), 0, 'zadd', key);
     } catch (error) {
       logger.error('Cache zadd error', { key, error });
     }
@@ -221,9 +256,9 @@ export const cache = {
   async zrange(key: string, start: number, stop: number, withScores = false): Promise<string[]> {
     try {
       if (withScores) {
-        return await redis.zrange(key, start, stop, 'WITHSCORES');
+        return await withCacheTimeout(redis.zrange(key, start, stop, 'WITHSCORES'), [], 'zrange', key);
       }
-      return await redis.zrange(key, start, stop);
+      return await withCacheTimeout(redis.zrange(key, start, stop), [], 'zrange', key);
     } catch (error) {
       logger.error('Cache zrange error', { key, error });
       return [];
@@ -235,7 +270,7 @@ export const cache = {
    */
   async zscore(key: string, member: string): Promise<number | null> {
     try {
-      const score = await redis.zscore(key, member);
+      const score = await withCacheTimeout(redis.zscore(key, member), null, 'zscore', key);
       return score ? parseFloat(score) : null;
     } catch (error) {
       logger.error('Cache zscore error', { key, error });

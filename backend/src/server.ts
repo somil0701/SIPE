@@ -75,14 +75,30 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Stricter rate limit for auth endpoints
-const authLimiter = rateLimit({
+// Stricter rate limit for credential-based auth endpoints.
+// Do not apply this to the entire auth router: /me, refresh, logout, and
+// change-password can otherwise consume the same tiny login bucket.
+const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 10,
   message: {
     success: false,
     error: 'Too many authentication attempts, please try again later.',
   },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: {
+    success: false,
+    error: 'Too many registration attempts, please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // Body parsing
@@ -194,7 +210,9 @@ app.get("/health/db", async (_req, res) => {
 });
 
 // API Routes
-app.use('/api/v1/auth', authLimiter, authRouter);
+app.use('/api/v1/auth/login', loginLimiter);
+app.use('/api/v1/auth/register', registerLimiter);
+app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/questions', questionRouter);
 app.use('/api/v1/attempts', attemptRouter);

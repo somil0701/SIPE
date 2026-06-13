@@ -1,392 +1,300 @@
 # Smart Interview Preparation Engine - Backend Design
 
-## 1. Folder Structure
+This document describes the current backend implementation. The backend is a TypeScript Express modular monolith with feature routers and service classes.
 
-```
+## 1. Backend Structure
+
+```text
 backend/
+├── prisma/
+│   ├── schema.prisma
+│   ├── seed.ts
+│   ├── seedQuestions.ts
+│   └── migrations/
 ├── src/
-│   ├── config/           # Configuration files
-│   │   ├── database.ts   # Prisma client setup
-│   │   ├── env.ts        # Environment validation
-│   │   ├── logger.ts     # Winston logger config
-│   │   └── redis.ts      # Redis client & cache helpers
-│   ├── controllers/      # Route controllers
-│   ├── middleware/       # Express middleware
-│   │   ├── auth.ts       # JWT authentication
+│   ├── config/
+│   │   ├── database.ts
+│   │   ├── env.ts
+│   │   ├── logger.ts
+│   │   └── redis.ts
+│   ├── judge/
+│   │   ├── docker/dockerRunner.ts
+│   │   ├── runners/
+│   │   ├── types.ts
+│   │   └── judge.service.ts
+│   ├── middleware/
+│   │   ├── auth.ts
 │   │   ├── errorHandler.ts
 │   │   ├── requestId.ts
-│   │   └── validate.ts   # Zod validation
-│   ├── models/           # Data models (if not using Prisma)
-│   ├── routes/           # API routes
-│   ├── services/         # Business logic
-│   │   ├── ai.service.ts
-│   │   ├── analytics.service.ts
-│   │   ├── attempt.service.ts
-│   │   ├── auth.service.ts
-│   │   ├── interview.service.ts
-│   │   ├── question.service.ts
-│   │   └── resume.service.ts
-│   ├── types/            # TypeScript types
-│   ├── utils/            # Utility functions
-│   └── server.ts         # Entry point
-├── prisma/
-│   └── schema.prisma     # Database schema
-├── tests/                # Test files
+│   │   └── validate.ts
+│   ├── routes/
+│   │   ├── admin.routes.ts
+│   │   ├── analytics.routes.ts
+│   │   ├── attempt.routes.ts
+│   │   ├── auth.routes.ts
+│   │   ├── dashboard.routes.ts
+│   │   ├── interview.routes.ts
+│   │   ├── learning-path.routes.ts
+│   │   ├── question.routes.ts
+│   │   ├── resume.routes.ts
+│   │   ├── spaced-repetition.routes.ts
+│   │   └── user.routes.ts
+│   ├── services/
+│   ├── types/
+│   ├── utils/
+│   └── server.ts
+├── tests/
+├── uploads/
+├── logs/
 ├── package.json
-├── tsconfig.json
-└── .env.example
+└── tsconfig.json
 ```
 
-## 2. API Design
+There is no active `controllers/` folder. Routes perform request parsing/validation and call services directly.
 
-### Authentication Endpoints
+## 2. Server Setup
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/v1/auth/register` | Register new user | No |
-| POST | `/api/v1/auth/login` | Login user | No |
-| POST | `/api/v1/auth/refresh` | Refresh access token | No |
-| GET | `/api/v1/auth/me` | Get current user | Yes |
-| POST | `/api/v1/auth/change-password` | Change password | Yes |
-| POST | `/api/v1/auth/logout` | Logout user | Yes |
+`src/server.ts` configures:
 
-### User Endpoints
+- Express app
+- HTTP server
+- Socket.IO server
+- Helmet
+- CORS
+- general rate limiting
+- stricter auth route rate limiting
+- JSON and URL-encoded body parsing
+- compression
+- Morgan logging
+- request IDs
+- API request duration logging
+- `/health`
+- `/health/db`
+- `/api/v1/*` route mounts
+- 404 handler
+- centralized error handler
+- graceful shutdown
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/v1/users/profile` | Get user profile | Yes |
-| PATCH | `/api/v1/users/profile` | Update profile | Yes |
-| GET | `/api/v1/users/skills` | Get user skills | Yes |
-| PUT | `/api/v1/users/skills` | Update skills | Yes |
-| GET | `/api/v1/users/stats` | Get user stats | Yes |
-| DELETE | `/api/v1/users/account` | Delete account | Yes |
+## 3. Core Middleware
 
-### Questions Endpoints
+### Authentication
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/v1/questions` | List questions | Optional |
-| GET | `/api/v1/questions/search` | Search questions | Optional |
-| GET | `/api/v1/questions/recommended` | Get recommended | Yes |
-| GET | `/api/v1/questions/due-reviews` | Get due reviews | Yes |
-| GET | `/api/v1/questions/company/:company` | Company questions | No |
-| GET | `/api/v1/questions/:id` | Get question by ID | Optional |
-| GET | `/api/v1/questions/slug/:slug` | Get question by slug | Optional |
+Protected routes use `authenticate`, which validates JWT access tokens and attaches `req.user`.
 
-### Attempts Endpoints
+### Authorization
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/v1/attempts` | Submit attempt | Yes |
-| GET | `/api/v1/attempts` | List attempts | Yes |
-| GET | `/api/v1/attempts/:id` | Get attempt | Yes |
-| GET | `/api/v1/attempts/:id/feedback` | Get feedback | Yes |
+Admin routes use `authorize('admin')` after authentication.
 
-### Mock Interview Endpoints
+### Validation
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/v1/interviews` | Create interview | Yes |
-| GET | `/api/v1/interviews` | List interviews | Yes |
-| GET | `/api/v1/interviews/:id` | Get interview | Yes |
-| POST | `/api/v1/interviews/:id/start` | Start interview | Yes |
-| GET | `/api/v1/interviews/:id/current-question` | Get question | Yes |
-| POST | `/api/v1/interviews/:id/answer` | Submit answer | Yes |
-| POST | `/api/v1/interviews/:id/skip` | Skip question | Yes |
-| POST | `/api/v1/interviews/:id/complete` | Complete interview | Yes |
-| POST | `/api/v1/interviews/:id/cancel` | Cancel interview | Yes |
-| DELETE | `/api/v1/interviews/:id` | Delete interview | Yes |
+`validate({ body, query, params })` validates route inputs with Zod. Routes define schemas close to the endpoint they protect.
 
-### Analytics Endpoints
+### Error Handling
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/v1/analytics` | Get user analytics | Yes |
-| GET | `/api/v1/analytics/daily` | Get daily analytics | Yes |
-| GET | `/api/v1/analytics/weak-topics` | Get weak topics | Yes |
-| GET | `/api/v1/analytics/strong-topics` | Get strong topics | Yes |
-| GET | `/api/v1/analytics/leaderboard` | Get leaderboard | No |
+`ApiError` provides consistent API errors for bad requests, unauthorized access, forbidden access, missing resources, conflicts, validation errors, and rate limits. Unknown errors pass through the global error handler.
 
-### Resume Endpoints
+## 4. API Surface
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/v1/resumes/upload` | Upload resume | Yes |
-| GET | `/api/v1/resumes` | List resumes | Yes |
-| GET | `/api/v1/resumes/current` | Get current resume | Yes |
-| GET | `/api/v1/resumes/:id` | Get resume by ID | Yes |
-| GET | `/api/v1/resumes/skills-gap/analysis` | Skills gap analysis | Yes |
-| GET | `/api/v1/resumes/personalized-questions/list` | Personalized questions | Yes |
-| DELETE | `/api/v1/resumes/:id` | Delete resume | Yes |
+### Authentication
 
-### Learning Path Endpoints
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/auth/register` | No | Register user. |
+| `POST` | `/api/v1/auth/login` | No | Login user. |
+| `POST` | `/api/v1/auth/refresh` | No | Refresh tokens. |
+| `GET` | `/api/v1/auth/me` | Yes | Current user. |
+| `POST` | `/api/v1/auth/change-password` | Yes | Change password. |
+| `POST` | `/api/v1/auth/logout` | Yes | Stateless logout response. |
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/v1/learning-paths` | List paths | Yes |
-| POST | `/api/v1/learning-paths` | Create path | Yes |
-| GET | `/api/v1/learning-paths/:id` | Get path | Yes |
-| PATCH | `/api/v1/learning-paths/:id/items/:itemId` | Update item | Yes |
-| POST | `/api/v1/learning-paths/:id/pause` | Pause path | Yes |
-| POST | `/api/v1/learning-paths/:id/resume` | Resume path | Yes |
-| DELETE | `/api/v1/learning-paths/:id` | Delete path | Yes |
+### Dashboard
 
-### Spaced Repetition Endpoints
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/dashboard` | Yes | Aggregates analytics, recommendations, recent interviews, and spaced repetition summary. |
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/v1/spaced-repetition` | List entries | Yes |
-| GET | `/api/v1/spaced-repetition/due` | Get due reviews | Yes |
-| GET | `/api/v1/spaced-repetition/stats` | Get stats | Yes |
-| GET | `/api/v1/spaced-repetition/:id` | Get entry | Yes |
-| POST | `/api/v1/spaced-repetition/:id/review` | Submit review | Yes |
-| POST | `/api/v1/spaced-repetition/questions/:questionId/add` | Add question | Yes |
-| DELETE | `/api/v1/spaced-repetition/:id` | Delete entry | Yes |
-| POST | `/api/v1/spaced-repetition/:id/reset` | Reset progress | Yes |
+### Users
 
-## 3. Middleware
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/users/profile` | Yes | Profile and attempt count. |
+| `PATCH` | `/api/v1/users/profile` | Yes | Update profile settings. |
+| `GET` | `/api/v1/users/skills` | Yes | User skill list. |
+| `PUT` | `/api/v1/users/skills` | Yes | Update skill proficiency during onboarding/settings. |
+| `GET` | `/api/v1/users/stats` | Yes | User attempt/solve/time stats. |
+| `DELETE` | `/api/v1/users/account` | Yes | Soft delete account. |
 
-### Authentication Middleware
+### Questions
 
-```typescript
-// middleware/auth.ts
-export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) throw ApiError.unauthorized('Access token required');
-  
-  const decoded = jwt.verify(token, env.JWT_SECRET);
-  req.user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-  next();
-};
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/questions` | Optional | List with filters and pagination. |
+| `GET` | `/api/v1/questions/search` | No | Search by query. |
+| `GET` | `/api/v1/questions/recommended` | Yes | Personalized recommendations. |
+| `GET` | `/api/v1/questions/due-reviews` | Yes | Due spaced repetition questions. |
+| `GET` | `/api/v1/questions/company/:company` | No | Company-tagged questions. |
+| `GET` | `/api/v1/questions/slug/:slug` | Optional | Question by slug. |
+| `GET` | `/api/v1/questions/:id` | Optional | Question by ID. |
+
+### Attempts and Judge
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/attempts/run` | Yes | Run code with custom stdin without saving an attempt. |
+| `POST` | `/api/v1/attempts` | Yes | Submit and persist an attempt. |
+| `GET` | `/api/v1/attempts` | Yes | List attempts. |
+| `GET` | `/api/v1/attempts/questions/:questionId/timeline` | Yes | Submission timeline and mistake memory. |
+| `GET` | `/api/v1/attempts/:id` | Yes | Attempt with testcase results and feedback. |
+| `GET` | `/api/v1/attempts/:id/feedback` | Yes | AI feedback for attempt. |
+
+### Interviews
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/interviews` | Yes | Create interview. |
+| `GET` | `/api/v1/interviews` | Yes | List interviews. |
+| `GET` | `/api/v1/interviews/:id` | Yes | Get interview. |
+| `POST` | `/api/v1/interviews/:id/start` | Yes | Start interview. |
+| `GET` | `/api/v1/interviews/:id/current-question` | Yes | Current question. |
+| `POST` | `/api/v1/interviews/:id/answer` | Yes | Submit answer. |
+| `POST` | `/api/v1/interviews/:id/skip` | Yes | Skip question. |
+| `POST` | `/api/v1/interviews/:id/complete` | Yes | Complete interview. |
+| `POST` | `/api/v1/interviews/:id/cancel` | Yes | Cancel interview. |
+| `DELETE` | `/api/v1/interviews/:id` | Yes | Delete interview. |
+
+### Resume
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/resumes/upload` | Yes | Upload PDF/DOCX resume. |
+| `GET` | `/api/v1/resumes` | Yes | List resumes. |
+| `GET` | `/api/v1/resumes/current` | Yes | Active resume. |
+| `GET` | `/api/v1/resumes/skills-gap/analysis` | Yes | Resume skill gap analysis. |
+| `GET` | `/api/v1/resumes/personalized-questions/list` | Yes | Resume-based questions. |
+| `POST` | `/api/v1/resumes/current/job-match` | Yes | Match resume against job description. |
+| `GET` | `/api/v1/resumes/:id` | Yes | Resume by ID. |
+| `DELETE` | `/api/v1/resumes/:id` | Yes | Delete resume. |
+
+### Analytics
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/analytics` | Yes | Full analytics. |
+| `GET` | `/api/v1/analytics/daily` | Yes | Daily analytics. |
+| `GET` | `/api/v1/analytics/weak-topics` | Yes | Weak topics. |
+| `GET` | `/api/v1/analytics/strong-topics` | Yes | Strong topics. |
+| `GET` | `/api/v1/analytics/leaderboard` | No | Global or weekly leaderboard. |
+
+### Learning Paths
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/learning-paths` | Yes | List paths. |
+| `POST` | `/api/v1/learning-paths` | Yes | Create path. |
+| `GET` | `/api/v1/learning-paths/:id` | Yes | Path details. |
+| `PATCH` | `/api/v1/learning-paths/:id/items/:itemId` | Yes | Update item status. |
+| `POST` | `/api/v1/learning-paths/:id/pause` | Yes | Pause path. |
+| `POST` | `/api/v1/learning-paths/:id/resume` | Yes | Resume path. |
+| `DELETE` | `/api/v1/learning-paths/:id` | Yes | Delete path. |
+
+### Spaced Repetition
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/spaced-repetition` | Yes | List entries. |
+| `GET` | `/api/v1/spaced-repetition/due` | Yes | Due reviews. |
+| `GET` | `/api/v1/spaced-repetition/stats` | Yes | Review stats. |
+| `GET` | `/api/v1/spaced-repetition/:id` | Yes | Entry details. |
+| `POST` | `/api/v1/spaced-repetition/:id/review` | Yes | Submit quality rating. |
+| `POST` | `/api/v1/spaced-repetition/questions/:questionId/add` | Yes | Add question. |
+| `DELETE` | `/api/v1/spaced-repetition/:id` | Yes | Remove entry. |
+| `POST` | `/api/v1/spaced-repetition/:id/reset` | Yes | Reset progress. |
+
+### Admin
+
+All admin endpoints require `admin` role.
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/stats` | Platform stats. |
+| `GET` | `/api/v1/admin/growth-chart` | Signup chart data. |
+| `GET` | `/api/v1/admin/judge-reliability` | Judge reliability dashboard data. |
+| `GET` | `/api/v1/admin/users` | User search/filter/pagination. |
+| `PATCH` | `/api/v1/admin/users/:id` | Update user role, premium, ban state. |
+| `GET` | `/api/v1/admin/questions` | Question search/filter/pagination. |
+| `POST` | `/api/v1/admin/questions` | Create question. |
+| `PATCH` | `/api/v1/admin/questions/:id` | Update question. |
+| `DELETE` | `/api/v1/admin/questions/:id` | Delete question. |
+| `GET` | `/api/v1/admin/skills` | Skills for question form. |
+| `GET` | `/api/v1/admin/interviews` | Interview monitoring. |
+| `GET` | `/api/v1/admin/resumes` | Resume management. |
+| `GET` | `/api/v1/admin/resumes/:id/download` | Protected resume download. |
+
+## 5. Service Responsibilities
+
+- `auth.service.ts`: registration, login, refresh, current user, password change.
+- `question.service.ts`: question listing, lookup, recommendations, due reviews, company filters, stats updates.
+- `attempt.service.ts`: run code, submit attempts, judge results, AI feedback, skill updates, analytics updates, spaced repetition updates, submission timeline, mistake memory.
+- `judge.service.ts`: normalize testcases, compile when needed, run containers, map verdicts.
+- `dockerRunner.ts`: isolated Docker execution with resource limits and cleanup.
+- `analytics.service.ts`: user analytics, daily analytics, weak/strong topics, leaderboard.
+- `interview.service.ts`: create/start/progress/complete/cancel/delete interview sessions.
+- `resume.service.ts`: upload, parse, active resume, skills gap, personalized questions, job match.
+- `resume-review.service.ts`: AI-driven resume quality review and fallback parsing.
+- `admin.service.ts`: platform stats, growth, judge reliability, admin users/questions/interviews/resumes.
+
+## 6. Judge Flow
+
+1. Validate language and question ID.
+2. Create temporary workspace.
+3. Write submitted code to language-specific source file.
+4. Compile for compiled languages.
+5. Run each testcase in a Docker container.
+6. Capture stdout, stderr, exit code, timeout, and execution time.
+7. Compare stdout to expected output.
+8. Store attempt and testcase results for full submissions.
+9. Generate AI feedback.
+10. Update skills, question stats, analytics, and spaced repetition.
+
+## 7. Caching
+
+Redis cache helpers support:
+
+- user cache,
+- question cache,
+- question list cache,
+- user skills cache,
+- analytics cache,
+- leaderboard cache,
+- dashboard cache,
+- pattern invalidation.
+
+Caching is used selectively and invalidated after attempt, profile, and analytics updates.
+
+## 8. Reliability Notes
+
+- Prisma is a singleton in development to reduce hot-reload connection churn.
+- `/health` and `/health/db` verify database connectivity.
+- Supabase direct DB URLs can occasionally produce Prisma `P1001` connection errors; a pooler URL is preferred for production app traffic.
+- Judge telemetry is currently inferred from attempts and testcase rows rather than a separate event stream.
+- Frontend production builds can update `frontend/dist/index.html` asset hashes.
+
+## 9. Scripts
+
+```bash
+npm run dev
+npm run build
+npm start
+npm run typecheck
+npm run lint
+npm run lint:fix
+npm run format
+npm test
+npm run test:watch
+npm run test:coverage
+npm run db:generate
+npm run db:migrate
+npm run db:deploy
+npm run db:seed
+npm run db:studio
 ```
 
-### Error Handler Middleware
-
-```typescript
-// middleware/errorHandler.ts
-export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
-  logger.error(err);
-  
-  if (err instanceof ApiError) {
-    return res.status(err.statusCode).json({
-      success: false,
-      error: { code: err.code, message: err.message, details: err.details }
-    });
-  }
-  
-  res.status(500).json({
-    success: false,
-    error: { code: 'INTERNAL_ERROR', message: 'Internal server error' }
-  });
-};
-```
-
-### Validation Middleware
-
-```typescript
-// middleware/validate.ts
-export const validate = (schema: ZodSchema) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      await schema.parseAsync(req.body);
-      next();
-    } catch (error) {
-      next(ApiError.validation('Validation failed', error.errors));
-    }
-  };
-};
-```
-
-## 4. Business Logic
-
-### Skill Tracking Algorithm
-
-```typescript
-// services/attempt.service.ts
-private calculateProficiencyDelta(
-  currentProficiency: number,
-  status: AttemptStatus,
-  score: number
-): number {
-  if (status === 'ACCEPTED') {
-    // Diminishing returns at higher levels
-    const gain = Math.max(1, (100 - currentProficiency) / 20);
-    return Math.floor(gain);
-  } else {
-    return -1; // Small loss for incorrect answers
-  }
-}
-```
-
-### Adaptive Question Selection
-
-```typescript
-// services/question.service.ts
-async getRecommendedQuestions(userId: string, limit: number = 5): Promise<Question[]> {
-  // Get weak skills (proficiency < 50)
-  const weakSkills = await prisma.userSkill.findMany({
-    where: { userId, proficiencyLevel: { lt: 50 } },
-    orderBy: { proficiencyLevel: 'asc' },
-  });
-
-  // Get questions for weak skills
-  const questions = [];
-  for (const skill of weakSkills.slice(0, 3)) {
-    const skillQuestions = await prisma.question.findMany({
-      where: {
-        skillId: skill.skillId,
-        difficulty: this.mapProficiencyToDifficulty(skill.proficiencyLevel),
-        NOT: { attempts: { some: { userId, status: 'ACCEPTED' } } },
-      },
-      take: Math.ceil(limit / weakSkills.length),
-    });
-    questions.push(...skillQuestions);
-  }
-  
-  return questions.slice(0, limit);
-}
-```
-
-## 5. Redis Caching Strategy
-
-### Cache Keys
-
-```typescript
-// config/redis.ts
-export const cacheKeys = {
-  user: (userId: string) => `user:${userId}`,
-  question: (questionId: string) => `question:${questionId}`,
-  questionsList: (params: string) => `questions:list:${params}`,
-  userSkills: (userId: string) => `user:${userId}:skills`,
-  userAnalytics: (userId: string) => `user:${userId}:analytics`,
-  leaderboard: (type: string) => `leaderboard:${type}`,
-  dueReviews: (userId: string) => `user:${userId}:due-reviews`,
-};
-```
-
-### Cache TTL
-
-```typescript
-export const cacheTTL = {
-  user: 60 * 60,           // 1 hour
-  question: 60 * 60 * 24,  // 24 hours
-  questionsList: 60 * 5,   // 5 minutes
-  userSkills: 60 * 15,     // 15 minutes
-  analytics: 60 * 5,       // 5 minutes
-  leaderboard: 60 * 60,    // 1 hour
-};
-```
-
-### Cache Usage Example
-
-```typescript
-async getQuestionById(questionId: string): Promise<Question> {
-  // Try cache first
-  const cached = await cache.get<Question>(cacheKeys.question(questionId));
-  if (cached) return cached;
-
-  // Get from database
-  const question = await prisma.question.findUnique({ where: { id: questionId } });
-  
-  // Cache result
-  await cache.set(cacheKeys.question(questionId), question, cacheTTL.question);
-  
-  return question;
-}
-```
-
-## 6. Security Best Practices
-
-1. **Password Hashing**: bcrypt with 12 salt rounds
-2. **JWT Tokens**: Short-lived access tokens (7 days), refresh tokens (30 days)
-3. **Rate Limiting**: 100 requests per 15 minutes per IP
-4. **Input Validation**: Zod schemas for all inputs
-5. **SQL Injection Prevention**: Prisma ORM with parameterized queries
-6. **CORS**: Configured for specific origins only
-7. **Helmet**: Security headers (XSS, CSRF protection)
-8. **Request ID**: For tracing and logging
-
-## 7. Error Handling
-
-### Custom Error Classes
-
-```typescript
-class ApiError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string,
-    public code: string,
-    public details?: Record<string, string[]>
-  ) {
-    super(message);
-  }
-
-  static badRequest(message: string) {
-    return new ApiError(400, message, 'BAD_REQUEST');
-  }
-
-  static unauthorized(message: string = 'Unauthorized') {
-    return new ApiError(401, message, 'UNAUTHORIZED');
-  }
-
-  static notFound(message: string = 'Not found') {
-    return new ApiError(404, message, 'NOT_FOUND');
-  }
-}
-```
-
-## 8. Logging
-
-```typescript
-// Structured logging with Winston
-logger.info('User logged in', {
-  userId: user.id,
-  email: user.email,
-  ip: req.ip,
-  userAgent: req.headers['user-agent'],
-});
-
-logger.error('Database connection failed', {
-  error: err.message,
-  stack: err.stack,
-});
-```
-
-## 9. Testing Strategy
-
-### Unit Tests
-- Service methods
-- Utility functions
-- Middleware
-
-### Integration Tests
-- API endpoints
-- Database operations
-- External service calls
-
-### Test Example
-
-```typescript
-// tests/auth.test.ts
-describe('Auth Service', () => {
-  it('should register a new user', async () => {
-    const result = await authService.register({
-      email: 'test@example.com',
-      password: 'Password123!',
-      fullName: 'Test User',
-    });
-
-    expect(result.user).toBeDefined();
-    expect(result.tokens).toBeDefined();
-  });
-});
-```
-
----
-
-This backend design provides a solid foundation for the Smart Interview Preparation Engine with:
-- Clean architecture with separation of concerns
-- Comprehensive API coverage
-- Efficient caching strategy
-- Robust error handling
-- Security best practices

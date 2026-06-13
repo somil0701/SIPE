@@ -1,239 +1,255 @@
-# Smart Interview Preparation Engine (SIPE) - Project Analysis
+# Smart Interview Preparation Engine - Current Project Analysis
 
-This document provides a comprehensive, code-level analysis of the **Smart Interview Preparation Engine** codebase. It is designed to deep-dive into the app's architecture, workflows, APIs, databases, and implementation facts, specifically tailored for advanced technical interview preparation.
+Last reviewed against the codebase on June 13, 2026.
 
----
+## 1. Executive Summary
 
-## 1. Project Overview
+Smart Interview Preparation Engine is a full-stack interview preparation platform with a React/Vite frontend and a TypeScript Express backend. The product currently supports authentication, dashboard analytics, coding practice, Docker-based judging, submission history, mistake memory, spaced repetition, learning paths, mock interviews, resume analysis, and an admin console.
 
-### What the Project Does
-SIPE is an AI-driven adaptive interview preparation platform. It allows users to simulate mock interviews (technical, behavioral, system design), practice coding algorithms in an integrated editor, track their learning paths, manage spaced repetition reviews, and parse resumes using AI to provide customized interview feedback.
+The implementation is best described as a modular monolith rather than a microservices system. Feature routers call service classes directly, Prisma manages PostgreSQL access, Redis supports caching, and Docker containers isolate code execution.
 
-### Main Features
-- **Adaptive Mock Interviews:** AI-generated and conversational interviews tracking performance over time.
-- **Interactive Coding Practice:** Embedded code editor (Monaco Editor) with standard coding problems, hints, and algorithm solutions.
-- **Analytics & Spaced Repetition:** Smart flashcard/question scheduling to optimize algorithmic retention.
-- **Resume Analysis:** Automated resume review extracting skills and generating targeted study plans.
+## 2. Current Strengths
 
-### Tech Stack
-- **Frontend:** React 18 (Vite), TypeScript, Tailwind CSS, Zustand (State), React Query (Data Fetching), Monaco Editor, Socket.IO Client.
-- **Backend:** Node.js (Express), TypeScript, Prisma ORM, Bull (Task Queue), ioredis (Caching/Sessions), Socket.IO (Real-time).
-- **Database:** PostgreSQL (Primary), Redis (Cache & Queue).
-- **AI & Integrations:** OpenAI API (GPT models for question generation/evaluation).
-- **Deployment:** Docker, Docker Compose, Nginx.
+- Broad feature coverage across practice, analytics, spaced repetition, interviews, resume intelligence, and administration.
+- Strong TypeScript coverage on both frontend and backend.
+- Prisma schema captures most core product domains cleanly.
+- Practice page has a real coding workflow with Monaco Editor, run, submit, testcase results, AI feedback, Submission Timeline, and Mistake Memory.
+- Admin dashboard now includes Judge Reliability metrics instead of only static system-health copy.
+- Backend exposes health endpoints for server and database checks.
+- Docker judge has language-specific containers, compile/run stages, timeouts, resource limits, and testcase persistence.
+- README and docs now reflect the implemented system more closely than the original aspirational architecture.
 
-### High-Level Architecture
-The architecture is a modular monolith. Nginx or Vite serves the React SPA frontend. The unified Express backend connects to a PostgreSQL database via Prisma ORM for persistent data, and Redis for rate-limiting, queues, and short-term caching. Real-time communication occurs over WebSockets (Socket.IO).
-
----
-
-## 2. Folder Structure
-
-```text
-interview-prep-engine/
-├── backend/                  # Node.js + Express + Prisma Monolith
-│   ├── prisma/
-│   │   ├── schema.prisma     # Central DB schema & DB models
-│   │   ├── seed.ts           # Initial DB state (tags, default questions)
-│   │   └── migrations/       # SQL migration history
-│   ├── src/
-│   │   ├── config/           # Setup for ENV (Zod parsed), DB, Redis, Bull
-│   │   ├── middleware/       # Auth (JWT), Validation (Zod), Error Handling (Global)
-│   │   ├── routes/           # Express Routers grouped by feature
-│   │   ├── services/         # Business logic layer modules (Auth, AI, Interview, etc.)
-│   │   ├── types/            # TypeScript interfaces & declarations
-│   │   ├── utils/            # Helper functions
-│   │   └── server.ts         # Bootstraps Express, adds helmet, cors, starts socket.io
-├── frontend/                 # React + Vite application
-│   ├── src/
-│   │   ├── components/       # Shared UI components & Layouts (AdminLayout, Sidebar)
-│   │   ├── pages/            # View components (Practice, MockInterview, Auth, Admin)
-│   │   ├── services/         # API SDK via Axios with token interceptors
-│   │   ├── store/            # Zustand stores for global auth/session state
-│   │   ├── types/            # TypeScript interfaces for API payloads & state
-│   │   ├── App.tsx           # React Router routing logic
-│   │   └── main.tsx          # Root React entry & React Query Client Provider
-│   ├── Dockerfile            # Containerizes frontend using Vite build -> Nginx
-│   └── nginx.conf            # Nginx config serving static files and proxy
-├── docs/                     # System design diagrams and architecture notes
-└── docker-compose.yml        # Multi-container orchestration (Postgres, Redis, API)
-```
-
----
-
-## 3. Application Flow
-
-### Request Flow
-1. **Frontend Request:** The React frontend makes a request to the backend using Axios via `api.ts`.
-2. **Interceptors:** Axios interceptors attach a Bearer JWT Token automatically (kept in Zustand/localStorage).
-3. **Gateway/Reverse Proxy (Production):** Nginx routes the request to the upstream Node container on port 3000.
-4. **Backend Middleware:** The request hits `server.ts` -> passes through `helmet` (security headers), `express-rate-limit`, `morgan` (logging), and `requestId`.
-5. **Authentication & Validation Layer:** Protected routes run the `authenticate` middleware (verifies JWT inside headers). Then, `validate` (Zod) validates request bodies and query parameters.
-6. **Services & Database:** The Controller forwards the trusted payload to a Service (e.g., `auth.service.ts`). The Service invokes Prisma to query/write to PostgreSQL, and may talk to OpenAI via `ai.service.ts`.
-7. **Response:** The result returns uniformly back through the Controller to the Client.
+## 3. Current Architecture
 
 ```mermaid
-sequenceDiagram
-    participant User as React Frontend
-    participant Nginx as Nginx 
-    participant Server as Express Server
-    participant Auth as Auth/Validate Middleware
-    participant Service as Business Service
-    participant DB as PostgreSQL (Prisma)
-    
-    User->>Nginx: HTTP POST /api/v1/auth/register
-    Nginx->>Server: Proxy Pass
-    Server->>Auth: Validates Payload (Zod schema)
-    Auth->>Service: Call register(input)
-    Service->>DB: Check existing user & create
-    DB-->>Service: Return new User record
-    Service-->>Auth: Issue JWT logic
-    Auth-->>Server: Route handler ends
-    Server-->>Nginx: 201 Created w/ JSON
-    Nginx-->>User: Success Response
+flowchart LR
+  Browser["React/Vite App"] --> API["Express API"]
+  API --> Prisma["Prisma Client"]
+  Prisma --> Postgres["PostgreSQL"]
+  API --> Redis["Redis Cache"]
+  API --> Judge["Docker Judge"]
+  API --> AI["Groq/OpenAI Providers"]
+  API --> Uploads["Resume Uploads"]
 ```
 
----
+### Frontend
 
-## 4. Frontend Analysis
+- React 18 with TypeScript and Vite.
+- React Router for navigation.
+- TanStack Query for server state.
+- Zustand for auth/application state.
+- Tailwind CSS for styling.
+- Monaco Editor for coding.
+- Recharts for analytics visualizations.
+- Admin pages for platform oversight.
 
-- **Routing:** Centralized in `App.tsx` using `react-router-dom`. Routes are wrapped in ternary checks restricting access (e.g., `<Route element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}` ). Admin-specific routes check `user?.role === 'admin'`.
-- **State Management:** Handled natively by **Zustand** (`src/store/authStore.ts`), combined with the `persist` middleware so local storage survives reloads. Server data state relies heavily on **React Query**, drastically reducing boilerplate fetching variables (`isLoading`, `isError`).
-- **API Calling Logic:** A customized Axios instance (`api.ts`) contains pre-flight request interceptors (attaching `Authorization: Bearer <Token>`) and response interceptors (for transparently handling 401 Unauthorized token-refresh mechanisms using `refreshToken`).
-- **Interactive Layers:** Uses `@monaco-editor/react` to render an IDE in the browser for coding problems (`PracticePage.tsx`, `QuestionPage.tsx`), and integrates `Socket.IO-client` for real-time interview transcripts.
-- **Component Styling & Architecture:** Follows modern Tailwind utility-first patterns. Employs `clsx` and `tailwind-merge` allowing for highly dynamic conditional tailwind classes in reusable components.
+### Backend
 
----
+- Express with TypeScript.
+- Route modules under `backend/src/routes`.
+- Service modules under `backend/src/services`.
+- Prisma/PostgreSQL persistence.
+- Redis cache helpers.
+- Socket.IO server initialized for real-time features.
+- Zod validation middleware.
+- JWT authentication and role authorization.
+- Winston logging.
 
-## 5. Backend Analysis
+### Data
 
-- **Server Setup:** Express is instantiated directly in `src/server.ts` connected via the typical HTTP module to `Socket.io` instances sharing identical server-layer CORS constraints.
-- **Validation:** Utilizes `Zod` exclusively for input validation mapped specifically to a custom middleware (`validate({ body, query, params })`) before ANY route hits a controller. Example: Data constraints for `password` force upper/lower/numbers and length of 8.
-- **Error Handling:** Centralized with an `errorHandler.ts` middleware resolving `ApiError` class instances, stripping stack-traces out of production API responses naturally. 
-- **Business Logic Layer Model:** Thin controllers (`routes.ts`) simply parse the req/res lifecycle object and immediately hand-off the logic to stateless Service classes (e.g., `interview.service.ts`), simplifying testability.
+The Prisma schema includes users, skills, questions, attempts, attempt testcases, attempt feedback, interview sessions, interview questions, resumes, resume skills, learning paths, spaced repetition, analytics, activities, subscriptions, payments, tags, and companies.
 
-### Example Important API Endpoint
+## 4. Implemented User Features
 
-**Create Interview Session**
-- **Method & Route:** `POST /api/v1/interviews`
-- **Purpose:** Initiates a new adaptive mock interview session for the requesting user.
-- **Middleware:** `authenticate` (requires JWT), `validate({ body: createInterviewSchema })`.
-- **Business Logic:** `interviewService.createInterview()`
-- **DB Operations:** Validates User constraints, initializes new `InterviewSession` status in PostgreSQL, randomly maps matching `Question` nodes from AI generators if none are strictly supplied.
+### Authentication and Profile
 
----
+- Registration and login.
+- Refresh token support.
+- Current-user endpoint.
+- Password change.
+- Stateless logout response.
+- Profile updates.
+- Skill profile management.
+- Soft account deletion through user service.
 
-## 6. Database Analysis
+### Dashboard
 
-The PostgreSQL database relies exclusively on Prisma (`schema.prisma`) featuring excellent strongly-typed relationships.
+- Aggregated dashboard data.
+- Analytics summary cards.
+- Recommendations.
+- Recent interview data.
+- Spaced repetition summary.
 
-### Important Tables & Models
-- **`User`**: Tracks `email`, `role`, authentication details, settings, and subscription states. Strongly associated directly with dozens of models utilizing `id` (UUID).
-- **`Skill` / `UserSkill`**: Forms a graphical hierarchy of computer-science and behavioral traits and models exactly how proficient the user is matching the concepts.
-- **`Question`**: Houses coding/behavioral questions including metadata like `starter_code`, `solution_code`, `test_cases` (saved gracefully as JSON), and difficulty. Maps directly to `Company` or `Tag` through distinct joining entities.
-- **`InterviewSession`**: Links users to active timed interviews. 
-- **`SpacedRepetition`**: Keeps an algorithmic tracking interval (SuperMemo-like) assessing when users must retry questions.
+### Coding Practice
 
-### Entity-Relationship (Partial Concept)
-```mermaid
-erDiagram
-    USER ||--o{ ATTEMPT : makes
-    USER ||--o{ ITERVIEW_SESSION : takes
-    USER ||--o{ USER_SKILL : possesses
-    USER }o--o{ LEARNING_PATH: tracks
-    
-    QUESTION ||--o{ ATTEMPT : answers
-    SKILL ||--o{ QUESTION : categorizes
-    SKILL ||--o{ USER_SKILL: measures
-    
-    ITERVIEW_SESSION ||--o{ INTERVIEW_QUESTION : asks
-    QUESTION ||--o{ INTERVIEW_QUESTION: maps_to
+- Question list, filtering, search, recommendations, due reviews, and company-specific question routes.
+- Question detail page with problem statement, constraints, hints, tags, examples/testcases, editor, run, submit, and feedback.
+- Supported judge languages: JavaScript, Python, C++, Java.
+- Custom input run endpoint that does not persist an attempt.
+- Persisted submit endpoint that stores attempts and testcase rows.
+- Submission Timeline for a question.
+- Mistake Memory derived from past failed submissions and feedback.
+- Load-code action from previous attempts.
+- Polling for in-progress attempts.
+
+### Analytics
+
+- Overall attempts and accepted counts.
+- Accuracy and daily progress.
+- Skill breakdown.
+- Weak and strong topics.
+- Streak information.
+- Leaderboard endpoint.
+
+### Spaced Repetition
+
+- Due reviews.
+- Add/remove question.
+- Submit quality rating.
+- Reset review progress.
+- Stats endpoint.
+- SM-2-style fields for interval, repetitions, and ease factor.
+
+### Learning Paths
+
+- List, create, detail, pause, resume, delete paths.
+- Update learning path item status.
+- Progress tracking through completed and total items.
+
+### Mock Interviews
+
+- Create interview sessions.
+- List and inspect sessions.
+- Start, answer current question, skip, complete, cancel, and delete.
+- Store scores, transcript, feedback, strengths, and improvement areas.
+
+### Resume Intelligence
+
+- Upload resume files.
+- Store parsed text/data, detected skills, education, projects, and parsing status.
+- Current resume endpoint.
+- Skill gap analysis.
+- Personalized question list.
+- Job description matching.
+- Admin resume oversight and protected download.
+
+### Admin
+
+- Platform stats.
+- Signup growth chart.
+- User list and updates.
+- Question list, create, edit, delete.
+- Skills lookup for question forms.
+- Interview monitoring.
+- Resume listing/download.
+- Judge Reliability dashboard with:
+  - total attempts in selected window;
+  - accepted/failure/in-progress counts;
+  - success, failure, timeout, compile error, and runtime error rates;
+  - average and max execution time;
+  - verdict breakdown;
+  - language breakdown;
+  - top error signatures;
+  - recent failures.
+
+## 5. Recently Added Improvements
+
+### Submission Timeline
+
+The question page now shows historical attempts for the selected question. Users can inspect verdicts, pass rates, execution metrics, code snapshots, failed testcase details, feedback summaries, and load older code into the editor.
+
+### Mistake Memory
+
+The backend derives recurring mistake patterns from failed attempts, failed testcase rows, and feedback. This helps users recognize repeated failure modes such as runtime errors, wrong-answer patterns, compilation issues, or repeated weaknesses.
+
+### Judge Reliability Dashboard
+
+Admin users can now monitor judge health from real attempt/testcase data. This is useful for detecting language-specific problems, timeout spikes, recurring Docker/runtime errors, and recent failing submissions.
+
+## 6. Technical Risks and Gaps
+
+### Production Judge Isolation
+
+The judge uses Docker limits, but production hardening should still include host-level isolation, restricted Docker permissions, network restrictions inside containers, and ongoing image patching.
+
+### Deployment Automation
+
+Only backend EC2 deployment is automated in `.github/workflows/deploy.yml`. Frontend deployment is still manual or external to this repository.
+
+### Test Coverage Visibility
+
+Backend has Jest scripts, but current documentation should not claim broad test coverage unless measured. Frontend has no `npm test` script.
+
+### Upload Storage
+
+Resume uploads use local storage by default. Production should use persistent disk or object storage, especially if the backend runs on replaceable hosts.
+
+### AI Provider Reliability
+
+AI-backed features should continue to use fallbacks, timeouts, and clear UI states because provider latency and quota errors are expected operational realities.
+
+### Prisma Connection Stability
+
+Supabase direct database connections can produce transient `P1001` failures. Production app traffic should use connection pooling where available.
+
+## 7. Recommended Next Improvements
+
+### High Impact
+
+- Add persistent judge event logging for better reliability analysis over time.
+- Add backend tests for attempt submission, timeline generation, mistake memory grouping, and judge reliability metrics.
+- Automate frontend deployment.
+- Add CI checks for backend typecheck/build and frontend build on pull requests.
+- Add frontend empty/error/loading states audit across all pages.
+
+### Medium Impact
+
+- Add richer filters to Submission Timeline by verdict/language.
+- Add downloadable attempt history for users.
+- Add admin audit log for user/question changes.
+- Add resume upload replacement flow with active/inactive history controls.
+- Add explicit cache invalidation tests.
+
+### Longer Term
+
+- Move judge execution to a separate worker service or queue if traffic grows.
+- Add a separate telemetry table for judge events.
+- Add organization/team mode for cohorts or classrooms.
+- Add websocket-backed live interview state if real-time collaboration becomes a core requirement.
+- Add billing integration if premium features need real payment enforcement.
+
+## 8. Development Commands
+
+Backend:
+
+```bash
+cd backend
+npm run dev
+npm run typecheck
+npm run build
+npm test
+npm run db:generate
+npm run db:migrate
+npm run db:deploy
+npm run db:seed
 ```
 
----
+Frontend:
 
-## 7. Important Workflows
+```bash
+cd frontend
+npm run dev
+npm run build
+npm run lint
+npm run preview
+```
 
-### 1. Authentication Flow (JWT with Refresh Rotation)
-1. User supplies email/password inside React.
-2. Backend verifies bcrypt equality against stored hash in Prisma.
-3. System provisions a short-lived `AccessToken` and long-lived `RefreshToken`.
-4. The client uses `AccessToken` per request. Upon expiry, the frontend Axios interceptor intercepts the `401 Unauthorized`, sends the `RefreshToken` to the Auth service refresh endpoint, and seamlessly retries the delayed original API call.
+## 9. Current Documentation Set
 
-### 2. Spaced Repetition (Learning Curve Mechanism)
-1. User attempts a mock interview code or algorithm.
-2. Based heavily on success metrics (Time to Finish, Optimal Space/Time Complexity efficiency, Test-cases passed), a `SpacedRepetitionReview` calculates an updated review date interval.
-3. A CRON/Bull worker maps background jobs. Scheduled questions surface in the `SpacedRepetitionPage.tsx` interface on specific dates to enhance learning retention.
-
-### 3. AI Generated Interviews / Evaluation
-1. Interview created natively via React UI -> API proxy.
-2. The user interacts through a live interview sequence. Transcripts might stream iteratively via websockets to the `Backend -> AI Service`.
-3. `ai.service.ts` constructs system context blocks natively passing them into standard `OpenAI GPT-4` LLMs.
-4. AI evaluates constraints, scoring the user 1-100 on code optimization, and feeds data accurately back down the pipeline rendering final `AnalyticsDaily` matrices.
-
----
-
-## 8. Security & Performance
-
-### Security
-1. **Password Safety:** Exclusively relies on robust `bcrypt` (12 rounds of salt).
-2. **Access Security:** Dual-layer JWT logic mitigates stolen tokens from persisting forever; endpoints mandate verification on highly private user objects via `id` identity comparisons.
-3. **Protection Middlewares:** Implements `helmet()` for Strict Content Security Policy/Headers. 
-4. **Rate Limiting:** Prevents brute force usage via `express-rate-limit` (General 100 reqs/15m, Auth endpoints pinned heavily to 5 reqs/15m).
-
-### Performance Optimization
-- **Zustand & React Query Cache:** In the frontend, state does not constantly refetch unmutated data minimizing loading waterfalls wildly.
-- **Index Optimization:** Database tables inside Prisma contain heavy composite/isolated indices (e.g. `@@index([skillId])`, `@@index([difficulty])`) speeding up massive list queries substantially.
-- **Redis Integration:** Caches transient state variables minimizing heavy PostgreSQL IO load cycles under high user concurrency.
-
----
-
-## 9. Deployment & Environment
-
-- **Infrastructure Initialization:** Handled natively via a robust `docker-compose.yml`.
-- **Containers:** 
-  1. `postgres` (PostgreSQL 16)
-  2. `redis` (Redis 7 Alpine)
-  3. `backend` (Custom Node container building Vite/TypeScript dist dynamically)
-  4. Nginx handles strictly static bundle rendering directly on the root web container.
-- **Environment Variables:** Loaded strictly relying on `dotenv`. Validated on boot globally via `zod` (`src/config/env.ts`) so the backend fundamentally crashes immediately on spin-up if configuration secrets (i.e. `DATABASE_URL` or `JWT_SECRET`) are missing. 
-
----
-
-## 10. Interview Preparation Section
-
-### 1-Minute Elevator Pitch
-"SIPE is a full-stack, AI-driven adaptive interview preparation platform built with React, Node.js, and PostgreSQL. It allows engineers to practice coding problems securely in an embedded Monaco editor, generates dynamic real-time mock interviews evaluated by OpenAI integration, and tracks user retention iteratively utilizing custom spaced repetition logic heavily driven by Bull MQ workers."
-
-### 3-Minute Technical Pitch
-"The system is architected as a modular monolith utilizing Express and Prisma. On the frontend, I leveraged React 18 with Vite, implementing Zustand for global UI state and React Query for caching extensive data fetching natively. Real-time aspects, like live interview sessions, are managed gracefully with Socket.io. For the backend framework, Express manages RESTful endpoints entirely validated iteratively through Zod schemas. These pipe down to single-responsibility service patterns. For data, Prisma ORM communicates directly over a PostgreSQL database handling highly normalized complex relationships, such as Skills nested to Users resolving against Questions. Redis serves iteratively as a session manager and job-queue cache avoiding excess DB reads on leaderboards or heavily trafficked public questions. Environment configurations are typed strictly natively, deployed fully containerized utilizing Docker standardizing both environments and deployment stability seamlessly."
-
-### Common Interviewer Questions & Answers
-
-**Q: Why use Zustand alongside React Query? Why not just use Redux for everything?**
-> "React Query strictly organizes remote asynchronous server-state (like user progress, question lists), providing immense benefits out of the box like retry-logic, cache invalidation, and polling. Zustand handles ephemeral Client UI state (like managing active theme, simple active session triggers). Redux implies a larger boilerplate overhead, whereas delegating remote logic to React Query cleanly limits global state entirely."
-
-**Q: How do you handle JWT refreshing? What if multiple API calls trigger the refresh simultaneously?**
-> "In `api.ts`, Axios interceptors are designed directly to resolve 401s inherently. For concurrency, the interceptor uses a Promise lock (`refreshPromise`). If a request triggers a refresh while another token is currently refreshing, subsequent requests gracefully `await` the resolving promise preventing race condition errors or generating redundant refresh token requests heavily throttling DB authentication limits."
-
-**Q: If we hit rapid database scaling issues due to user growth, what is your next bottleneck and how would you fix it?**
-> "The first bottleneck is generally connection-pooling hitting PostgreSQL directly. Moving Prisma instance logic behind `pgbouncer` minimizes pool explosion significantly. Secondly, standardizing frequent reads—like loading standardized algorithm questions from the DB to Redis caching instances entirely removes read constraints significantly scaling the architecture."
-
-**Q: How is security handled on route inputs?**
-> "Strongly typed via Zod validation inside an early-stage middleware layer. The route logic inherently cannot fire unless the `req.body` and `req.params` correspond cleanly against predefined types, inherently destroying NoSQL injection variants natively."
-
----
-
-## 11. Key Learnings & Improvements
-
-**Good Design Choices:**
-- Isolating route definition strictly from services using thin-controllers yields immense testing advantages.
-- The `env.ts` config utilizing `.zod` validation ensures the application outright fails to start in Docker environments lacking proper deployment secrets, an essential component for ops stability safely.
-
-**Technical Debt & Possible Improvements:**
-- Currently, handling web-socket (Socket.IO) horizontal scaling intrinsically requires standardizing a Redis Adapter natively so broadcasting events scales effectively across parallel Node.js Docker containers inside production clusters safely. 
-- The codebase identifies modular monolith tendencies. If 'AI Processing' takes exceedingly long on huge prompts, abstracting the `ai.service.ts` into a truly independent microservice consuming explicitly off a RabbitMQ pipeline ensures the Node event-loop doesn't lock up or drop real-time frontend concurrent sessions unexpectedly.
-
-**Scalability Suggestions:**
-- Incorporate a CDN explicitly (CloudFront/Cloudflare) wrapping the Nginx servers statically delivering React PWA assets instantly, strictly limiting server transit costs cleanly natively. 
-- Implement read-replicas directly configured inside Prisma to offload intense analytical queries targeting heavily aggregated data generated inherently by the learning retention systems globally.
+- `README.md`: broad product and developer guide.
+- `docs/01-SYSTEM-DESIGN.md`: current system architecture.
+- `docs/02-DATABASE-DESIGN.md`: Prisma/PostgreSQL schema guide.
+- `docs/03-BACKEND-DESIGN.md`: backend modules, routes, services, and judge flow.
+- `docs/09-DEPLOYMENT.md`: deployment requirements and current EC2 workflow.
+- `docs/12-RESUME-DESCRIPTION.md`: truthful resume/portfolio wording.
+- `docs/PROJECT_ANALYSIS.md`: current implementation analysis and recommended next work.

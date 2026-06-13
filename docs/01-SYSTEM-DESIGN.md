@@ -1,464 +1,275 @@
 # Smart Interview Preparation Engine - System Design
 
-## 1. High-Level Architecture
+This document describes the current implemented architecture of SIPE. It intentionally separates what exists today from future scaling ideas.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENT LAYER                                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐    │
-│  │   Web App   │  │  Mobile App │  │   PWA       │  │  VS Code Extension  │    │
-│  │  (React)    │  │ (React Native)│  │             │  │                     │    │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘    │
-│         └─────────────────┴─────────────────┴──────────────────┘                │
-│                                    │                                             │
-│                              WebSocket (Real-time)                              │
-└────────────────────────────────────┼─────────────────────────────────────────────┘
-                                     │
-                              API Gateway (Nginx/Kong)
-                                     │
-┌────────────────────────────────────┼─────────────────────────────────────────────┐
-│                         BACKEND LAYER (Node.js/Express)                          │
-│                                    │                                             │
-│  ┌─────────────────────────────────┼─────────────────────────────────────────┐   │
-│  │                              Load Balancer                               │   │
-│  └─────────────────────────────────┼─────────────────────────────────────────┘   │
-│                                    │                                             │
-│  ┌─────────────────────────────────┼─────────────────────────────────────────┐   │
-│  │                         Microservices Architecture                       │   │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   │   │
-│  │  │   Auth   │ │ Question │ │ Interview│ │ Analytics│ │   Resume     │   │   │
-│  │  │ Service  │ │ Service  │ │ Service  │ │ Service  │ │   Service    │   │   │
-│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────────┘   │   │
-│  └─────────────────────────────────┼─────────────────────────────────────────┘   │
-│                                    │                                             │
-│  ┌─────────────────────────────────┼─────────────────────────────────────────┐   │
-│  │                         Message Queue (Redis/RabbitMQ)                   │   │
-│  │                    (Async tasks: Email, Reports, AI Processing)          │   │
-│  └─────────────────────────────────┼─────────────────────────────────────────┘   │
-└────────────────────────────────────┼─────────────────────────────────────────────┘
-                                     │
-┌────────────────────────────────────┼─────────────────────────────────────────────┐
-│                              DATA LAYER                                          │
-│                                    │                                             │
-│  ┌─────────────────────────────────┼─────────────────────────────────────────┐   │
-│  │                         PostgreSQL (Primary DB)                          │   │
-│  │         (Users, Questions, Attempts, Interviews, Analytics)              │   │
-│  └─────────────────────────────────┼─────────────────────────────────────────┘   │
-│                                    │                                             │
-│  ┌─────────────────────────────────┼─────────────────────────────────────────┐   │
-│  │                         Redis (Cache + Sessions)                         │   │
-│  │         (Question cache, User sessions, Rate limiting, Leaderboard)      │   │
-│  └─────────────────────────────────┼─────────────────────────────────────────┘   │
-│                                    │                                             │
-│  ┌─────────────────────────────────┼─────────────────────────────────────────┐   │
-│  │                         MongoDB (Unstructured Data)                      │   │
-│  │         (Resume parsing results, Interview transcripts, Logs)            │   │
-│  └─────────────────────────────────┼─────────────────────────────────────────┘   │
-│                                    │                                             │
-│  ┌─────────────────────────────────┼─────────────────────────────────────────┐   │
-│  │                         S3/MinIO (File Storage)                          │   │
-│  │         (Resume PDFs, Profile images, Generated reports)                 │   │
-│  └─────────────────────────────────┴─────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                     │
-┌────────────────────────────────────┼─────────────────────────────────────────────┐
-│                              AI LAYER                                            │
-│                                    │                                             │
-│  ┌─────────────────────────────────┼─────────────────────────────────────────┐   │
-│  │                         OpenAI/Anthropic API                             │   │
-│  │         (Question generation, Answer evaluation, Mock interviews)        │   │
-│  └─────────────────────────────────┼─────────────────────────────────────────┘   │
-│                                    │                                             │
-│  ┌─────────────────────────────────┼─────────────────────────────────────────┐   │
-│  │                         Custom ML Models (Optional)                      │   │
-│  │         (Skill classification, Difficulty prediction, Recommendations)   │   │
-│  └─────────────────────────────────┴─────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────┘
+## 1. Architecture Summary
+
+SIPE is currently a modular monolith:
+
+- React/Vite frontend
+- Express/TypeScript backend
+- PostgreSQL database through Prisma
+- Redis cache
+- Docker-based code judge
+- Local file uploads for resumes in development
+- AI provider integrations for answer evaluation, interview generation, and resume review
+- Socket.IO foundation for realtime rooms, while most user workflows currently use REST
+
+```mermaid
+flowchart LR
+  User["User Browser"] --> Frontend["React + Vite SPA"]
+  Frontend --> API["Express API /api/v1"]
+  Frontend -. "Socket.IO client" .-> Socket["Socket.IO server"]
+  API --> Auth["JWT auth + Zod validation"]
+  Auth --> Services["Feature services"]
+  Services --> Prisma["Prisma ORM"]
+  Prisma --> Postgres["PostgreSQL"]
+  Services --> Redis["Redis cache"]
+  Services --> AI["AI providers"]
+  Services --> Uploads["Local uploads directory"]
+  Services --> Judge["Judge service"]
+  Judge --> Docker["Docker containers"]
 ```
 
-## 2. Component Breakdown
+## 2. Frontend
 
-### 2.1 Frontend (React + TypeScript + Tailwind CSS)
+The frontend is a React 18 SPA using Vite, TypeScript, Tailwind CSS, React Router, TanStack Query, Zustand, Recharts, Monaco Editor, and Lucide icons.
 
-**Responsibilities:**
-- User interface and experience
-- State management (Zustand/Redux Toolkit)
-- Real-time communication (Socket.io client)
-- Offline support (PWA with service workers)
-- Responsive design (mobile-first)
+Implemented route groups:
 
-**Key Features:**
-- Dashboard with analytics visualization
-- Interactive code editor (Monaco Editor)
-- Real-time mock interview interface
-- Resume upload and preview
-- Progress tracking charts
+- Public auth routes: `/login`, `/register`
+- Protected user routes: `/dashboard`, `/practice`, `/practice/:slug`, `/mock-interview`, `/mock-interview/:id`, `/analytics`, `/resume`, `/spaced-repetition`, `/learning-path`, `/learning-path/:id`, `/profile`
+- Admin routes: `/admin`, `/admin/users`, `/admin/questions`, `/admin/mock-interviews`, `/admin/resumes`
 
-**Tech Stack:**
-- React 18 with TypeScript
-- Vite for build tooling
-- Tailwind CSS for styling
-- shadcn/ui component library
-- Recharts for data visualization
-- React Query for server state management
-- Zustand for client state management
-- Socket.io-client for real-time features
+Important frontend patterns:
 
-### 2.2 Backend (Node.js + Express + TypeScript)
+- `App.tsx` owns route protection and lazy-loaded pages.
+- `Layout` and `AdminLayout` provide separate user/admin shells.
+- `authStore` persists authentication state and tokens.
+- `api.ts` unwraps backend `{ success, data, meta }` envelopes.
+- Axios interceptors attach access tokens and refresh expired access tokens.
+- TanStack Query handles server state, loading states, retry/refetch behavior, and cache invalidation.
+- Shared `StateFeedback` components provide loading, empty, and error states.
 
-**Responsibilities:**
-- API endpoints and business logic
-- Authentication and authorization (JWT + OAuth)
-- Request validation and sanitization
-- Rate limiting and security
-- Background job processing
+## 3. Backend
 
-**Architecture Pattern:**
-- Layered architecture: Controllers → Services → Repositories
-- Dependency injection for testability
-- Middleware pipeline for cross-cutting concerns
-- Event-driven architecture for async operations
+The backend is an Express app built around feature routes and services.
 
-**Tech Stack:**
-- Node.js 20 LTS
-- Express.js with TypeScript
-- Prisma ORM for database
-- Redis for caching and sessions
-- Bull Queue for background jobs
-- Winston for logging
-- Helmet + CORS for security
+Current folder pattern:
 
-### 2.3 AI Engine
-
-**Responsibilities:**
-- Dynamic question generation
-- Answer evaluation and feedback
-- Mock interview simulation
-- Resume analysis and skill extraction
-
-**Integration Strategy:**
-- Abstracted AI provider interface
-- Support for multiple LLM providers (OpenAI, Anthropic, Google)
-- Prompt versioning and A/B testing
-- Response caching for common queries
-- Fallback mechanisms for reliability
-
-**Key Capabilities:**
-- Structured output parsing (JSON mode)
-- Streaming responses for real-time feedback
-- Context management for conversation history
-- Token usage tracking and optimization
-
-### 2.4 Database (PostgreSQL)
-
-**Responsibilities:**
-- Persistent data storage
-- Complex queries for analytics
-- ACID compliance for transactions
-- Data integrity through constraints
-
-**Design Principles:**
-- Normalized schema for data integrity
-- Strategic denormalization for read performance
-- Partitioning for large tables (attempts, logs)
-- Comprehensive indexing strategy
-
-### 2.5 Cache Layer (Redis)
-
-**Responsibilities:**
-- Session storage
-- Frequently accessed data caching
-- Rate limiting counters
-- Real-time leaderboards
-- Pub/sub for real-time updates
-
-**Caching Strategy:**
-- Cache-aside pattern for reads
-- Write-through for critical data
-- TTL-based expiration
-- Cache invalidation on updates
-
-## 3. Data Flow - User Journey
-
-### 3.1 User Registration & Onboarding
-
-```
-1. User signs up (email/password or OAuth)
-   ↓
-2. Auth Service validates and creates user record
-   ↓
-3. System creates default skill profile (all topics at level 0)
-   ↓
-4. User completes skill assessment (optional)
-   ↓
-5. AI Engine generates personalized learning path
-   ↓
-6. Dashboard displays recommended questions and progress
+```text
+backend/src/
+├── config/       # env, Prisma, Redis, logger
+├── judge/        # Docker judge service, runners, output utils
+├── middleware/   # auth, validation, error handler, request ID
+├── routes/       # Express routers grouped by feature
+├── services/     # business logic
+├── types/        # TypeScript interfaces
+├── utils/        # API serialization helpers
+└── server.ts
 ```
 
-### 3.2 Practice Session Flow
+There is no separate `controllers/` layer in the current code. Route handlers are intentionally thin and call service methods directly.
 
-```
-1. User requests practice question
-   ↓
-2. Question Service queries user's skill profile
-   ↓
-3. Adaptive algorithm selects optimal question
-   ↓
-4. Cache check (Redis) → Database query if miss
-   ↓
-5. Question delivered to frontend with code editor
-   ↓
-6. User submits solution
-   ↓
-7. AI Engine evaluates answer (code + explanation)
-   ↓
-8. System updates skill profile based on performance
-   ↓
-9. Analytics engine recalculates strengths/weaknesses
-   ↓
-10. User receives detailed feedback and next steps
-```
+Backend responsibilities:
 
-### 3.3 Mock Interview Flow
+- Authentication and role authorization
+- Request validation
+- API envelope responses
+- Business workflows
+- Database access through Prisma
+- Redis cache access
+- Resume upload and parsing
+- AI feedback and review generation
+- Docker code execution
+- Admin reporting
 
-```
-1. User schedules/selects mock interview
-   ↓
-2. System generates interview session with AI interviewer
-   ↓
-3. WebSocket connection established
-   ↓
-4. AI asks first question based on user's resume/skills
-   ↓
-5. User responds (text or voice)
-   ↓
-6. AI evaluates and asks follow-up questions
-   ↓
-7. Session continues for N questions or time limit
-   ↓
-8. AI generates comprehensive interview report
-   ↓
-9. System stores results and updates skill profile
+## 4. Core User Flows
+
+### 4.1 Authentication
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant F as Frontend
+  participant A as Auth API
+  participant DB as PostgreSQL
+  U->>F: Submit login/register form
+  F->>A: POST /api/v1/auth/login or /register
+  A->>DB: Read/create user and verify password
+  A-->>F: User + access token + refresh token
+  F->>F: Persist auth state in Zustand
 ```
 
-### 3.4 Resume Analysis Flow
+The frontend refreshes access tokens with `POST /api/v1/auth/refresh` when the token is expired or a protected request returns `401`.
 
-```
-1. User uploads resume (PDF/DOCX)
-   ↓
-2. File stored in S3/MinIO
-   ↓
-3. Resume Service extracts text (pdf-parse)
-   ↓
-4. AI Engine parses and extracts:
-      - Skills
-      - Projects
-      - Experience
-      - Education
-   ↓
-5. System generates personalized question bank
-   ↓
-6. User sees skill gap analysis and recommendations
-```
+### 4.2 Practice and Judge
 
-## 4. Scalability Considerations
-
-### 4.1 Horizontal Scaling
-
-**Stateless Services:**
-- All backend services are stateless
-- JWT-based authentication (no server-side sessions)
-- Shared Redis for session/cache across instances
-- Load balancer with health checks
-
-**Database Scaling:**
-- Read replicas for query-heavy operations
-- Connection pooling (PgBouncer)
-- Query optimization and indexing
-- Partitioning for time-series data (attempts, logs)
-
-**Caching Strategy:**
-- Multi-layer caching:
-  - L1: In-memory (Node.js cache for hot data)
-  - L2: Redis (shared cache)
-  - L3: CDN (static assets)
-
-### 4.2 Performance Optimizations
-
-**Database:**
-- Query result caching (Redis)
-- Database indexing on frequently queried columns
-- Query optimization with EXPLAIN ANALYZE
-- Batch operations for bulk inserts
-
-**API:**
-- Response compression (gzip/brotli)
-- Pagination for large datasets
-- Field selection (GraphQL-style or query params)
-- Rate limiting to prevent abuse
-
-**Frontend:**
-- Code splitting and lazy loading
-- Virtual scrolling for long lists
-- Image optimization and lazy loading
-- Service worker for offline support
-
-### 4.3 Reliability
-
-**Error Handling:**
-- Circuit breaker pattern for external APIs
-- Graceful degradation when AI service is down
-- Retry logic with exponential backoff
-- Comprehensive logging and monitoring
-
-**Data Integrity:**
-- Database transactions for critical operations
-- Idempotent operations for retries
-- Backup and disaster recovery plan
-- Data validation at multiple layers
-
-## 5. Security Architecture
-
-### 5.1 Authentication & Authorization
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      AUTH FLOW                               │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  1. User Login                                               │
-│     ↓                                                        │
-│  2. Verify credentials (bcrypt)                              │
-│     ↓                                                        │
-│  3. Generate JWT (access + refresh tokens)                   │
-│     ↓                                                        │
-│  4. Return tokens to client                                  │
-│     ↓                                                        │
-│  5. Client sends access token in Authorization header        │
-│     ↓                                                        │
-│  6. Middleware validates JWT                                 │
-│     ↓                                                        │
-│  7. Check user permissions (RBAC)                            │
-│     ↓                                                        │
-│  8. Process request                                          │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+  participant F as Question Page
+  participant A as Attempts API
+  participant J as Judge Service
+  participant D as Docker
+  participant DB as PostgreSQL
+  participant AI as AI Service
+  F->>A: POST /attempts/run or /attempts
+  A->>J: Prepare code + testcases
+  J->>D: Run isolated container
+  D-->>J: stdout/stderr/exit/time
+  J-->>A: Verdict + testcase results
+  A->>DB: Persist attempt and testcase rows
+  A->>AI: Generate feedback for full submissions
+  A->>DB: Persist feedback, update skills/analytics
 ```
 
-**RBAC Roles:**
-- `user`: Standard user access
-- `premium`: Premium features access
-- `admin`: Administrative access
-- `interviewer`: Can conduct mock interviews
+`Run Code` executes custom stdin without saving an attempt. `Submit` persists the attempt, runs all testcases, stores testcase results, generates feedback, updates skill/analytics data, and may update spaced repetition.
 
-### 5.2 Data Protection
+### 4.3 Submission Timeline and Mistake Memory
 
-- Password hashing (bcrypt with salt rounds 12)
-- HTTPS/TLS for all communications
-- API key encryption at rest
-- PII data encryption in database
-- GDPR-compliant data deletion
+The question page fetches:
 
-### 5.3 API Security
+- `GET /api/v1/attempts/questions/:questionId/timeline`
 
-- Rate limiting (100 requests/minute per user)
-- Input validation and sanitization
-- SQL injection prevention (Prisma ORM)
-- XSS protection (Helmet.js)
-- CORS configuration
+The backend derives timeline data from existing attempt records:
 
-## 6. Monitoring & Observability
+- attempts,
+- attempt testcase rows,
+- attempt feedback rows.
 
-### 6.1 Logging
+Mistake Memory groups repeated statuses, repeated failing testcase indexes, and AI feedback weaknesses into concise coaching cards.
 
-```typescript
-// Structured logging with Winston
-{
-  timestamp: "2024-01-15T10:30:00Z",
-  level: "info",
-  service: "question-service",
-  requestId: "uuid-v4",
-  userId: "user-uuid",
-  action: "question_submitted",
-  metadata: {
-    questionId: "q-123",
-    difficulty: "medium",
-    timeSpent: 1200,
-    language: "javascript"
-  }
-}
-```
+### 4.4 Dashboard
 
-### 6.2 Metrics
+`GET /api/v1/dashboard` combines:
 
-- Application metrics (response time, error rate)
-- Business metrics (DAU, questions attempted, completion rate)
-- AI metrics (token usage, latency, accuracy)
-- Infrastructure metrics (CPU, memory, DB connections)
+- user analytics,
+- recommended questions,
+- recent interviews,
+- spaced repetition summary.
 
-### 6.3 Alerting
+Dashboard responses are cached in Redis for a short TTL.
 
-- Error rate > 5% for 5 minutes
-- API latency > 500ms (p95)
-- Database connection pool exhaustion
-- AI service downtime
-- Disk space > 80%
+### 4.5 Resume Review
 
-## 7. API Gateway Configuration
+Resume upload accepts PDF/DOCX files through Multer. Files are stored locally in development, parsed, and analyzed by resume services.
 
-```nginx
-# nginx.conf
-upstream backend {
-    least_conn;
-    server backend-1:3000;
-    server backend-2:3000;
-    server backend-3:3000;
-}
+The resume page displays:
 
-server {
-    listen 80;
-    server_name api.interviewprep.com;
+- upload status,
+- ATS score,
+- strengths and weaknesses,
+- skill categories,
+- priority improvements,
+- project analysis,
+- experience analysis,
+- parsed resume fallback,
+- job-description match analysis.
 
-    # Rate limiting
-    limit_req_zone $binary_remote_addr zone=api:10m rate=100r/m;
-    limit_req zone=api burst=20 nodelay;
+### 4.6 Learning Paths
 
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
+Learning paths are generated from weak topics. Each path contains ordered items linked to questions where possible. Updating item status recalculates path progress and completes the path when every item is complete.
 
-    # API routes
-    location /api/v1/ {
-        proxy_pass http://backend;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_cache_bypass $http_upgrade;
-    }
+### 4.7 Spaced Repetition
 
-    # WebSocket for real-time
-    location /ws/ {
-        proxy_pass http://backend;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
+Spaced repetition entries track interval, repetitions, ease factor, review counts, and next review date. Reviews use an SM-2 style update algorithm and can mark items as mastered after enough successful repetitions.
 
----
+### 4.8 Admin Operations
 
-## Summary
+Admin pages provide:
 
-This architecture provides:
-- **Scalability**: Horizontal scaling with stateless services
-- **Reliability**: Redundancy, failover, and graceful degradation
-- **Security**: Multi-layer security with RBAC
-- **Performance**: Multi-layer caching and optimization
-- **Maintainability**: Clean architecture with clear separation of concerns
-- **Extensibility**: Microservices ready for future growth
+- platform stats and user growth,
+- judge reliability metrics,
+- user search and role/premium/ban updates,
+- question CRUD and visibility management,
+- mock interview monitoring,
+- resume management and protected resume download.
+
+## 5. Data Stores
+
+### PostgreSQL
+
+PostgreSQL is the source of truth for users, skills, questions, attempts, interviews, resumes, learning paths, spaced repetition, analytics, subscriptions, and payments.
+
+### Redis
+
+Redis is used for cache helpers, including:
+
+- dashboard cache,
+- user analytics cache,
+- leaderboard cache,
+- user and skill cache invalidation patterns.
+
+### File Storage
+
+Development resume files are stored under the backend upload directory. Production should move this to S3 or compatible object storage.
+
+## 6. Docker Judge Design
+
+The judge runs code inside temporary Docker containers.
+
+Protections currently used:
+
+- `--network none`
+- memory limit
+- CPU limit
+- PID limit
+- dropped capabilities
+- `no-new-privileges`
+- read-only root filesystem
+- temporary `/tmp`
+- temporary per-submission workspace
+- output truncation
+- timeout cleanup
+
+Supported languages:
+
+- JavaScript
+- Python
+- C++
+- Java
+
+## 7. Security
+
+Implemented security controls:
+
+- bcrypt password hashing
+- JWT access and refresh tokens
+- admin role authorization
+- Zod request validation
+- Prisma parameterized queries
+- Helmet security headers
+- CORS allowlist
+- global rate limit
+- stricter auth rate limit
+- request ID middleware
+- centralized error handling
+
+Known security/reliability improvement opportunities:
+
+- Authenticate Socket.IO room joins with JWT instead of trusting emitted identifiers.
+- Add Redis adapter if Socket.IO must scale horizontally.
+- Move resume files to object storage for production.
+- Add dedicated judge event table if deeper judge forensics are needed.
+- Add frontend tests.
+
+## 8. Deployment Shape
+
+Local development can run PostgreSQL and Redis through Docker while the backend runs on the host. This is the recommended setup for judge development because the backend needs access to the host Docker CLI.
+
+The repository also includes a full `docker-compose.yml` with PostgreSQL, Redis, backend, and frontend services.
+
+Current GitHub deployment workflow deploys the backend to EC2 over SSH, pulls `main`, installs dependencies, generates Prisma client, builds the backend, restarts PM2, and checks `/health`.
+
+## 9. Future Scaling Options
+
+These are not required by the current implementation but are reasonable next steps:
+
+- Use Supabase/RDS connection pooling for Prisma.
+- Move long AI calls into Bull/Redis background jobs.
+- Store judge lifecycle events separately from attempts.
+- Add CDN/static hosting for frontend assets.
+- Add read replicas for analytics-heavy workloads.
+- Add object storage for uploads.
+- Add real Socket.IO interview streaming with authenticated room joins.
+

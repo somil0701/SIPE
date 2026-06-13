@@ -1,358 +1,310 @@
-设计的本质，是消除一切不必要的差异后，那个不得不存在的差异。
 # Smart Interview Preparation Engine - Deployment Guide
 
-## 1. Deployment Architecture
+This guide documents the current deployment shape and the operational requirements of the app.
 
+## 1. Current Production Shape
+
+The repository currently includes a backend deployment workflow for an EC2 host:
+
+- Workflow file: `.github/workflows/deploy.yml`
+- Trigger: push to `main`
+- Target: EC2 over SSH
+- Runtime manager: PM2
+- Backend health check: `http://localhost:10000/health`
+
+```mermaid
+flowchart LR
+  User["Browser"] --> Frontend["React/Vite frontend"]
+  Frontend --> API["Express API on EC2"]
+  API --> Postgres["PostgreSQL / Supabase"]
+  API --> Redis["Redis"]
+  API --> Docker["Docker judge containers"]
+  API --> AI["Groq/OpenAI APIs"]
+  API --> Uploads["Resume upload directory"]
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         PRODUCTION                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐     │
-│  │   Vercel    │      │   Render    │      |  PostgreSQL |     │
-│  │  (Frontend) │      │  (Backend)  │      |    + Redis  |     │
-│  │             │      │             │      |   (Supabase |     │
-│  │  React App  │◄────►│  Node.js    │◄────►│   + Upstash)|     │
-│  │             │      │   API       │      |             |     │
-│  └─────────────┘      └─────────────┘      └─────────────┘     │
-│         │                    │                                   │
-│         └────────────────────┘                                   │
-│              Custom Domain + SSL                                 │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
 
-## 2. Environment Variables
+The frontend can be deployed as static files from `frontend/dist` to any static hosting provider. The backend must run on infrastructure that supports Node.js, long-running processes, Docker, and outbound network access to the database, Redis, and AI providers.
 
-### Backend (.env)
+## 2. Runtime Requirements
+
+### Backend
+
+- Node.js 20.x
+- npm
+- PostgreSQL database reachable through `DATABASE_URL`
+- Redis reachable through `REDIS_URL`
+- Docker installed and usable by the backend process for code execution
+- PM2 or another process manager in production
+- Persistent filesystem path for uploads, or an external object storage replacement
+
+### Frontend
+
+- Node.js 20.x for builds
+- Static hosting for built assets
+- `VITE_API_URL` pointing to the backend API base URL
+
+## 3. Backend Environment Variables
+
+These values are validated in `backend/src/config/env.ts`.
+
+Required:
 
 ```bash
-# Server
 NODE_ENV=production
-PORT=3000
+PORT=10000
+API_VERSION=v1
+DATABASE_URL="postgresql://..."
+REDIS_URL="redis://..."
+JWT_SECRET="minimum-32-character-secret"
+JWT_REFRESH_SECRET="minimum-32-character-refresh-secret"
+CORS_ORIGIN="https://your-frontend-domain.com"
+```
 
-# Database
-DATABASE_URL=postgresql://user:pass@host:5432/db?schema=public
+Common optional/defaulted values:
 
-# Redis
-REDIS_URL=redis://host:port
-
-# JWT
-JWT_SECRET=your-super-secret-jwt-key-min-32-characters
-JWT_EXPIRES_IN=7d
-JWT_REFRESH_SECRET=your-super-secret-refresh-key-min-32-characters
-JWT_REFRESH_EXPIRES_IN=30d
-
-# OpenAI
-OPENAI_API_KEY=sk-your-openai-api-key
-
-# CORS
-CORS_ORIGIN=https://your-frontend-domain.com
-
-# Rate Limiting
+```bash
+JWT_EXPIRES_IN="7d"
+JWT_REFRESH_EXPIRES_IN="30d"
 RATE_LIMIT_MAX=100
+OPENAI_API_KEY="..."
+OPENAI_MODEL="gpt-4-turbo-preview"
+GROQ_API_KEY="..."
+GROQ_MODEL="llama-3.3-70b-versatile"
+MAX_FILE_SIZE=5242880
+UPLOAD_DIR="uploads"
+DOCKER_BINARY="docker"
+JUDGE_TEMP_DIR="tmp/judge"
+JUDGE_RUN_TIMEOUT_MS=3000
+JUDGE_COMPILE_TIMEOUT_MS=10000
+JUDGE_MEMORY_LIMIT="512m"
+JUDGE_CPU_LIMIT="0.5"
+JUDGE_PIDS_LIMIT=64
+JUDGE_IMAGE_JAVASCRIPT="node:20-alpine"
+JUDGE_IMAGE_PYTHON="python:3.12-alpine"
+JUDGE_IMAGE_CPP="gcc:13-bookworm"
+JUDGE_IMAGE_JAVA="eclipse-temurin:21-jdk-alpine"
+SMTP_HOST="..."
+SMTP_PORT=587
+SMTP_USER="..."
+SMTP_PASS="..."
+AWS_ACCESS_KEY_ID="..."
+AWS_SECRET_ACCESS_KEY="..."
+AWS_S3_BUCKET="..."
+AWS_REGION="us-east-1"
 ```
 
-### Frontend (.env)
+Notes:
+
+- `DIRECT_URL` appears in `.env.example`, but the current Prisma datasource only reads `DATABASE_URL`.
+- If Supabase is used, prefer the pooled connection string for app traffic when available.
+- AI features degrade to fallback behavior when provider keys are missing, depending on the service path.
+
+## 4. Frontend Environment Variables
+
+Create `frontend/.env` for local development or configure the same variable in static hosting:
 
 ```bash
-VITE_API_URL=https://your-backend-domain.com/api/v1
+VITE_API_URL="https://your-api-domain.com/api/v1"
 ```
 
-## 3. Docker Deployment (Local/Development)
+For local development:
 
 ```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-
-# Rebuild after changes
-docker-compose up -d --build
+VITE_API_URL="http://localhost:3000/api/v1"
 ```
 
-## 4. Vercel Deployment (Frontend)
+## 5. Local Build and Validation
 
-### Steps:
-
-1. **Create Vercel Account**: https://vercel.com
-
-2. **Install Vercel CLI**:
-   ```bash
-   npm i -g vercel
-   ```
-
-3. **Deploy**:
-   ```bash
-   cd frontend
-   vercel --prod
-   ```
-
-4. **Configure Environment Variables**:
-   - Go to Project Settings → Environment Variables
-   - Add `VITE_API_URL`
-
-5. **Custom Domain** (optional):
-   - Go to Project Settings → Domains
-   - Add your domain
-
-## 5. Render Deployment (Backend)
-
-### Steps:
-
-1. **Create Render Account**: https://render.com
-
-2. **Create New Web Service**:
-   - Connect your GitHub repo
-   - Select the backend directory
-   - Build Command: `npm install && npx prisma generate && npm run build`
-   - Start Command: `npm start`
-
-3. **Add Environment Variables**:
-   - Go to Environment tab
-   - Add all required variables
-
-4. **Create PostgreSQL Database**:
-   - New → PostgreSQL
-   - Copy connection string to `DATABASE_URL`
-
-5. **Create Redis Instance** (optional):
-   - Use Upstash: https://upstash.com
-   - Copy Redis URL to `REDIS_URL`
-
-## 6. Supabase Deployment (Database)
-
-### Steps:
-
-1. **Create Supabase Account**: https://supabase.com
-
-2. **Create New Project**
-
-3. **Get Connection String**:
-   - Settings → Database → Connection String
-   - Copy URI for Prisma
-
-4. **Run Migrations**:
-   ```bash
-   npx prisma migrate deploy
-   ```
-
-## 7. AWS Deployment (Alternative)
-
-### Architecture:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                         AWS                              │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  ┌─────────────┐      ┌─────────────┐                  │
-│  │   Route 53  │      │ CloudFront  │                  │
-│  │   (DNS)     │─────►│    (CDN)    │                  │
-│  └─────────────┘      └──────┬──────┘                  │
-│                              │                          │
-│                         ┌────┴────┐                     │
-│                         │   S3    │                     │
-│                         │(Static) │                     │
-│                         └─────────┘                     │
-│                                                          │
-│  ┌─────────────┐      ┌─────────────┐      ┌─────────┐ │
-│  │     ALB     │◄────►│    ECS      │◄────►│  RDS    │ │
-│  │  (Load Bal) │      │  (Backend)  │      │(Postgres)│ │
-│  └─────────────┘      └─────────────┘      └─────────┘ │
-│                                                          │
-│  ┌─────────────┐                                        │
-│  │ ElastiCache │                                        │
-│  │   (Redis)   │                                        │
-│  └─────────────┘                                        │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Services:
-
-- **ECS Fargate**: Container orchestration for backend
-- **RDS PostgreSQL**: Managed database
-- **ElastiCache Redis**: Managed cache
-- **S3 + CloudFront**: Static hosting with CDN
-- **Route 53**: DNS management
-- **ALB**: Application Load Balancer
-
-## 8. CI/CD Pipeline (GitHub Actions)
-
-### Backend Workflow:
-
-```yaml
-# .github/workflows/backend.yml
-name: Backend CI/CD
-
-on:
-  push:
-    branches: [main]
-    paths: ['backend/**']
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      - run: cd backend && npm ci
-      - run: cd backend && npm test
-
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy to Render
-        run: |
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
-```
-
-### Frontend Workflow:
-
-```yaml
-# .github/workflows/frontend.yml
-name: Frontend CI/CD
-
-on:
-  push:
-    branches: [main]
-    paths: ['frontend/**']
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      - run: cd frontend && npm ci
-      - run: cd frontend && npm run lint
-      - run: cd frontend && npm run build
-
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: vercel/action-deploy@v1
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-```
-
-## 9. Monitoring & Logging
-
-### Tools:
-
-- **Sentry**: Error tracking (https://sentry.io)
-- **LogRocket**: Session replay (https://logrocket.com)
-- **Datadog**: APM and monitoring (https://datadoghq.com)
-
-### Setup:
-
-```typescript
-// Sentry initialization
-import * as Sentry from '@sentry/node';
-
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.NODE_ENV,
-});
-```
-
-## 10. SSL/TLS Configuration
-
-### Let's Encrypt (Manual):
+Backend:
 
 ```bash
-# Install certbot
-sudo apt-get install certbot
-
-# Generate certificate
-sudo certbot certonly --standalone -d yourdomain.com
-
-# Auto-renewal
-echo "0 0 * * * certbot renew --quiet" | sudo crontab -
+cd backend
+npm install
+npm run db:generate
+npm run typecheck
+npm run build
 ```
 
-## 11. Backup Strategy
-
-### Database Backups:
+Frontend:
 
 ```bash
-# Daily backup script
-#!/bin/bash
-DATE=$(date +%Y%m%d)
-pg_dump $DATABASE_URL > backup_$DATE.sql
-gzip backup_$DATE.sql
-aws s3 cp backup_$DATE.sql.gz s3://your-backup-bucket/
+cd frontend
+npm install
+npm run build
 ```
 
-## 12. Scaling Strategy
-
-### Horizontal Scaling:
-
-1. **Load Balancer**: Distribute traffic across instances
-2. **Auto-scaling**: Scale based on CPU/memory usage
-3. **Database Read Replicas**: For read-heavy workloads
-4. **CDN**: Cache static assets globally
-
-### Vertical Scaling:
-
-1. **Database**: Upgrade instance size
-2. **Cache**: Increase Redis memory
-3. **Backend**: More CPU/memory per instance
-
-## 13. Cost Optimization
-
-### Tips:
-
-1. **Use serverless where possible** (Vercel, AWS Lambda)
-2. **Reserved instances** for predictable workloads
-3. **CDN caching** to reduce origin requests
-4. **Database connection pooling** with PgBouncer
-5. **Image optimization** and lazy loading
-
-## 14. Security Checklist
-
-- [ ] HTTPS enabled
-- [ ] Environment variables secured
-- [ ] Database credentials rotated regularly
-- [ ] Rate limiting configured
-- [ ] CORS properly configured
-- [ ] Input validation on all endpoints
-- [ ] SQL injection prevention (Prisma)
-- [ ] XSS protection (Helmet)
-- [ ] Regular dependency updates
-- [ ] Security headers configured
-
----
-
-## Quick Start Commands
+Database validation:
 
 ```bash
-# Local development
-cd backend && npm run dev
-cd frontend && npm run dev
-
-# Docker deployment
-docker-compose up -d
-
-# Database migrations
-cd backend && npx prisma migrate dev
-
-# Production build
-cd backend && npm run build
-cd frontend && npm run build
+cd backend
+npx prisma validate
 ```
+
+Production migration:
+
+```bash
+cd backend
+npm run db:deploy
+```
+
+Seed data:
+
+```bash
+cd backend
+npm run db:seed
+```
+
+## 6. Current GitHub Actions Deployment
+
+The actual workflow is:
+
+1. Checkout happens on the EC2 host through SSH.
+2. The script enters `~/SIPE/backend`.
+3. It fetches `origin/main`.
+4. It hard-resets the server working tree to `origin/main`.
+5. It runs `npm install`.
+6. It runs `npx prisma generate`.
+7. It runs `npm run build`.
+8. It restarts `pm2` process `sipe-backend`.
+9. It checks `/health` on localhost port `10000`.
+
+Required GitHub secrets:
+
+```bash
+EC2_HOST
+EC2_USER
+EC2_SSH_KEY
+```
+
+Required EC2 setup:
+
+- repo cloned at `~/SIPE`
+- backend `.env` present on the server
+- Node.js 20 installed
+- npm installed
+- PM2 installed
+- PM2 app named `sipe-backend`
+- Docker installed and running
+- database and Redis network access configured
+
+## 7. Backend PM2 Setup
+
+One straightforward setup on the EC2 host:
+
+```bash
+cd ~/SIPE/backend
+npm install
+npx prisma generate
+npm run build
+pm2 start dist/server.js --name sipe-backend
+pm2 save
+```
+
+When environment variables change:
+
+```bash
+pm2 restart sipe-backend --update-env
+```
+
+## 8. Database Deployment
+
+Use Prisma migrations:
+
+```bash
+cd backend
+npm run db:deploy
+```
+
+Operational recommendations:
+
+- keep migration deployment separate from app boot when possible;
+- back up production data before schema changes;
+- use a pooled database URL for application traffic;
+- monitor Prisma `P1001` errors because they usually indicate network, pool, or database availability issues.
+
+## 9. Docker Judge Deployment
+
+The judge executes submitted code inside Docker containers. Production hosts need:
+
+- Docker daemon running;
+- backend process user allowed to run Docker;
+- language images pulled or pullable:
+  - `node:20-alpine`
+  - `python:3.12-alpine`
+  - `gcc:13-bookworm`
+  - `eclipse-temurin:21-jdk-alpine`
+- a writable `JUDGE_TEMP_DIR`;
+- CPU, memory, process, compile timeout, and run timeout limits configured.
+
+Useful pre-pull command:
+
+```bash
+docker pull node:20-alpine
+docker pull python:3.12-alpine
+docker pull gcc:13-bookworm
+docker pull eclipse-temurin:21-jdk-alpine
+```
+
+## 10. Static Frontend Deployment
+
+Build output:
+
+```bash
+cd frontend
+npm run build
+```
+
+Deploy the `frontend/dist` directory to a static host such as Nginx, S3/CloudFront, Netlify, Vercel, or any equivalent provider.
+
+For React Router support, configure the host to serve `index.html` for unknown paths. With Nginx:
+
+```nginx
+location / {
+  try_files $uri $uri/ /index.html;
+}
+```
+
+## 11. Health Checks
+
+Backend:
+
+```bash
+curl http://localhost:10000/health
+curl http://localhost:10000/health/db
+```
+
+The first endpoint checks the server process. The second checks database connectivity through Prisma.
+
+## 12. Logging and Monitoring
+
+Current backend logging uses Winston and request logging middleware.
+
+Recommended production checks:
+
+- PM2 process status and restart count;
+- backend logs for Prisma `P1001`, judge failures, and auth rate limits;
+- database connection count and CPU;
+- Redis availability;
+- disk usage for `uploads`, `logs`, and judge temp directories;
+- admin Judge Reliability dashboard for verdict distribution and recurring judge errors.
+
+## 13. Security Checklist
+
+- Use HTTPS in front of both frontend and backend.
+- Set `CORS_ORIGIN` to the exact frontend origin.
+- Keep JWT secrets at least 32 characters and rotate them if exposed.
+- Do not commit `.env` files.
+- Restrict SSH access to the EC2 host.
+- Keep Docker updated.
+- Run the judge with conservative CPU, memory, timeout, and PID limits.
+- Keep upload size limits enabled.
+- Keep admin accounts limited and audited.
+- Run `npm audit` and dependency upgrades periodically.
+
+## 14. Known Deployment Gaps
+
+- Frontend deployment is not currently automated in `.github/workflows/deploy.yml`.
+- The workflow does not run backend tests before deployment.
+- The frontend package does not currently define an `npm test` script.
+- Upload storage is local by default; production should use a persistent volume or object storage strategy.
+- The backend workflow uses `git reset --hard` on the server copy, so server-local source edits under `~/SIPE` will be discarded on deploy.

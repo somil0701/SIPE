@@ -1,146 +1,123 @@
-# Resume Description - Smart Interview Preparation Engine
+# Smart Interview Preparation Engine - Resume / Portfolio Description
 
-## Project Summary
+Use this document as a truthful source for describing the project in a resume, portfolio, or interview. Avoid claiming live traffic, uptime, user counts, revenue, or test coverage unless those metrics are measured and available.
 
-**Smart Interview Preparation Engine** - An AI-driven adaptive interview preparation platform that personalizes learning, generates dynamic questions, simulates real interview environments, and continuously improves using feedback loops and analytics.
+## Short Resume Bullet Options
 
-## Resume Bullet Points (ATS-Optimized)
+- Built a full-stack AI interview preparation platform with React, TypeScript, Express, Prisma, PostgreSQL, Redis, and Docker-based code execution.
+- Implemented an adaptive coding practice workflow with Monaco editor, multi-language submissions, testcase results, AI feedback, submission history, and mistake memory.
+- Designed backend services for personalized question recommendations, spaced repetition, learning paths, mock interviews, resume parsing, analytics, and admin operations.
+- Added an admin Judge Reliability dashboard that surfaces verdict distribution, error signatures, language health, and recent failed submissions from persisted attempt data.
+- Integrated Prisma-backed analytics for user skills, daily progress, weak topics, streaks, attempt accuracy, and review scheduling.
 
-### For Full-Stack Developer Roles:
+## Two-Line Project Summary
 
-**Option 1 (Comprehensive):**
-```
-• Architected and developed a full-stack AI-powered interview preparation platform using Node.js, Express, TypeScript, React, and PostgreSQL, serving 10,000+ daily active users with 99.9% uptime
-• Implemented adaptive learning algorithms including SM-2 spaced repetition, skill proficiency tracking, and personalized question recommendation engine using OpenAI GPT-4 API
-• Designed and deployed microservices architecture with Redis caching, achieving 40% reduction in API response time and handling 500+ concurrent mock interview sessions
-• Built comprehensive analytics dashboard with real-time performance metrics, weak topic detection, and progress visualization using Recharts and WebSocket connections
-```
+Smart Interview Preparation Engine is a full-stack platform for coding interview practice, mock interviews, resume analysis, adaptive learning paths, and spaced repetition. It combines a React/Vite frontend with a TypeScript Express backend, PostgreSQL/Prisma data model, Redis caching, AI-assisted feedback, and Docker-isolated code judging.
 
-**Option 2 (Backend-Focused):**
-```
-• Developed scalable REST API with Node.js/Express handling 100K+ daily requests, implementing JWT authentication, rate limiting, and comprehensive error handling with structured logging
-• Designed PostgreSQL database schema with 20+ tables using Prisma ORM, optimizing queries with strategic indexing and achieving sub-100ms query performance
-• Integrated OpenAI GPT-4 for dynamic question generation, answer evaluation, and mock interview simulation with streaming responses and context management
-• Implemented caching layer with Redis reducing database load by 60%, including cache invalidation strategies and multi-layer caching (L1/L2/L3)
-```
+## Detailed Portfolio Description
 
-**Option 3 (Frontend-Focused):**
-```
-• Built responsive React application with TypeScript and Tailwind CSS, implementing 15+ interactive pages including code editor integration with Monaco Editor
-• Developed real-time features using WebSocket connections for live mock interviews, with state management using Zustand and server-state caching via TanStack Query
-• Created data visualization components using Recharts for analytics dashboard, displaying user progress, skill breakdowns, and performance trends
-• Implemented authentication flows, protected routes, and role-based access control with seamless token refresh mechanism
-```
+Smart Interview Preparation Engine is an interview prep application designed around repeated practice and measurable improvement. Users can register, complete onboarding, choose skill levels, browse coding questions, write code in a Monaco-powered editor, run code against custom input, submit solutions, review testcase outcomes, and revisit a full submission timeline for each question.
 
-## Technical Skills Demonstrated
+The practice workflow includes Submission Timeline and Mistake Memory features. The timeline shows past attempts, verdict progression, pass rate, execution metrics, code snapshots, failed testcase details, and AI feedback. Mistake Memory summarizes recurring failure patterns so users can focus on the mistakes they repeatedly make instead of treating each failed submission as isolated.
 
-### Backend Development
-- **Node.js/Express**: RESTful API design, middleware architecture, error handling
-- **Database Design**: PostgreSQL, Prisma ORM, query optimization, indexing strategies
-- **Authentication**: JWT, refresh tokens, bcrypt hashing, RBAC
-- **Caching**: Redis, cache-aside pattern, TTL management
-- **AI Integration**: OpenAI API, prompt engineering, streaming responses
-- **Security**: Helmet.js, CORS, rate limiting, input validation
+The platform also includes spaced repetition, learning paths, analytics, mock interviews, and resume intelligence. Resume uploads are parsed for skills and experience signals, then used for skill-gap analysis, personalized question suggestions, and job description matching. Analytics pages show practice volume, accuracy, skill breakdowns, streaks, weak topics, and strong topics.
 
-### Frontend Development
-- **React/TypeScript**: Hooks, context, custom hooks, type safety
-- **State Management**: Zustand, TanStack Query (React Query)
-- **Styling**: Tailwind CSS, responsive design, dark mode
-- **Data Visualization**: Recharts, interactive charts
-- **Code Editor**: Monaco Editor integration
-- **Real-time**: WebSocket, Socket.io client
+The backend is a modular TypeScript Express API using Prisma with PostgreSQL. It manages authentication, profile settings, questions, attempts, judge execution, analytics, learning paths, spaced repetition, interviews, resumes, and admin workflows. Code execution is isolated through Docker containers for JavaScript, Python, C++, and Java, with configured memory, CPU, timeout, and process limits.
 
-### DevOps & Infrastructure
-- **Docker**: Multi-stage builds, Docker Compose orchestration
-- **CI/CD**: GitHub Actions, automated testing, deployment pipelines
-- **Cloud Services**: Vercel, Render, Supabase, AWS
-- **Monitoring**: Winston logging, error tracking
+The admin area includes user management, question management, interview monitoring, resume oversight, growth metrics, and a Judge Reliability dashboard. The reliability dashboard calculates failure rates, timeout rates, compilation/runtime error rates, verdict breakdowns, language health, top error signatures, and recent failed submissions from attempt and testcase data.
 
-### Algorithms & Data Structures
-- **Adaptive Learning**: Difficulty progression, skill tracking
-- **Spaced Repetition**: SM-2 algorithm implementation
-- **Recommendation Engine**: Collaborative filtering, content-based filtering
-- **Analytics**: Statistical analysis, trend detection
+## Technical Highlights
 
-## Project Metrics (Quantifiable Achievements)
+- Frontend: React 18, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, Zustand, Monaco Editor, Recharts, Lucide icons.
+- Backend: Node.js 20, Express, TypeScript, Prisma, PostgreSQL, Redis, Socket.IO, Winston, Zod, JWT authentication.
+- Judge: Docker-isolated execution with language-specific containers, compile/run timeouts, resource limits, testcase normalization, verdict mapping, and persisted testcase results.
+- AI: Groq/OpenAI provider support for feedback, resume review, resume parsing assistance, interview evaluation, and fallback behavior when provider calls fail.
+- Data model: users, skills, questions, attempts, testcase rows, attempt feedback, interviews, resumes, learning paths, spaced repetition, analytics, subscriptions, payments, tags, companies.
 
-| Metric | Value |
-|--------|-------|
-| API Endpoints | 50+ |
-| Database Tables | 20+ |
-| Frontend Pages | 15+ |
-| Lines of Code | 15,000+ |
-| Test Coverage | 80%+ |
-| Response Time | <100ms (cached) |
-| Concurrent Users | 500+ |
+## Feature Coverage
 
-## Keywords for ATS
+### User Experience
 
-**Technical Skills:**
-Node.js, Express.js, TypeScript, React, PostgreSQL, Prisma, Redis, Docker, REST API, GraphQL, JWT, OAuth, Microservices, CI/CD, GitHub Actions, AWS, Vercel, Tailwind CSS, Zustand, React Query, WebSocket, OpenAI, GPT-4, Machine Learning, Data Structures, Algorithms
+- Register, login, refresh token, logout, and password change.
+- Protected application shell with dashboard navigation.
+- Profile page with personal settings and skill updates.
+- Onboarding support through user skill initialization.
 
-**Soft Skills:**
-System Design, Architecture, Problem Solving, Performance Optimization, Security, Testing, Documentation, Agile, Scrum
+### Practice
 
-## GitHub Repository Structure
+- Question browsing, filtering, search, recommendations, company questions, and due reviews.
+- Rich question page with description, constraints, hints, examples/testcases, editor, run, submit, feedback, and history.
+- Multi-language judge support for JavaScript, Python, C++, and Java.
+- Submission Timeline with attempt cards, verdict trend, selected attempt details, failed testcase inspection, feedback, and load-code action.
+- Mistake Memory summary generated from historical verdicts, failed testcases, and AI feedback.
 
-```
-smart-interview-prep/
-├── backend/           # Production-grade Node.js API
-├── frontend/          # Modern React application
-├── docs/              # Comprehensive documentation
-├── docker-compose.yml # Easy local deployment
-└── README.md          # Detailed project overview
-```
+### Learning
 
-## Demo & Links
+- Spaced repetition queue, due reviews, review ratings, reset, removal, and review statistics.
+- Learning path list/detail pages, progress state, item completion, pause/resume, and deletion.
+- Personalized recommendations based on skill state and due review signals.
 
-- **Live Demo**: [https://smart-interview-prep.vercel.app](https://smart-interview-prep.vercel.app)
-- **GitHub**: [https://github.com/yourusername/smart-interview-prep](https://github.com/yourusername/smart-interview-prep)
-- **API Docs**: [https://api.smart-interview-prep.com/docs](https://api.smart-interview-prep.com/docs)
+### Interviews
+
+- Mock interview creation and listing.
+- Interview session flow with start, current question, answer, skip, complete, cancel, and delete operations.
+- AI scoring and feedback fields for interview responses.
+
+### Resume Intelligence
+
+- Resume upload for PDF/DOCX.
+- Active resume selection through latest/current resume APIs.
+- Parsed resume text/data and detected skills.
+- Skill gap analysis.
+- Personalized question generation from resume signals.
+- Job description matching against current resume.
+
+### Analytics
+
+- Dashboard aggregates for recent interviews, spaced repetition summary, recommendations, and analytics cards.
+- Analytics page for attempts, solves, accuracy, streaks, skill breakdown, daily progress, weak topics, and strong topics.
+- Leaderboard endpoint for global or weekly ranking.
+
+### Admin
+
+- Platform stats and signup growth chart.
+- User search, filtering, pagination, and admin updates.
+- Question list, create, edit, and delete.
+- Skills lookup for question forms.
+- Interview monitoring.
+- Resume listing and protected download.
+- Judge Reliability dashboard.
+
+## Suggested Resume Project Entry
+
+**Smart Interview Preparation Engine**  
+Full-stack AI interview preparation platform built with React, TypeScript, Express, Prisma, PostgreSQL, Redis, and Docker.
+
+- Built an adaptive coding practice interface with Monaco Editor, multi-language Docker judge execution, custom runs, persisted submissions, testcase diagnostics, AI feedback, and code history.
+- Implemented Submission Timeline and Mistake Memory features to help users inspect verdict progression, recurring failed testcase patterns, previous code snapshots, and improvement suggestions.
+- Developed backend services for authentication, question recommendations, spaced repetition, learning paths, mock interviews, resume parsing, job matching, analytics, and admin workflows.
+- Added an admin Judge Reliability dashboard that reports verdict breakdowns, language-level health, timeout/compile/runtime error rates, top error signatures, and recent failures.
+- Modeled the application with Prisma/PostgreSQL across users, skills, questions, attempts, testcase results, feedback, interviews, resumes, learning paths, spaced repetition, analytics, subscriptions, and payments.
 
 ## Interview Talking Points
 
-### System Design
-- "I designed a scalable architecture with separate frontend, backend, and AI services..."
-- "For caching, I implemented a multi-layer strategy with Redis..."
-- "Database optimization included strategic indexing and query optimization..."
+- Why Docker isolation was chosen for judge execution.
+- How testcase results are normalized and mapped into verdicts.
+- How attempt history powers both Submission Timeline and Mistake Memory without adding duplicate tables.
+- How spaced repetition scheduling uses interval, repetitions, ease factor, and quality ratings.
+- How Prisma relationships keep analytics, attempts, feedback, and review records connected.
+- Why the admin reliability view derives telemetry from persisted attempts before introducing a separate event stream.
 
-### Technical Decisions
-- "I chose PostgreSQL over MongoDB for ACID compliance and complex queries..."
-- "Prisma ORM provided type safety and migration management..."
-- "Zustand was selected for state management due to its simplicity..."
+## Avoid Claiming Without Evidence
 
-### Challenges Overcome
-- "Implementing the SM-2 algorithm required careful state management..."
-- "Optimizing AI API calls with caching reduced costs by 70%..."
-- "Handling concurrent mock interviews with WebSocket was challenging..."
+Do not claim the following unless measured and documented:
 
-### Results & Impact
-- "The platform helps users improve their interview success rate by 40%..."
-- "Adaptive learning reduced time-to-proficiency by 30%..."
-- "Analytics help users identify and focus on weak areas..."
-
----
-
-## Tips for Interview
-
-1. **Know the Architecture**: Be ready to draw the system diagram
-2. **Understand Trade-offs**: Why PostgreSQL vs MongoDB? Why REST vs GraphQL?
-3. **Performance Numbers**: Know response times, throughput, cache hit rates
-4. **Scaling Strategy**: How would you handle 1M users?
-5. **Security Measures**: Explain authentication, authorization, data protection
-6. **AI Integration**: Understand prompt engineering and response handling
-
-## Project Showcase Checklist
-
-- [ ] Live demo deployed and working
-- [ ] GitHub repo with clean code and README
-- [ ] Comprehensive documentation
-- [ ] Screenshots/GIFs of key features
-- [ ] Video walkthrough (optional)
-- [ ] Blog post explaining technical decisions (optional)
-
----
-
-This project demonstrates senior-level full-stack development skills, system design capabilities, and production-ready code quality suitable for top-tier tech company interviews.
+- live production user count;
+- daily active users;
+- request throughput;
+- uptime percentage;
+- cost savings;
+- coverage percentage;
+- public launch status;
+- enterprise adoption;
+- hiring outcome guarantees.

@@ -32,6 +32,20 @@ router.get('/growth-chart', async (_req, res, next) => {
   }
 });
 
+router.get('/judge-reliability', async (req, res, next) => {
+  try {
+    const days = req.query.days ? parseInt(req.query.days as string, 10) : 7;
+    const reliability = await adminService.getJudgeReliability({ days });
+
+    res.json({
+      success: true,
+      data: reliability,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/users', async (req, res, next) => {
   try {
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;

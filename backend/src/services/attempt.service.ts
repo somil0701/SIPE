@@ -12,6 +12,77 @@ import { analyticsService } from './analytics.service';
 import { judgeService } from '../judge/judge.service';
 import { Attempt, AttemptInput, AttemptFeedback, AttemptStatus, RunCodeInput } from '../types';
 
+type TimelineAttemptStatus = keyof typeof PrismaAttemptStatus;
+
+interface SubmissionTimelineAttempt {
+  id: string;
+  attemptNumber: number;
+  status: TimelineAttemptStatus;
+  language: string;
+  code: string | null;
+  timeSpent: number;
+  executionTime: number | null;
+  testCasesPassed: number;
+  testCasesTotal: number;
+  aiScore: number | null;
+  submittedAt: Date;
+  feedback: {
+    overallScore: number | null;
+    summary: string | null;
+    codeQualityScore: number | null;
+    codeQualityFeedback: string | null;
+    timeComplexityActual: string | null;
+    spaceComplexityActual: string | null;
+    strengths: string[];
+    weaknesses: string[];
+    improvementSuggestions: string[];
+  } | null;
+  failedTestCases: {
+    id: string;
+    testCaseIndex: number;
+    input: string;
+    expectedOutput: string;
+    actualOutput: string | null;
+    errorMessage: string | null;
+    executionTime: number | null;
+  }[];
+}
+
+interface MistakeMemoryItem {
+  type: 'status' | 'test_case' | 'weakness';
+  label: string;
+  count: number;
+  lastSeenAt: Date;
+  suggestion: string;
+  evidence: string[];
+}
+
+interface SubmissionTimeline {
+  question: {
+    id: string;
+    title: string;
+    slug: string;
+    difficulty: string;
+    skill: {
+      id: string;
+      name: string;
+    };
+  };
+  summary: {
+    totalAttempts: number;
+    accepted: boolean;
+    bestScore: number | null;
+    bestStatus: TimelineAttemptStatus | null;
+    latestStatus: TimelineAttemptStatus | null;
+    latestSubmittedAt: Date | null;
+    firstAcceptedAt: Date | null;
+    languagesUsed: string[];
+    averageTimeSpent: number | null;
+  };
+  mistakeMemory: MistakeMemoryItem[];
+  attempts: SubmissionTimelineAttempt[];
+}
+
 /**
  * Attempt Service
  * 
@@ -283,6 +354,94 @@ class AttemptService {
   }
 
   /**
+   * Get a question-scoped submission timeline with recurring mistake memory.
+   */
+  async getQuestionSubmissionTimeline(userId: string, questionId: string): Promise<SubmissionTimeline> {
+    const question = await prisma.question.findUnique({
+      where: { id: questionId },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        difficulty: true,
+        skill: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!question) {
+      throw ApiError.notFound('Question not found');
+    }
+
+    const attempts = await prisma.attempt.findMany({
+      where: { userId, questionId },
+      include: {
+        attemptTestCases: {
+          orderBy: { testCaseIndex: 'asc' },
+        },
+        feedback: {
+          select: {
+            overallScore: true,
+            summary: true,
+            codeQualityScore: true,
+            codeQualityFeedback: true,
+            timeComplexityActual: true,
+            spaceComplexityActual: true,
+            strengths: true,
+            weaknesses: true,
+            improvementSuggestions: true,
+          },
+        },
+      },
+      orderBy: { submittedAt: 'desc' },
+      take: 25,
+    });
+
+    const timelineAttempts: SubmissionTimelineAttempt[] = attempts.map((attempt) => ({
+      id: attempt.id,
+      attemptNumber: attempt.attemptNumber,
+      status: attempt.status,
+      language: attempt.language,
+      code: attempt.code,
+      timeSpent: attempt.timeSpent,
+      executionTime: attempt.executionTime,
+      testCasesPassed: attempt.testCasesPassed,
+      testCasesTotal: attempt.testCasesTotal,
+      aiScore: attempt.aiScore,
+      submittedAt: attempt.submittedAt,
+      feedback: attempt.feedback,
+      failedTestCases: attempt.attemptTestCases
+        .filter((testCase) => !testCase.passed)
+        .map((testCase) => ({
+          id: testCase.id,
+          testCaseIndex: testCase.testCaseIndex,
+          input: testCase.input,
+          expectedOutput: testCase.expectedOutput,
+          actualOutput: testCase.actualOutput,
+          errorMessage: testCase.errorMessage,
+          executionTime: testCase.executionTime,
+        })),
+    }));
+
+    return {
+      question: {
+        id: question.id,
+        title: question.title,
+        slug: question.slug,
+        difficulty: question.difficulty,
+        skill: question.skill,
+      },
+      summary: this.buildTimelineSummary(timelineAttempts),
+      mistakeMemory: this.buildMistakeMemory(timelineAttempts),
+      attempts: timelineAttempts,
+    };
+  }
+
+  /**
    * Get attempt feedback
    */
   async getAttemptFeedback(attemptId: string, userId: string): Promise<AttemptFeedback> {
@@ -300,6 +459,160 @@ class AttemptService {
     }
 
     return attempt.feedback as unknown as AttemptFeedback;
+  }
+
+  private buildTimelineSummary(attempts: SubmissionTimelineAttempt[]): SubmissionTimeline['summary'] {
+    if (attempts.length === 0) {
+      return {
+        totalAttempts: 0,
+        accepted: false,
+        bestScore: null,
+        bestStatus: null,
+        latestStatus: null,
+        latestSubmittedAt: null,
+        firstAcceptedAt: null,
+        languagesUsed: [],
+        averageTimeSpent: null,
+      };
+    }
+
+    const acceptedAttempts = attempts.filter((attempt) => attempt.status === PrismaAttemptStatus.ACCEPTED);
+    const scoredAttempts = attempts.filter((attempt) => attempt.aiScore !== null);
+    const bestAttempt = [...attempts].sort((first, second) => {
+      const firstScore = first.aiScore ?? (first.status === PrismaAttemptStatus.ACCEPTED ? 100 : first.testCasesPassed);
+      const secondScore = second.aiScore ?? (second.status === PrismaAttemptStatus.ACCEPTED ? 100 : second.testCasesPassed);
+      return secondScore - firstScore;
+    })[0];
+    const averageTimeSpent = Math.round(
+      attempts.reduce((sum, attempt) => sum + attempt.timeSpent, 0) / attempts.length
+    );
+
+    return {
+      totalAttempts: attempts.length,
+      accepted: acceptedAttempts.length > 0,
+      bestScore: scoredAttempts.length > 0
+        ? Math.max(...scoredAttempts.map((attempt) => attempt.aiScore ?? 0))
+        : null,
+      bestStatus: bestAttempt?.status ?? null,
+      latestStatus: attempts[0]?.status ?? null,
+      latestSubmittedAt: attempts[0]?.submittedAt ?? null,
+      firstAcceptedAt: acceptedAttempts.length > 0
+        ? acceptedAttempts[acceptedAttempts.length - 1].submittedAt
+        : null,
+      languagesUsed: [...new Set(attempts.map((attempt) => attempt.language))],
+      averageTimeSpent,
+    };
+  }
+
+  private buildMistakeMemory(attempts: SubmissionTimelineAttempt[]): MistakeMemoryItem[] {
+    const memory = new Map<string, MistakeMemoryItem>();
+
+    attempts
+      .filter((attempt) => attempt.status !== PrismaAttemptStatus.ACCEPTED)
+      .forEach((attempt) => {
+        const key = `status:${attempt.status}`;
+        const label = this.formatAttemptStatus(attempt.status);
+        this.addMistakeMemoryItem(memory, key, {
+          type: 'status',
+          label,
+          lastSeenAt: attempt.submittedAt,
+          suggestion: this.statusSuggestion(attempt.status),
+          evidence: [`Attempt ${attempt.attemptNumber}: ${attempt.testCasesPassed}/${attempt.testCasesTotal} tests passed`],
+        });
+      });
+
+    attempts.forEach((attempt) => {
+      attempt.failedTestCases.forEach((testCase) => {
+        const key = `test:${testCase.testCaseIndex}`;
+        this.addMistakeMemoryItem(memory, key, {
+          type: 'test_case',
+          label: `Test case ${testCase.testCaseIndex + 1} keeps failing`,
+          lastSeenAt: attempt.submittedAt,
+          suggestion: 'Re-run this input manually and trace the edge case before changing the whole solution.',
+          evidence: [
+            `Attempt ${attempt.attemptNumber}: expected "${this.compactEvidence(testCase.expectedOutput)}", got "${this.compactEvidence(testCase.actualOutput ?? '')}"`,
+          ],
+        });
+      });
+    });
+
+    attempts.forEach((attempt) => {
+      attempt.feedback?.weaknesses.forEach((weakness) => {
+        const normalized = this.normalizeMemoryLabel(weakness);
+        if (!normalized) return;
+
+        this.addMistakeMemoryItem(memory, `weakness:${normalized}`, {
+          type: 'weakness',
+          label: weakness.trim(),
+          lastSeenAt: attempt.submittedAt,
+          suggestion: attempt.feedback?.improvementSuggestions[0] ?? 'Compare your current approach with the expected complexity and simplify the implementation.',
+          evidence: [`Attempt ${attempt.attemptNumber}: AI feedback flagged this weakness`],
+        });
+      });
+    });
+
+    return [...memory.values()]
+      .filter((item) => item.count > 1 || item.type === 'weakness')
+      .sort((first, second) => {
+        if (second.count !== first.count) return second.count - first.count;
+        return second.lastSeenAt.getTime() - first.lastSeenAt.getTime();
+      })
+      .slice(0, 6);
+  }
+
+  private addMistakeMemoryItem(
+    memory: Map<string, MistakeMemoryItem>,
+    key: string,
+    item: Omit<MistakeMemoryItem, 'count'>
+  ): void {
+    const existing = memory.get(key);
+
+    if (!existing) {
+      memory.set(key, {
+        ...item,
+        count: 1,
+      });
+      return;
+    }
+
+    existing.count += 1;
+    existing.lastSeenAt = existing.lastSeenAt > item.lastSeenAt ? existing.lastSeenAt : item.lastSeenAt;
+    existing.evidence = [...existing.evidence, ...item.evidence].slice(0, 3);
+  }
+
+  private formatAttemptStatus(status: TimelineAttemptStatus): string {
+    return status
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  private statusSuggestion(status: TimelineAttemptStatus): string {
+    switch (status) {
+      case PrismaAttemptStatus.WRONG_ANSWER:
+        return 'Focus on boundary cases and output format before changing the main algorithm.';
+      case PrismaAttemptStatus.TIME_LIMIT_EXCEEDED:
+        return 'Look for repeated work, nested loops, or a missing data structure that would lower complexity.';
+      case PrismaAttemptStatus.RUNTIME_ERROR:
+        return 'Check null/empty inputs, indexing, parsing, and language-specific runtime exceptions.';
+      case PrismaAttemptStatus.COMPILATION_ERROR:
+        return 'Fix syntax/import/class-name issues first, then run the sample input before submitting again.';
+      default:
+        return 'Review the latest failed attempt and isolate one correction before resubmitting.';
+    }
+  }
+
+  private normalizeMemoryLabel(value: string): string {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .slice(0, 80);
+  }
+
+  private compactEvidence(value: string): string {
+    const compacted = value.replace(/\s+/g, ' ').trim();
+    return compacted.length > 80 ? `${compacted.slice(0, 77)}...` : compacted;
   }
 
   /**

@@ -1,3 +1,4 @@
+import { AttemptStatus as PrismaAttemptStatus } from '@prisma/client';
 import { prisma } from '../config/database';
 import { ApiError } from '../middleware/errorHandler';
 import { env } from '../config/env';
@@ -146,6 +147,39 @@ const getSafeResumeFilePaths = (fileUrl: string) => {
   return { fileName, filePaths };
 };
 
+const JUDGE_FAILURE_STATUSES: PrismaAttemptStatus[] = [
+  PrismaAttemptStatus.WRONG_ANSWER,
+  PrismaAttemptStatus.TIME_LIMIT_EXCEEDED,
+  PrismaAttemptStatus.RUNTIME_ERROR,
+  PrismaAttemptStatus.COMPILATION_ERROR,
+  PrismaAttemptStatus.PARTIALLY_ACCEPTED,
+];
+
+const JUDGE_IN_PROGRESS_STATUSES: PrismaAttemptStatus[] = [
+  PrismaAttemptStatus.PENDING,
+  PrismaAttemptStatus.RUNNING,
+];
+
+const formatAttemptStatus = (status: PrismaAttemptStatus) =>
+  status
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const percent = (value: number, total: number) => (
+  total > 0 ? Math.round((value / total) * 1000) / 10 : 0
+);
+
+const compactErrorSignature = (message: string | null | undefined) => {
+  if (!message) return 'No error message captured';
+
+  return message
+    .split('\n')[0]
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 140) || 'No error message captured';
+};
+
 export class AdminService {
   async getDashboardStats() {
     const now = new Date();
@@ -216,6 +250,210 @@ export class AdminService {
       });
     }
     return data;
+  }
+
+  async getJudgeReliability(options: { days?: number } = {}) {
+    const days = Math.min(Math.max(options.days || 7, 1), 30);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [
+      totalSubmissions,
+      acceptedSubmissions,
+      timeoutSubmissions,
+      runtimeErrorSubmissions,
+      compilationErrorSubmissions,
+      partiallyAcceptedSubmissions,
+      inProgressSubmissions,
+      executionAggregate,
+      verdictGroups,
+      languageGroups,
+      recentFailures,
+      failedTestCases,
+    ] = await Promise.all([
+      prisma.attempt.count({ where: { submittedAt: { gte: since } } }),
+      prisma.attempt.count({ where: { status: PrismaAttemptStatus.ACCEPTED, submittedAt: { gte: since } } }),
+      prisma.attempt.count({ where: { status: PrismaAttemptStatus.TIME_LIMIT_EXCEEDED, submittedAt: { gte: since } } }),
+      prisma.attempt.count({ where: { status: PrismaAttemptStatus.RUNTIME_ERROR, submittedAt: { gte: since } } }),
+      prisma.attempt.count({ where: { status: PrismaAttemptStatus.COMPILATION_ERROR, submittedAt: { gte: since } } }),
+      prisma.attempt.count({ where: { status: PrismaAttemptStatus.PARTIALLY_ACCEPTED, submittedAt: { gte: since } } }),
+      prisma.attempt.count({ where: { status: { in: JUDGE_IN_PROGRESS_STATUSES }, submittedAt: { gte: since } } }),
+      prisma.attempt.aggregate({
+        where: {
+          submittedAt: { gte: since },
+          executionTime: { not: null },
+        },
+        _avg: { executionTime: true },
+        _max: { executionTime: true },
+      }),
+      prisma.attempt.groupBy({
+        by: ['status'],
+        where: { submittedAt: { gte: since } },
+        _count: { _all: true },
+      }),
+      prisma.attempt.groupBy({
+        by: ['language'],
+        where: { submittedAt: { gte: since } },
+        _count: { _all: true },
+        _avg: {
+          executionTime: true,
+          testCasesPassed: true,
+          testCasesTotal: true,
+        },
+      }),
+      prisma.attempt.findMany({
+        where: {
+          submittedAt: { gte: since },
+          status: { in: JUDGE_FAILURE_STATUSES },
+        },
+        orderBy: { submittedAt: 'desc' },
+        take: 8,
+        select: {
+          id: true,
+          status: true,
+          language: true,
+          executionTime: true,
+          testCasesPassed: true,
+          testCasesTotal: true,
+          submittedAt: true,
+          question: {
+            select: {
+              title: true,
+              slug: true,
+            },
+          },
+          user: {
+            select: {
+              fullName: true,
+              email: true,
+            },
+          },
+          attemptTestCases: {
+            where: { passed: false },
+            orderBy: { testCaseIndex: 'asc' },
+            take: 1,
+            select: {
+              testCaseIndex: true,
+              errorMessage: true,
+              expectedOutput: true,
+              actualOutput: true,
+            },
+          },
+        },
+      }),
+      prisma.attemptTestCase.findMany({
+        where: {
+          passed: false,
+          createdAt: { gte: since },
+        },
+        select: {
+          errorMessage: true,
+          attempt: {
+            select: {
+              status: true,
+              language: true,
+            },
+          },
+        },
+        take: 500,
+      }),
+    ]);
+
+    const failureSubmissions = verdictGroups
+      .filter((group) => JUDGE_FAILURE_STATUSES.includes(group.status))
+      .reduce((sum, group) => sum + group._count._all, 0);
+
+    const errorSignatureMap = new Map<string, {
+      signature: string;
+      count: number;
+      statuses: Set<PrismaAttemptStatus>;
+      languages: Set<string>;
+    }>();
+
+    failedTestCases.forEach((testCase) => {
+      const signature = compactErrorSignature(testCase.errorMessage);
+      const existing = errorSignatureMap.get(signature) ?? {
+        signature,
+        count: 0,
+        statuses: new Set<PrismaAttemptStatus>(),
+        languages: new Set<string>(),
+      };
+
+      existing.count += 1;
+      existing.statuses.add(testCase.attempt.status);
+      existing.languages.add(testCase.attempt.language);
+      errorSignatureMap.set(signature, existing);
+    });
+
+    return {
+      window: {
+        days,
+        since,
+        generatedAt: new Date(),
+      },
+      summary: {
+        totalSubmissions,
+        acceptedSubmissions,
+        failureSubmissions,
+        inProgressSubmissions,
+        successRate: percent(acceptedSubmissions, totalSubmissions),
+        failureRate: percent(failureSubmissions, totalSubmissions),
+        timeoutRate: percent(timeoutSubmissions, totalSubmissions),
+        compilationErrorRate: percent(compilationErrorSubmissions, totalSubmissions),
+        runtimeErrorRate: percent(runtimeErrorSubmissions, totalSubmissions),
+        partiallyAcceptedRate: percent(partiallyAcceptedSubmissions, totalSubmissions),
+        averageExecutionTimeMs: Math.round(executionAggregate._avg.executionTime ?? 0),
+        maxExecutionTimeMs: executionAggregate._max.executionTime ?? 0,
+      },
+      verdictBreakdown: verdictGroups
+        .map((group) => ({
+          status: group.status,
+          label: formatAttemptStatus(group.status),
+          count: group._count._all,
+          rate: percent(group._count._all, totalSubmissions),
+        }))
+        .sort((first, second) => second.count - first.count),
+      languageBreakdown: languageGroups
+        .map((group) => ({
+          language: group.language,
+          submissions: group._count._all,
+          averageExecutionTimeMs: Math.round(group._avg.executionTime ?? 0),
+          averagePassedTests: Math.round((group._avg.testCasesPassed ?? 0) * 10) / 10,
+          averageTotalTests: Math.round((group._avg.testCasesTotal ?? 0) * 10) / 10,
+          averagePassRate: percent(group._avg.testCasesPassed ?? 0, group._avg.testCasesTotal ?? 0),
+        }))
+        .sort((first, second) => second.submissions - first.submissions),
+      topErrorSignatures: [...errorSignatureMap.values()]
+        .map((item) => ({
+          signature: item.signature,
+          count: item.count,
+          statuses: [...item.statuses].map(formatAttemptStatus),
+          languages: [...item.languages],
+        }))
+        .sort((first, second) => second.count - first.count)
+        .slice(0, 6),
+      recentFailures: recentFailures.map((attempt) => {
+        const failedCase = attempt.attemptTestCases[0];
+
+        return {
+          id: attempt.id,
+          status: attempt.status,
+          label: formatAttemptStatus(attempt.status),
+          language: attempt.language,
+          executionTime: attempt.executionTime,
+          testCasesPassed: attempt.testCasesPassed,
+          testCasesTotal: attempt.testCasesTotal,
+          submittedAt: attempt.submittedAt,
+          questionTitle: attempt.question.title,
+          questionSlug: attempt.question.slug,
+          userName: attempt.user.fullName,
+          userEmail: attempt.user.email,
+          firstFailedTestIndex: failedCase?.testCaseIndex ?? null,
+          errorMessage: failedCase?.errorMessage ?? null,
+          expectedOutput: failedCase?.expectedOutput ?? null,
+          actualOutput: failedCase?.actualOutput ?? null,
+        };
+      }),
+    };
   }
 
   async getUsers(options: { page?: number; limit?: number; search?: string; role?: string; isPremium?: boolean }) {

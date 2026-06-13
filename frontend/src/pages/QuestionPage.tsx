@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import Editor from '@monaco-editor/react'
 import {
+  AlertTriangle,
+  Brain,
   CheckCircle2,
   ChevronLeft,
   Clock,
+  Code2,
   Lightbulb,
   Loader2,
   Play,
@@ -295,9 +298,93 @@ function getConsoleText(runResult: any) {
   return output || '(no output)'
 }
 
+type TimelineAttempt = {
+  id: string
+  attemptNumber: number
+  status: string
+  language: string
+  code: string | null
+  timeSpent: number
+  executionTime: number | null
+  testCasesPassed: number
+  testCasesTotal: number
+  aiScore: number | null
+  submittedAt: string
+  feedback: {
+    summary: string | null
+    codeQualityScore: number | null
+    codeQualityFeedback: string | null
+    timeComplexityActual: string | null
+    spaceComplexityActual: string | null
+    strengths: string[]
+    weaknesses: string[]
+    improvementSuggestions: string[]
+  } | null
+  failedTestCases: Array<{
+    id: string
+    testCaseIndex: number
+    input: string
+    expectedOutput: string
+    actualOutput: string | null
+    errorMessage: string | null
+    executionTime: number | null
+  }>
+}
+
+type SubmissionTimeline = {
+  summary: {
+    totalAttempts: number
+    accepted: boolean
+    bestScore: number | null
+    bestStatus: string | null
+    latestStatus: string | null
+    latestSubmittedAt: string | null
+    firstAcceptedAt: string | null
+    languagesUsed: string[]
+    averageTimeSpent: number | null
+  }
+  mistakeMemory: Array<{
+    type: 'status' | 'test_case' | 'weakness'
+    label: string
+    count: number
+    lastSeenAt: string
+    suggestion: string
+    evidence: string[]
+  }>
+  attempts: TimelineAttempt[]
+}
+
+function formatDuration(seconds?: number | null) {
+  if (seconds === null || seconds === undefined) return '0s'
+  const minutes = Math.floor(seconds / 60)
+  const remainder = seconds % 60
+  return minutes > 0 ? `${minutes}m ${remainder}s` : `${remainder}s`
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return 'Not yet'
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function statusTone(status?: string) {
+  if (isJudgeInProgress(status)) return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300'
+  if (status === 'ACCEPTED') return 'border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300'
+  return 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300'
+}
+
+function latestFailedCase(attempt?: TimelineAttempt) {
+  return attempt?.failedTestCases?.[0]
+}
+
 export function QuestionPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const [language, setLanguage] = useState(getSupportedLanguage(user?.preferredLanguage))
   const [vimMode, setVimMode] = useState(() => {
@@ -308,7 +395,7 @@ export function QuestionPage() {
   const [runResult, setRunResult] = useState<any | null>(null)
   const [activeTab, setActiveTab] = useState<'description' | 'solution' | 'submissions'>('description')
   const [showHint, setShowHint] = useState<number | null>(null)
-  const [latestAttemptId, setLatestAttemptId] = useState<string | null>(null)
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null)
   const startTime = useRef(Date.now())
   const editorRef = useRef<any>(null)
   const vimAdapterRef = useRef<any>(null)
@@ -326,13 +413,13 @@ export function QuestionPage() {
 
   const question = questionData
 
-  const { data: latestAttempt, isFetching: isFetchingAttempt } = useQuery({
-    queryKey: ['attempt', latestAttemptId],
-    queryFn: () => attemptsApi.getById(latestAttemptId!),
-    enabled: Boolean(latestAttemptId),
+  const { data: submissionTimeline, isFetching: isFetchingTimeline } = useQuery<SubmissionTimeline>({
+    queryKey: ['submission-timeline', question?.id],
+    queryFn: () => attemptsApi.getQuestionTimeline(question!.id),
+    enabled: Boolean(question?.id),
     refetchInterval: (query) => {
-      const status = (query.state.data as any)?.status
-      return isJudgeInProgress(status) ? 1000 : false
+      const attempts = (query.state.data as SubmissionTimeline | undefined)?.attempts ?? []
+      return attempts.some((attempt) => isJudgeInProgress(attempt.status)) ? 1000 : false
     },
   })
 
@@ -349,6 +436,21 @@ export function QuestionPage() {
       setRunResult(null)
     }
   }, [question])
+
+  useEffect(() => {
+    if (!submissionTimeline?.attempts.length) {
+      setSelectedAttemptId(null)
+      return
+    }
+
+    setSelectedAttemptId((current) => {
+      if (current && submissionTimeline.attempts.some((attempt) => attempt.id === current)) {
+        return current
+      }
+
+      return submissionTimeline.attempts[0].id
+    })
+  }, [submissionTimeline])
 
   useEffect(() => {
     localStorage.setItem('editor-vim-mode', String(vimMode))
@@ -399,10 +501,11 @@ export function QuestionPage() {
         code,
         language,
         timeSpent: Math.floor((Date.now() - startTime.current) / 1000),
-      }),
+    }),
     onSuccess: (attempt: any) => {
-      setLatestAttemptId(attempt.id)
+      setSelectedAttemptId(attempt.id)
       setActiveTab('submissions')
+      queryClient.invalidateQueries({ queryKey: ['submission-timeline', question!.id] })
       toast.success('Solution submitted. Evaluating now.')
     },
     onError: (error: any) => {
@@ -449,8 +552,10 @@ export function QuestionPage() {
     )
   }
 
-  const latestAttemptRunning = isJudgeInProgress(latestAttempt?.status)
-  const failedAttemptCase = latestAttempt?.attemptTestCases?.find((testCase: any) => !testCase.passed)
+  const timelineAttempts = submissionTimeline?.attempts ?? []
+  const selectedAttempt = timelineAttempts.find((attempt) => attempt.id === selectedAttemptId) ?? timelineAttempts[0]
+  const selectedAttemptRunning = isJudgeInProgress(selectedAttempt?.status)
+  const failedAttemptCase = latestFailedCase(selectedAttempt)
 
   return (
     <div className="space-y-4">
@@ -577,116 +682,227 @@ export function QuestionPage() {
 
             {activeTab === 'submissions' && (
               <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Your Submissions</h2>
-                {!latestAttemptId ? (
-                  <p className="text-muted-foreground">
-                    Submit a solution to see its evaluation here.
-                  </p>
-                ) : isFetchingAttempt && !latestAttempt ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold">Submission Timeline</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Track progress, recurring mistakes, and previous code for this problem.
+                    </p>
+                  </div>
+                  {isFetchingTimeline && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+
+                {isFetchingTimeline && !submissionTimeline ? (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading submission result...
+                    Loading submission timeline...
                   </div>
-                ) : latestAttempt ? (
+                ) : timelineAttempts.length === 0 ? (
+                  <p className="text-muted-foreground">
+                    Submit a solution to build your timeline and mistake memory.
+                  </p>
+                ) : submissionTimeline && selectedAttempt ? (
                   <div className="space-y-4">
-                    <div className="rounded-lg border p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Latest submission</p>
-                          <div className="flex items-center gap-2">
-                            {latestAttemptRunning ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            ) : latestAttempt.status === 'ACCEPTED' ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-red-600" />
-                            )}
-                            <p className="font-semibold">{formatStatus(latestAttempt.status)}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Tests</p>
-                          <p className="font-semibold">
-                            {latestAttempt.testCasesPassed} / {latestAttempt.testCasesTotal}
-                          </p>
-                        </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Attempts</p>
+                        <p className="text-2xl font-bold">{submissionTimeline.summary.totalAttempts}</p>
                       </div>
-                      {latestAttempt.executionTime !== null && latestAttempt.executionTime !== undefined && (
-                        <div className="mt-3 border-t pt-3 text-sm text-muted-foreground">
-                          Execution time: {latestAttempt.executionTime} ms
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Latest</p>
+                        <p className="text-sm font-semibold">{formatStatus(submissionTimeline.summary.latestStatus || undefined)}</p>
+                      </div>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Best AI score</p>
+                        <p className="text-2xl font-bold">{submissionTimeline.summary.bestScore ?? '-'}</p>
+                      </div>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">Avg time</p>
+                        <p className="text-sm font-semibold">{formatDuration(submissionTimeline.summary.averageTimeSpent)}</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <Brain className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Mistake Memory</h3>
+                      </div>
+                      {submissionTimeline.mistakeMemory.length > 0 ? (
+                        <div className="space-y-3">
+                          {submissionTimeline.mistakeMemory.map((item) => (
+                            <div key={`${item.type}-${item.label}`} className="rounded-lg bg-muted/40 p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-medium">{item.label}</p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Seen {item.count} time{item.count === 1 ? '' : 's'} · Last seen {formatDateTime(item.lastSeenAt)}
+                                  </p>
+                                </div>
+                                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                              </div>
+                              <p className="mt-2 text-sm text-muted-foreground">{item.suggestion}</p>
+                              {item.evidence.length > 0 && (
+                                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                  {item.evidence.map((evidence, index) => (
+                                    <li key={index}>{evidence}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      )}
-                      {failedAttemptCase?.errorMessage && (
-                        <pre className="mt-3 whitespace-pre-wrap rounded-md bg-red-950/10 p-3 text-xs text-red-700 dark:text-red-300">
-                          {failedAttemptCase.errorMessage}
-                        </pre>
-                      )}
-                      {latestAttempt.aiScore !== null && latestAttempt.aiScore !== undefined && (
-                        <div className="mt-3 border-t pt-3">
-                          <p className="text-sm text-muted-foreground">AI score</p>
-                          <p className="text-2xl font-bold">{latestAttempt.aiScore}</p>
-                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No repeated mistake pattern yet. A couple more submissions will make this smarter.
+                        </p>
                       )}
                     </div>
 
-                    {latestAttempt.attemptTestCases?.length > 0 && (
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                       <div className="space-y-2">
-                        <h3 className="font-semibold">Test cases</h3>
-                        {latestAttempt.attemptTestCases.map((testCase: any) => (
-                          <div key={testCase.id} className="rounded-lg border p-3 text-sm">
+                        <h3 className="font-semibold">Attempts</h3>
+                        {timelineAttempts.map((attempt) => (
+                          <button
+                            type="button"
+                            key={attempt.id}
+                            onClick={() => setSelectedAttemptId(attempt.id)}
+                            className={`w-full rounded-lg border p-3 text-left transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                              selectedAttempt.id === attempt.id ? 'border-primary bg-muted/60' : ''
+                            }`}
+                          >
                             <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2 font-medium">
-                                {testCase.passed ? (
+                              <div className="flex items-center gap-2">
+                                {isJudgeInProgress(attempt.status) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                ) : attempt.status === 'ACCEPTED' ? (
                                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                                 ) : (
                                   <XCircle className="h-4 w-4 text-red-600" />
                                 )}
-                                Test {testCase.testCaseIndex + 1}
+                                <span className="text-sm font-medium">Attempt {attempt.attemptNumber}</span>
                               </div>
-                              <span className="text-xs text-muted-foreground">
-                                {testCase.executionTime ?? 0} ms
+                              <span className={`rounded-full border px-2 py-0.5 text-xs ${statusTone(attempt.status)}`}>
+                                {formatStatus(attempt.status)}
                               </span>
                             </div>
-                            {!testCase.passed && (
-                              <div className="mt-3 grid grid-cols-1 gap-2">
-                                <pre className="overflow-auto rounded-md bg-muted p-2 text-xs">
-                                  {`Expected:\n${testCase.expectedOutput}`}
-                                </pre>
-                                <pre className="overflow-auto rounded-md bg-muted p-2 text-xs">
-                                  {`Actual:\n${testCase.actualOutput || ''}`}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
+                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                              <span>{attempt.language}</span>
+                              <span>{attempt.testCasesPassed}/{attempt.testCasesTotal} tests</span>
+                              <span>{formatDuration(attempt.timeSpent)}</span>
+                              <span>{formatDateTime(attempt.submittedAt)}</span>
+                            </div>
+                          </button>
                         ))}
                       </div>
-                    )}
 
-                    {latestAttempt.feedback ? (
                       <div className="rounded-lg border p-4">
-                        <h3 className="font-semibold mb-2">Feedback</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {latestAttempt.feedback.summary || 'Feedback generated.'}
-                        </p>
-                        {latestAttempt.feedback.improvementSuggestions?.length > 0 && (
-                          <ul className="mt-3 list-disc list-inside text-sm text-muted-foreground space-y-1">
-                            {latestAttempt.feedback.improvementSuggestions
-                              .slice(0, 3)
-                              .map((suggestion: string, index: number) => (
-                                <li key={index}>{suggestion}</li>
-                              ))}
-                          </ul>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Selected attempt</p>
+                            <div className="mt-1 flex items-center gap-2">
+                              {selectedAttemptRunning ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              ) : selectedAttempt.status === 'ACCEPTED' ? (
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-600" />
+                              )}
+                              <p className="font-semibold">
+                                Attempt {selectedAttempt.attemptNumber} · {formatStatus(selectedAttempt.status)}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedAttempt.code) {
+                                setLanguage(getSupportedLanguage(selectedAttempt.language))
+                                setCode(selectedAttempt.code)
+                                toast.success('Loaded this attempt into the editor.')
+                              }
+                            }}
+                            disabled={!selectedAttempt.code}
+                            className="flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            <Code2 className="h-4 w-4" />
+                            Load Code
+                          </button>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Tests</p>
+                            <p className="font-semibold">{selectedAttempt.testCasesPassed} / {selectedAttempt.testCasesTotal}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Runtime</p>
+                            <p className="font-semibold">{selectedAttempt.executionTime ?? 0} ms</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">AI score</p>
+                            <p className="font-semibold">{selectedAttempt.aiScore ?? '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Submitted</p>
+                            <p className="font-semibold">{formatDateTime(selectedAttempt.submittedAt)}</p>
+                          </div>
+                        </div>
+
+                        {failedAttemptCase && (
+                          <div className="mt-4 space-y-2">
+                            <h4 className="text-sm font-semibold">First failing case</h4>
+                            {failedAttemptCase.errorMessage && (
+                              <pre className="whitespace-pre-wrap rounded-md bg-red-950/10 p-3 text-xs text-red-700 dark:text-red-300">
+                                {failedAttemptCase.errorMessage}
+                              </pre>
+                            )}
+                            <div className="grid grid-cols-1 gap-2">
+                              <pre className="overflow-auto rounded-md bg-muted p-2 text-xs">
+                                {`Input:\n${failedAttemptCase.input}`}
+                              </pre>
+                              <pre className="overflow-auto rounded-md bg-muted p-2 text-xs">
+                                {`Expected:\n${failedAttemptCase.expectedOutput}\n\nActual:\n${failedAttemptCase.actualOutput || ''}`}
+                              </pre>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedAttempt.feedback ? (
+                          <div className="mt-4 border-t pt-4">
+                            <h4 className="font-semibold">Feedback</h4>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {selectedAttempt.feedback.summary || 'Feedback generated.'}
+                            </p>
+                            {selectedAttempt.feedback.improvementSuggestions?.length > 0 && (
+                              <ul className="mt-3 list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                                {selectedAttempt.feedback.improvementSuggestions.slice(0, 3).map((suggestion, index) => (
+                                  <li key={index}>{suggestion}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="mt-4 flex items-center gap-2 border-t pt-4 text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {selectedAttemptRunning ? 'Judge is running...' : 'Feedback is still being generated...'}
+                          </div>
+                        )}
+
+                        {selectedAttempt.code && (
+                          <div className="mt-4">
+                            <h4 className="mb-2 text-sm font-semibold">Code snapshot</h4>
+                            <pre className="max-h-72 overflow-auto rounded-md bg-zinc-950 p-3 text-xs text-zinc-100">
+                              {selectedAttempt.code}
+                            </pre>
+                          </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {latestAttemptRunning ? 'Judge is running...' : 'Feedback is still being generated...'}
-                      </div>
-                    )}
+                    </div>
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">Submission result unavailable.</p>
+                  <p className="text-muted-foreground">Submission timeline unavailable.</p>
                 )}
               </div>
             )}

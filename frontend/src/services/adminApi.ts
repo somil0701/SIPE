@@ -3,6 +3,7 @@ import { api } from './api';
 export const adminApi = {
   getStats: () => api.get<any>('/admin/stats'),
   getGrowthChart: () => api.get<any[]>('/admin/growth-chart'),
+  getJudgeReliability: (days = 7) => api.get<any>('/admin/judge-reliability', { params: { days } }),
   getUsers: (params?: { page?: number; limit?: number; search?: string; role?: string; isPremium?: boolean }) => 
     api.getWithMeta<any[]>('/admin/users', { params }),
   updateUser: (id: string, data: { role?: string; isPremium?: boolean; isBanned?: boolean }) =>

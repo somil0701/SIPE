@@ -6,7 +6,11 @@ import {
   Mic,
   FileText,
   DollarSign,
-  UserPlus
+  UserPlus,
+  AlertTriangle,
+  Cpu,
+  Gauge,
+  TimerReset
 } from 'lucide-react';
 import {
   LineChart,
@@ -18,6 +22,82 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { adminApi } from '../../services/adminApi';
+
+type JudgeReliability = {
+  summary: {
+    totalSubmissions: number;
+    acceptedSubmissions: number;
+    failureSubmissions: number;
+    inProgressSubmissions: number;
+    successRate: number;
+    failureRate: number;
+    timeoutRate: number;
+    compilationErrorRate: number;
+    runtimeErrorRate: number;
+    averageExecutionTimeMs: number;
+    maxExecutionTimeMs: number;
+  };
+  verdictBreakdown: Array<{
+    status: string;
+    label: string;
+    count: number;
+    rate: number;
+  }>;
+  languageBreakdown: Array<{
+    language: string;
+    submissions: number;
+    averageExecutionTimeMs: number;
+    averagePassedTests: number;
+    averageTotalTests: number;
+    averagePassRate: number;
+  }>;
+  topErrorSignatures: Array<{
+    signature: string;
+    count: number;
+    statuses: string[];
+    languages: string[];
+  }>;
+  recentFailures: Array<{
+    id: string;
+    label: string;
+    language: string;
+    executionTime: number | null;
+    testCasesPassed: number;
+    testCasesTotal: number;
+    submittedAt: string;
+    questionTitle: string;
+    userName: string;
+    userEmail: string;
+    firstFailedTestIndex: number | null;
+    errorMessage: string | null;
+  }>;
+};
+
+function formatPercent(value?: number) {
+  return `${value ?? 0}%`;
+}
+
+function formatMs(value?: number | null) {
+  return `${value ?? 0} ms`;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
+function verdictTone(status: string) {
+  if (status === 'ACCEPTED') return 'bg-green-500';
+  if (status === 'PENDING' || status === 'RUNNING') return 'bg-blue-500';
+  if (status === 'TIME_LIMIT_EXCEEDED') return 'bg-amber-500';
+  if (status === 'COMPILATION_ERROR' || status === 'RUNTIME_ERROR') return 'bg-red-500';
+  return 'bg-zinc-500';
+}
+
 export function AdminDashboardPage() {
 
   const { data: stats } = useQuery({
@@ -28,6 +108,11 @@ export function AdminDashboardPage() {
   const { data: chartData } = useQuery({
     queryKey: ['admin-growth-chart'],
     queryFn: () => adminApi.getGrowthChart(),
+  });
+
+  const { data: judgeReliability } = useQuery<JudgeReliability>({
+    queryKey: ['admin-judge-reliability', 7],
+    queryFn: () => adminApi.getJudgeReliability(7),
   });
 
   const statCards = [
@@ -86,6 +171,41 @@ export function AdminDashboardPage() {
       icon: DollarSign,
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-100',
+    },
+  ];
+
+  const judgeCards = [
+    {
+      name: 'Judge Success Rate',
+      value: formatPercent(judgeReliability?.summary.successRate),
+      detail: `${judgeReliability?.summary.acceptedSubmissions || 0} accepted`,
+      icon: Gauge,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
+    },
+    {
+      name: 'Failure Rate',
+      value: formatPercent(judgeReliability?.summary.failureRate),
+      detail: `${judgeReliability?.summary.failureSubmissions || 0} failed`,
+      icon: AlertTriangle,
+      color: 'text-red-600',
+      bgColor: 'bg-red-100',
+    },
+    {
+      name: 'Avg Runtime',
+      value: formatMs(judgeReliability?.summary.averageExecutionTimeMs),
+      detail: `Peak ${formatMs(judgeReliability?.summary.maxExecutionTimeMs)}`,
+      icon: Cpu,
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-100',
+    },
+    {
+      name: 'Timeout Rate',
+      value: formatPercent(judgeReliability?.summary.timeoutRate),
+      detail: `${formatPercent(judgeReliability?.summary.compilationErrorRate)} compile errors`,
+      icon: TimerReset,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-100',
     },
   ];
 
@@ -168,34 +288,166 @@ export function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Placeholder for feature usage */}
+        {/* Judge Reliability */}
         <div className="rounded-xl border bg-card shadow-sm p-6">
-          <h2 className="text-lg font-semibold mb-6">System Health</h2>
-          <div className="space-y-4">
-             <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                  <span className="font-medium">Database (PostgreSQL)</span>
-                </div>
-                <span className="text-sm text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Operational</span>
-             </div>
-             <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                  <span className="font-medium">Cache (Redis)</span>
-                </div>
-                <span className="text-sm text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Operational</span>
-             </div>
-             <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                  <span className="font-medium">API Endpoints</span>
-                </div>
-                <span className="text-sm text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Operational</span>
-             </div>
+          <div className="mb-6 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Judge Reliability</h2>
+              <p className="text-sm text-muted-foreground">Last 7 days of code-run health.</p>
+            </div>
+            <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+              {judgeReliability?.summary.totalSubmissions || 0} submissions
+            </span>
           </div>
+
+          {!judgeReliability ? (
+            <div className="h-72 flex items-center justify-center text-muted-foreground">Loading judge metrics...</div>
+          ) : (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {judgeCards.map((card) => (
+                  <div key={card.name} className="rounded-lg border p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`h-10 w-10 rounded-lg ${card.bgColor} flex items-center justify-center`}>
+                        <card.icon className={`h-5 w-5 ${card.color}`} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">{card.name}</p>
+                        <p className="text-xl font-bold">{card.value}</p>
+                        <p className="text-xs text-muted-foreground">{card.detail}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <h3 className="mb-3 text-sm font-semibold">Verdict Mix</h3>
+                <div className="space-y-3">
+                  {judgeReliability.verdictBreakdown.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No judge submissions in this window.</p>
+                  ) : (
+                    judgeReliability.verdictBreakdown.map((item) => (
+                      <div key={item.status}>
+                        <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                          <span>{item.label}</span>
+                          <span className="text-muted-foreground">{item.count} · {formatPercent(item.rate)}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full ${verdictTone(item.status)}`}
+                            style={{ width: `${Math.max(item.rate, item.count > 0 ? 4 : 0)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Judge Details */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="rounded-xl border bg-card shadow-sm p-6">
+          <h2 className="text-lg font-semibold mb-6">Language Health</h2>
+          {!judgeReliability ? (
+            <div className="h-48 flex items-center justify-center text-muted-foreground">Loading languages...</div>
+          ) : judgeReliability.languageBreakdown.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No language data yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="pb-3 font-medium">Language</th>
+                    <th className="pb-3 font-medium">Runs</th>
+                    <th className="pb-3 font-medium">Pass Rate</th>
+                    <th className="pb-3 font-medium">Avg Runtime</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {judgeReliability.languageBreakdown.map((language) => (
+                    <tr key={language.language} className="border-b last:border-0">
+                      <td className="py-3 font-medium capitalize">{language.language}</td>
+                      <td className="py-3">{language.submissions}</td>
+                      <td className="py-3">{formatPercent(language.averagePassRate)}</td>
+                      <td className="py-3">{formatMs(language.averageExecutionTimeMs)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card shadow-sm p-6">
+          <h2 className="text-lg font-semibold mb-6">Common Judge Errors</h2>
+          {!judgeReliability ? (
+            <div className="h-48 flex items-center justify-center text-muted-foreground">Loading errors...</div>
+          ) : judgeReliability.topErrorSignatures.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No captured failing testcase errors in this window.</p>
+          ) : (
+            <div className="space-y-4">
+              {judgeReliability.topErrorSignatures.map((error) => (
+                <div key={error.signature} className="rounded-lg border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-medium">{error.signature}</p>
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                      {error.count}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {error.statuses.join(', ')} · {error.languages.join(', ')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card shadow-sm p-6">
+          <h2 className="text-lg font-semibold mb-6">Recent Judge Failures</h2>
+          {!judgeReliability ? (
+            <div className="h-48 flex items-center justify-center text-muted-foreground">Loading failures...</div>
+          ) : judgeReliability.recentFailures.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No recent failed submissions.</p>
+          ) : (
+            <div className="space-y-4">
+              {judgeReliability.recentFailures.map((failure) => (
+                <div key={failure.id} className="rounded-lg border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{failure.questionTitle}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {failure.userName || failure.userEmail} · {formatDateTime(failure.submittedAt)}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                      {failure.label}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="capitalize">{failure.language}</span>
+                    <span>{failure.testCasesPassed}/{failure.testCasesTotal} tests</span>
+                    <span>{formatMs(failure.executionTime)}</span>
+                    {failure.firstFailedTestIndex !== null && (
+                      <span>Failed test {failure.firstFailedTestIndex + 1}</span>
+                    )}
+                  </div>
+                  {failure.errorMessage && (
+                    <pre className="mt-3 max-h-20 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-2 text-xs">
+                      {failure.errorMessage}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          </div>
+        </div>
     </div>
   );
 }

@@ -45,6 +45,10 @@ const getAttemptsQuerySchema = z.object({
   limit: z.string().transform(Number).default('20'),
 });
 
+const questionTimelineParamsSchema = z.object({
+  questionId: z.string().uuid('Invalid question ID'),
+});
+
 /**
  * @route   POST /api/v1/attempts
  * @desc    Submit a solution attempt
@@ -110,6 +114,28 @@ router.get(
         limit: parseInt(limit as string),
         total: result.total,
       },
+    });
+  })
+);
+
+/**
+ * @route   GET /api/v1/attempts/questions/:questionId/timeline
+ * @desc    Get user's submission timeline and mistake memory for a question
+ * @access  Private
+ */
+router.get(
+  '/questions/:questionId/timeline',
+  authenticate,
+  validate({ params: questionTimelineParamsSchema }),
+  asyncHandler(async (req, res) => {
+    const timeline = await attemptService.getQuestionSubmissionTimeline(
+      req.user!.id,
+      req.params.questionId
+    );
+
+    res.json({
+      success: true,
+      data: timeline,
     });
   })
 );

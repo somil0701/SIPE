@@ -268,6 +268,8 @@ export const attemptsApi = {
     api.get<any>('/attempts', { params }),
   getById: (id: string) => api.get<any>(`/attempts/${id}`),
   getFeedback: (id: string) => api.get<any>(`/attempts/${id}/feedback`),
+  getQuestionTimeline: (questionId: string) =>
+    api.get<any>(`/attempts/questions/${questionId}/timeline`),
 }
 
 // ============================================================

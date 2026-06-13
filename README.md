@@ -641,11 +641,13 @@ UPLOAD_DIR="uploads"
 AI variables:
 
 ```env
-OPENAI_API_KEY="sk-your-openai-api-key"
-OPENAI_MODEL="gpt-4-turbo-preview"
 GROQ_API_KEY="your-groq-api-key"
 GROQ_MODEL="llama-3.3-70b-versatile"
+OPENAI_API_KEY="sk-your-openai-api-key"
+OPENAI_MODEL="gpt-4-turbo-preview"
 ```
+
+`GROQ_API_KEY` is preferred by the main AI service for semantic code review, mock interview AI, resume parsing, and learning recommendations. `OPENAI_API_KEY` remains an optional fallback if Groq is not configured.
 
 Judge variables:
 
@@ -827,4 +829,3 @@ Additional docs are available in `docs/`:
 ## License
 
 MIT License.
-

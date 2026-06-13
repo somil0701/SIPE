@@ -15,6 +15,8 @@ import {
   X,
   Brain,
   Shield,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
 
 const navigation = [
@@ -30,6 +32,9 @@ const navigation = [
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar-collapsed') === 'true'
+  })
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
@@ -37,6 +42,14 @@ export function Layout() {
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((collapsed) => {
+      const next = !collapsed
+      localStorage.setItem('sidebar-collapsed', String(next))
+      return next
+    })
   }
 
   return (
@@ -101,67 +114,120 @@ export function Layout() {
       )}
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col gap-2 border-r bg-background px-4 py-4">
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 rounded-lg px-2 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <Brain className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">InterviewPrep</span>
-          </Link>
+      <div
+        className={`hidden transition-[width] duration-200 lg:fixed lg:inset-y-0 lg:flex lg:flex-col ${
+          sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'
+        }`}
+      >
+        <div className={`flex flex-col gap-2 border-r bg-background py-4 ${sidebarCollapsed ? 'px-3' : 'px-4'}`}>
+          <div className={`flex items-center gap-2 ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+            <Link
+              to="/dashboard"
+              className={`flex min-w-0 items-center rounded-lg px-2 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                sidebarCollapsed ? 'justify-center' : 'gap-2'
+              }`}
+              title="InterviewPrep"
+            >
+              <Brain className="h-8 w-8 shrink-0 text-primary" />
+              {!sidebarCollapsed && <span className="truncate text-xl font-bold">InterviewPrep</span>}
+            </Link>
+            {!sidebarCollapsed && (
+              <button
+                type="button"
+                onClick={toggleSidebarCollapsed}
+                className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {sidebarCollapsed && (
+            <button
+              type="button"
+              onClick={toggleSidebarCollapsed}
+              className="mx-auto rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          )}
           <nav className="space-y-1">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                title={sidebarCollapsed ? item.name : undefined}
+                className={`flex items-center rounded-lg py-2 text-sm font-medium transition-colors ${
                   location.pathname === item.href
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
+                } ${sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'}`}
               >
-                <item.icon className="h-5 w-5" />
-                {item.name}
+                <item.icon className="h-5 w-5 shrink-0" />
+                {!sidebarCollapsed && item.name}
               </Link>
             ))}
             {user?.role === 'admin' && (
               <div className="pt-4 mt-4 border-t border-border">
                 <Link
                   to="/admin"
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+                  title={sidebarCollapsed ? 'Admin Portal' : undefined}
+                  className={`flex items-center rounded-lg py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10 ${
+                    sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'
+                  }`}
                 >
-                  <Shield className="h-5 w-5" />
-                  Admin Portal
+                  <Shield className="h-5 w-5 shrink-0" />
+                  {!sidebarCollapsed && 'Admin Portal'}
                 </Link>
               </div>
             )}
           </nav>
           <div className="mt-auto">
-            <div className="flex items-center gap-3 rounded-lg border p-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <div className={`flex items-center rounded-lg border p-3 ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10"
+                title={sidebarCollapsed ? `${user?.fullName || 'User'} (${user?.email || ''})` : undefined}
+              >
                 <User className="h-5 w-5 text-primary" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.fullName}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-              </div>
+              {!sidebarCollapsed && (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{user?.fullName}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-lg p-2 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    title="Logout"
+                    aria-label="Log out"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+            </div>
+            {sidebarCollapsed && (
               <button
                 type="button"
                 onClick={handleLogout}
-                className="p-2 hover:bg-muted rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="mt-2 flex w-full items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 title="Logout"
                 aria-label="Log out"
               >
                 <LogOut className="h-4 w-4" />
               </button>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className={`transition-[padding-left] duration-200 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
         {/* Mobile header */}
         <div className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-4 lg:hidden">
           <button

@@ -66,10 +66,10 @@ Common optional/defaulted values:
 JWT_EXPIRES_IN="7d"
 JWT_REFRESH_EXPIRES_IN="30d"
 RATE_LIMIT_MAX=100
-OPENAI_API_KEY="..."
-OPENAI_MODEL="gpt-4-turbo-preview"
 GROQ_API_KEY="..."
 GROQ_MODEL="llama-3.3-70b-versatile"
+OPENAI_API_KEY="..."
+OPENAI_MODEL="gpt-4-turbo-preview"
 MAX_FILE_SIZE=5242880
 UPLOAD_DIR="uploads"
 DOCKER_BINARY="docker"
@@ -97,7 +97,8 @@ Notes:
 
 - `DIRECT_URL` appears in `.env.example`, but the current Prisma datasource only reads `DATABASE_URL`.
 - If Supabase is used, prefer the pooled connection string for app traffic when available.
-- AI features degrade to fallback behavior when provider keys are missing, depending on the service path.
+- The main AI service prefers `GROQ_API_KEY` and falls back to `OPENAI_API_KEY` only when Groq is not configured.
+- AI features degrade to local fallback behavior when provider keys are missing, depending on the service path.
 
 ## 4. Frontend Environment Variables
 

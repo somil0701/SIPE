@@ -29,6 +29,7 @@ interface SubmissionTimelineAttempt {
   feedback: {
     overallScore: number | null;
     summary: string | null;
+    approachUsed?: string | null;
     codeQualityScore: number | null;
     codeQualityFeedback: string | null;
     timeComplexityActual: string | null;
@@ -193,39 +194,12 @@ class AttemptService {
         });
       }
 
-      // Generate AI feedback
-      const aiFeedback = await aiService.evaluateAnswer({
-        questionId,
-        code,
-        language,
-      });
-
-      // Save AI feedback
-      await prisma.attemptFeedback.create({
-        data: {
-          attemptId,
-          userId,
-          overallScore: aiFeedback.overallScore,
-          summary: aiFeedback.summary,
-          codeQualityScore: aiFeedback.codeQualityScore,
-          codeQualityFeedback: aiFeedback.codeQualityFeedback,
-          timeComplexityActual: aiFeedback.timeComplexity,
-          spaceComplexityActual: aiFeedback.spaceComplexity,
-          strengths: aiFeedback.strengths,
-          weaknesses: aiFeedback.weaknesses,
-          improvementSuggestions: aiFeedback.suggestions,
-          recommendedResources: aiFeedback.resources as any,
-        },
-      });
-
-      // Update attempt with AI score
-      await prisma.attempt.update({
-        where: { id: attemptId },
-        data: { aiScore: aiFeedback.overallScore },
-      });
-
       // Update user skills
-      await this.updateUserSkills(userId, question.skillId, status, aiFeedback.overallScore);
+      await this.updateUserSkills(userId, question.skillId, status, this.calculateJudgeScore(
+        status,
+        judgeResult.testCasesPassed,
+        judgeResult.testCasesTotal
+      ));
 
       // Update question stats
       await questionService.incrementAttemptCount(questionId, status === PrismaAttemptStatus.ACCEPTED);
@@ -245,7 +219,7 @@ class AttemptService {
       await cache.del(cacheKeys.userAttempts(userId));
       await cache.delPattern(`user:${userId}:skills*`);
 
-      logger.info('Attempt evaluated', { attemptId, status, score: aiFeedback.overallScore });
+      logger.info('Attempt evaluated', { attemptId, status });
     } catch (error) {
       // Update attempt with error status
       await prisma.attempt.update({
@@ -253,6 +227,141 @@ class AttemptService {
         data: { status: PrismaAttemptStatus.RUNTIME_ERROR },
       });
       throw error;
+    }
+  }
+
+  async generateAttemptFeedback(attemptId: string, userId: string): Promise<AttemptFeedback> {
+    const attempt = await prisma.attempt.findFirst({
+      where: { id: attemptId, userId },
+      include: {
+        feedback: true,
+      },
+    });
+
+    if (!attempt) {
+      throw ApiError.notFound('Attempt not found');
+    }
+
+    if (attempt.feedback) {
+      return attempt.feedback as unknown as AttemptFeedback;
+    }
+
+    if (attempt.status === PrismaAttemptStatus.PENDING || attempt.status === PrismaAttemptStatus.RUNNING) {
+      throw ApiError.badRequest('Wait for judge evaluation to finish before generating AI review');
+    }
+
+    if (!attempt.code) {
+      throw ApiError.badRequest('Cannot generate AI review for an attempt without a code snapshot');
+    }
+
+    const aiFeedback = await this.createAttemptFeedbackPayload(
+      attempt.questionId,
+      attempt.code,
+      attempt.language,
+      attempt.status,
+      attempt.testCasesPassed,
+      attempt.testCasesTotal
+    );
+
+    const feedback = await prisma.attemptFeedback.upsert({
+      where: { attemptId },
+      update: {
+        overallScore: aiFeedback.overallScore,
+        summary: aiFeedback.summary,
+        codeQualityScore: aiFeedback.codeQualityScore,
+        codeQualityFeedback: aiFeedback.codeQualityFeedback,
+        timeComplexityActual: aiFeedback.timeComplexity,
+        spaceComplexityActual: aiFeedback.spaceComplexity,
+        strengths: aiFeedback.strengths,
+        weaknesses: aiFeedback.weaknesses,
+        improvementSuggestions: aiFeedback.suggestions,
+        recommendedResources: aiFeedback.resources as any,
+      },
+      create: {
+        attemptId,
+        userId,
+        overallScore: aiFeedback.overallScore,
+        summary: aiFeedback.summary,
+        codeQualityScore: aiFeedback.codeQualityScore,
+        codeQualityFeedback: aiFeedback.codeQualityFeedback,
+        timeComplexityActual: aiFeedback.timeComplexity,
+        spaceComplexityActual: aiFeedback.spaceComplexity,
+        strengths: aiFeedback.strengths,
+        weaknesses: aiFeedback.weaknesses,
+        improvementSuggestions: aiFeedback.suggestions,
+        recommendedResources: aiFeedback.resources as any,
+      },
+    });
+
+    await prisma.attempt.update({
+      where: { id: attemptId },
+      data: {
+        aiScore: aiFeedback.overallScore,
+        aiFeedback: {
+          ...aiFeedback,
+          provider: aiService.getProvider(),
+          generatedAt: new Date().toISOString(),
+        } as any,
+      },
+    });
+
+    await cache.del(cacheKeys.userAttempts(userId));
+
+    logger.info('Attempt AI feedback generated', {
+      attemptId,
+      score: aiFeedback.overallScore,
+      provider: aiService.getProvider(),
+    });
+
+    return feedback as unknown as AttemptFeedback;
+  }
+
+  private async createAttemptFeedbackPayload(
+    questionId: string,
+    code: string,
+    language: string,
+    status: PrismaAttemptStatus,
+    testCasesPassed: number,
+    testCasesTotal: number
+  ) {
+    try {
+      return await aiService.evaluateAnswer({
+        questionId,
+        code,
+        language,
+      });
+    } catch (error) {
+      logger.error('AI feedback generation failed; using durable fallback feedback', {
+        error,
+        questionId,
+        provider: aiService.getProvider(),
+      });
+
+      const accepted = status === PrismaAttemptStatus.ACCEPTED;
+      const passRate = testCasesTotal > 0
+        ? Math.round((testCasesPassed / testCasesTotal) * 100)
+        : 0;
+      const score = accepted ? Math.max(75, passRate) : Math.max(35, passRate);
+
+      return {
+        overallScore: score,
+        summary: accepted
+          ? 'All visible test cases passed. AI semantic feedback was unavailable, so this fallback review is based on judge results.'
+          : 'The judge completed this attempt, but AI semantic feedback was unavailable. Review failed test cases and error output first.',
+        approachUsed: 'Approach unavailable because AI semantic review failed.',
+        codeQualityScore: score,
+        codeQualityFeedback: `AI provider feedback timed out or failed (${aiService.getProvider()}). This durable fallback prevents the submission from staying in a generating state.`,
+        timeComplexity: 'Unknown',
+        spaceComplexity: 'Unknown',
+        strengths: accepted ? ['Passed all judged test cases'] : ['Submission was executed by the judge'],
+        weaknesses: accepted ? ['Semantic review unavailable'] : ['Review failed testcase evidence before resubmitting'],
+        suggestions: [
+          'Check edge cases from the prompt constraints',
+          'Compare your approach with the expected complexity',
+          'Try one small refactor after confirming the sample cases still pass',
+        ],
+        resources: [],
+      };
     }
   }
 
@@ -413,7 +522,12 @@ class AttemptService {
       testCasesTotal: attempt.testCasesTotal,
       aiScore: attempt.aiScore,
       submittedAt: attempt.submittedAt,
-      feedback: attempt.feedback,
+      feedback: attempt.feedback
+        ? {
+            ...attempt.feedback,
+            approachUsed: this.extractApproachUsed(attempt.aiFeedback),
+          }
+        : null,
       failedTestCases: attempt.attemptTestCases
         .filter((testCase) => !testCase.passed)
         .map((testCase) => ({
@@ -615,6 +729,12 @@ class AttemptService {
     return compacted.length > 80 ? `${compacted.slice(0, 77)}...` : compacted;
   }
 
+  private extractApproachUsed(aiFeedback: unknown): string | null {
+    if (!aiFeedback || typeof aiFeedback !== 'object') return null;
+    const value = (aiFeedback as { approachUsed?: unknown }).approachUsed;
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
   /**
    * Update user skills based on attempt
    */
@@ -689,6 +809,28 @@ class AttemptService {
     const scoreBonus = Math.floor(score / 10);
 
     return baseXP + scoreBonus;
+  }
+
+  private calculateJudgeScore(
+    status: PrismaAttemptStatus,
+    testCasesPassed: number,
+    testCasesTotal: number
+  ): number {
+    if (testCasesTotal <= 0) {
+      return status === PrismaAttemptStatus.ACCEPTED ? 80 : 35;
+    }
+
+    const passRate = Math.round((testCasesPassed / testCasesTotal) * 100);
+
+    if (status === PrismaAttemptStatus.ACCEPTED) {
+      return Math.max(80, passRate);
+    }
+
+    if (status === PrismaAttemptStatus.PARTIALLY_ACCEPTED) {
+      return Math.max(45, passRate);
+    }
+
+    return Math.max(20, Math.min(70, passRate));
   }
 
   /**

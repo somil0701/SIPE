@@ -25,17 +25,46 @@ import {
 class AIService {
   private openai: OpenAI;
   private model: string;
+  private provider: 'groq' | 'openai' | 'local-fallback';
 
   constructor() {
+    if (this.hasUsableGroqKey()) {
+      this.openai = new OpenAI({
+        apiKey: env.GROQ_API_KEY,
+        baseURL: 'https://api.groq.com/openai/v1',
+        timeout: 20000,
+        maxRetries: 1,
+      });
+      this.model = env.GROQ_MODEL;
+      this.provider = 'groq';
+      return;
+    }
+
     this.openai = new OpenAI({
       apiKey: env.OPENAI_API_KEY || 'missing-api-key',
+      timeout: 20000,
+      maxRetries: 1,
     });
     this.model = env.OPENAI_MODEL;
+    this.provider = this.hasUsableOpenAIKey() ? 'openai' : 'local-fallback';
+  }
+
+  private hasUsableGroqKey(): boolean {
+    const key = env.GROQ_API_KEY?.trim();
+    return Boolean(key && key.length > 20 && !key.includes('your-groq-api-key'));
+  }
+
+  private hasUsableOpenAIKey(): boolean {
+    const key = env.OPENAI_API_KEY?.trim();
+    return Boolean(key && key.startsWith('sk-') && !key.includes('your-openai-api-key'));
   }
 
   private hasUsableApiKey(): boolean {
-    const key = env.OPENAI_API_KEY?.trim();
-    return Boolean(key && key.startsWith('sk-') && !key.includes('your-openai-api-key'));
+    return this.provider !== 'local-fallback';
+  }
+
+  getProvider(): 'groq' | 'openai' | 'local-fallback' {
+    return this.provider;
   }
 
   /**
@@ -56,6 +85,7 @@ Provide your evaluation in the following JSON format:
 {
   "overallScore": number (0-100),
   "summary": string (2-3 sentences),
+  "approachUsed": string (briefly name the algorithmic approach or data structure used),
   "codeQualityScore": number (0-100),
   "codeQualityFeedback": string,
   "timeComplexity": string (e.g., "O(n)"),
@@ -414,6 +444,7 @@ Generate a comprehensive interview summary.`;
     return {
       overallScore: feedback.overallScore ?? 50,
       summary: feedback.summary ?? 'Evaluation completed.',
+      approachUsed: feedback.approachUsed ?? 'Could not determine the approach from the submitted code.',
       codeQualityScore: feedback.codeQualityScore ?? 50,
       codeQualityFeedback: feedback.codeQualityFeedback ?? 'No specific feedback provided.',
       timeComplexity: feedback.timeComplexity ?? 'Unknown',
@@ -435,8 +466,11 @@ Generate a comprehensive interview summary.`;
       summary: hasReturn
         ? 'Fallback review completed locally. The solution has a plausible structure and returns a value for the tested cases.'
         : 'Fallback review completed locally. Add a clear return value so the evaluator can compare your output.',
+      approachUsed: hasLoopOrMap
+        ? 'Iterative traversal or collection-based processing detected.'
+        : 'Approach could not be confidently identified by the local fallback reviewer.',
       codeQualityScore: score,
-      codeQualityFeedback: 'Local fallback feedback is based on basic structure checks because no usable OpenAI key is configured.',
+      codeQualityFeedback: 'Local fallback feedback is based on basic structure checks because no usable AI provider key is configured.',
       timeComplexity: hasLoopOrMap ? 'O(n)' : 'Unknown',
       spaceComplexity: 'O(1)',
       strengths: hasReturn ? ['Defines a return path', 'Keeps the solution concise'] : ['Submission was received'],
@@ -585,7 +619,7 @@ Generate a comprehensive interview summary.`;
 
     return {
       overallScore: average,
-      summary: `Interview completed with ${answered.length} answered question(s). This summary used the local fallback evaluator because no usable OpenAI key is configured.`,
+      summary: `Interview completed with ${answered.length} answered question(s). This summary used the local fallback evaluator because no usable AI provider key is configured.`,
       strengths: ['Completed the interview flow', 'Provided responses for evaluation'],
       areasToImprove: ['Add more concrete examples', 'Call out trade-offs and edge cases explicitly'],
     };

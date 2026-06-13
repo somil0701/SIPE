@@ -64,7 +64,7 @@ router.post(
     res.status(201).json({
       success: true,
       data: attempt,
-      message: 'Solution submitted successfully. Evaluation in progress.',
+      message: 'Solution submitted successfully. Judge evaluation in progress.',
     });
   })
 );
@@ -157,6 +157,28 @@ router.get(
     res.json({
       success: true,
       data: attempt,
+    });
+  })
+);
+
+/**
+ * @route   POST /api/v1/attempts/:id/feedback/generate
+ * @desc    Generate AI feedback for an evaluated attempt
+ * @access  Private
+ */
+router.post(
+  '/:id/feedback/generate',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const feedback = await attemptService.generateAttemptFeedback(
+      req.params.id,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      data: feedback,
+      message: 'AI review generated successfully.',
     });
   })
 );

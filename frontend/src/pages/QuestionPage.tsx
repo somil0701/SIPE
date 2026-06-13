@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -7,9 +7,12 @@ import {
   AlertTriangle,
   Brain,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   Clock,
   Code2,
+  GripVertical,
+  Keyboard,
   Lightbulb,
   Loader2,
   Play,
@@ -312,6 +315,7 @@ type TimelineAttempt = {
   submittedAt: string
   feedback: {
     summary: string | null
+    approachUsed?: string | null
     codeQualityScore: number | null
     codeQualityFeedback: string | null
     timeComplexityActual: string | null
@@ -361,6 +365,18 @@ function formatDuration(seconds?: number | null) {
   return minutes > 0 ? `${minutes}m ${remainder}s` : `${remainder}s`
 }
 
+function formatClock(seconds: number) {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainder = seconds % 60
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`
+  }
+
+  return `${minutes}:${remainder.toString().padStart(2, '0')}`
+}
+
 function formatDateTime(value?: string | null) {
   if (!value) return 'Not yet'
   return new Intl.DateTimeFormat(undefined, {
@@ -381,6 +397,10 @@ function latestFailedCase(attempt?: TimelineAttempt) {
   return attempt?.failedTestCases?.[0]
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
 export function QuestionPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
@@ -396,7 +416,20 @@ export function QuestionPage() {
   const [activeTab, setActiveTab] = useState<'description' | 'solution' | 'submissions'>('description')
   const [showHint, setShowHint] = useState<number | null>(null)
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null)
+  const [isMistakeMemoryOpen, setIsMistakeMemoryOpen] = useState(false)
+  const [openSolutionLanguages, setOpenSolutionLanguages] = useState<Record<string, boolean>>({})
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [splitPercent, setSplitPercent] = useState(() => {
+    const stored = Number(localStorage.getItem('practice-split-percent'))
+    return Number.isFinite(stored) ? clamp(stored, 35, 65) : 48
+  })
+  const [isCodeDirty, setIsCodeDirty] = useState(false)
   const startTime = useRef(Date.now())
+  const codeBaselineRef = useRef('')
+  const suppressStarterResetRef = useRef(false)
+  const runActionRef = useRef<() => void>(() => {})
+  const submitActionRef = useRef<() => void>(() => {})
+  const splitContainerRef = useRef<HTMLDivElement | null>(null)
   const editorRef = useRef<any>(null)
   const vimAdapterRef = useRef<any>(null)
 
@@ -423,12 +456,33 @@ export function QuestionPage() {
     },
   })
 
+  const updateCode = useCallback((nextCode: string) => {
+    setCode(nextCode)
+    setIsCodeDirty(nextCode !== codeBaselineRef.current)
+  }, [])
+
+  const replaceCode = useCallback((nextCode: string) => {
+    codeBaselineRef.current = nextCode
+    setCode(nextCode)
+    setIsCodeDirty(false)
+  }, [])
+
+  const canReplaceCode = useCallback((message: string) => {
+    if (!isCodeDirty) return true
+    return window.confirm(message)
+  }, [isCodeDirty])
+
   // Populate starter code when question or language changes
   useEffect(() => {
     if (question) {
-      setCode(getStarterCode(question, language))
+      if (suppressStarterResetRef.current) {
+        suppressStarterResetRef.current = false
+        return
+      }
+
+      replaceCode(getStarterCode(question, language))
     }
-  }, [question, language])
+  }, [question, language, replaceCode])
 
   useEffect(() => {
     if (question) {
@@ -436,6 +490,49 @@ export function QuestionPage() {
       setRunResult(null)
     }
   }, [question])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTime.current) / 1000))
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('practice-split-percent', String(splitPercent))
+  }, [splitPercent])
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!splitContainerRef.current || event.buttons === 0) return
+      if (!splitContainerRef.current.dataset.dragging) return
+
+      const bounds = splitContainerRef.current.getBoundingClientRect()
+      const nextPercent = ((event.clientX - bounds.left) / bounds.width) * 100
+      setSplitPercent(clamp(nextPercent, 35, 65))
+    }
+
+    const stopDragging = () => {
+      if (splitContainerRef.current) {
+        delete splitContainerRef.current.dataset.dragging
+      }
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', stopDragging)
+    window.addEventListener('pointercancel', stopDragging)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', stopDragging)
+      window.removeEventListener('pointercancel', stopDragging)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [])
 
   useEffect(() => {
     if (!submissionTimeline?.attempts.length) {
@@ -506,12 +603,85 @@ export function QuestionPage() {
       setSelectedAttemptId(attempt.id)
       setActiveTab('submissions')
       queryClient.invalidateQueries({ queryKey: ['submission-timeline', question!.id] })
-      toast.success('Solution submitted. Evaluating now.')
+      toast.success('Solution submitted. Judge is evaluating now.')
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error?.message || 'Submission failed')
     },
   })
+
+  const feedbackMutation = useMutation({
+    mutationFn: (attemptId: string) => attemptsApi.generateFeedback(attemptId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['submission-timeline', question!.id] })
+      toast.success('AI review generated.')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to generate AI review')
+    },
+  })
+
+  const handleRun = useCallback(() => {
+    if (!question || !code.trim() || runMutation.isPending) return
+    runMutation.mutate()
+  }, [code, question, runMutation])
+
+  const handleSubmit = useCallback(() => {
+    if (!question || !code.trim() || submitMutation.isPending) return
+    submitMutation.mutate()
+  }, [code, question, submitMutation])
+
+  useEffect(() => {
+    runActionRef.current = handleRun
+    submitActionRef.current = handleSubmit
+  }, [handleRun, handleSubmit])
+
+  const handleLanguageChange = useCallback((nextLanguage: string) => {
+    if (nextLanguage === language) return
+    if (!canReplaceCode('Changing language will replace the current editor contents with starter code. Continue?')) {
+      return
+    }
+
+    setLanguage(nextLanguage)
+    setRunResult(null)
+  }, [canReplaceCode, language])
+
+  const handleLoadAttemptCode = useCallback((attempt: TimelineAttempt) => {
+    if (!attempt.code) return
+    if (!canReplaceCode('Loading this attempt will replace your unsaved editor changes. Continue?')) {
+      return
+    }
+
+    const nextLanguage = getSupportedLanguage(attempt.language)
+    if (nextLanguage !== language) {
+      suppressStarterResetRef.current = true
+      setLanguage(nextLanguage)
+    }
+
+    replaceCode(attempt.code)
+    setRunResult(null)
+    toast.success('Loaded this attempt into the editor.')
+  }, [canReplaceCode, language, replaceCode])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const hasModifier = event.ctrlKey || event.metaKey
+      const isRunShortcut = hasModifier && (event.key === "'" || event.code === 'Quote') && !event.shiftKey
+      const isSubmitShortcut = hasModifier && event.key === 'Enter' && !event.shiftKey
+
+      if (!isRunShortcut && !isSubmitShortcut) return
+
+      event.preventDefault()
+      if (isSubmitShortcut) {
+        handleSubmit()
+      } else {
+        handleRun()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleRun, handleSubmit])
 
   if (isLoading) {
     return <LoadingState message="Loading question..." bordered />
@@ -553,35 +723,89 @@ export function QuestionPage() {
   }
 
   const timelineAttempts = submissionTimeline?.attempts ?? []
+  const latestAttempt = timelineAttempts[0]
   const selectedAttempt = timelineAttempts.find((attempt) => attempt.id === selectedAttemptId) ?? timelineAttempts[0]
   const selectedAttemptRunning = isJudgeInProgress(selectedAttempt?.status)
   const failedAttemptCase = latestFailedCase(selectedAttempt)
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <button
-          type="button"
-          onClick={() => navigate('/practice')}
-          className="flex items-center gap-2 rounded-lg text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Back to Practice
-        </button>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-sm difficulty-${question.difficulty}`}>
-            {question.difficulty}
-          </span>
-          <span className="text-sm text-muted-foreground">
-            {question.acceptanceRate}% acceptance
-          </span>
+      <div className="sticky top-0 z-30 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => navigate('/practice')}
+              className="mb-2 flex items-center gap-2 rounded-lg text-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back to Practice
+            </button>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h1 className="min-w-0 truncate text-lg font-semibold sm:text-xl">{question.title}</h1>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize difficulty-${question.difficulty}`}>
+                {question.difficulty}
+              </span>
+              <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">
+                {question.acceptanceRate}% acceptance
+              </span>
+              {isCodeDirty && (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                  Unsaved edits
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between xl:justify-end">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span className="font-mono tabular-nums">{formatClock(elapsedSeconds)}</span>
+            </div>
+            <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
+              <Keyboard className="h-3.5 w-3.5" />
+              <span>Ctrl/⌘+' run</span>
+              <span>Ctrl/⌘+Enter submit</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <button
+                type="button"
+                onClick={handleRun}
+                disabled={runMutation.isPending || !code.trim()}
+                className="flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {runMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Run
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitMutation.isPending || !code.trim()}
+                className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {submitMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Submit
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div
+        ref={splitContainerRef}
+        className="grid grid-cols-1 gap-4 lg:grid-cols-[var(--practice-grid)]"
+        style={{ '--practice-grid': `${splitPercent}% 10px minmax(0, 1fr)` } as any}
+      >
         {/* Left Panel - Problem Description */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="overflow-hidden rounded-lg border bg-card">
           <div className="flex border-b" role="tablist" aria-label="Question details">
             {(['description', 'solution', 'submissions'] as const).map((tab) => (
               <button
@@ -601,7 +825,7 @@ export function QuestionPage() {
             ))}
           </div>
 
-          <div className="p-6 max-h-[calc(100vh-300px)] overflow-auto">
+          <div className="max-h-none overflow-auto p-4 sm:p-6 lg:max-h-[calc(100vh-176px)]">
             {activeTab === 'description' && (
               <div className="space-y-6">
                 <h1 className="text-2xl font-bold">{question.title}</h1>
@@ -677,6 +901,60 @@ export function QuestionPage() {
                 ) : (
                   <p className="text-muted-foreground">Solution not available yet.</p>
                 )}
+
+                {Object.entries(question.solutionCode ?? {})
+                  .filter(([, solution]) => typeof solution === 'string' && solution.trim())
+                  .length > 0 ? (
+                    <div className="space-y-3 pt-2">
+                      <div>
+                        <h3 className="font-semibold">Reference Code</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Expand a language when you want to compare against the official solution.
+                        </p>
+                      </div>
+                      {Object.entries(question.solutionCode ?? {})
+                        .filter(([, solution]) => typeof solution === 'string' && solution.trim())
+                        .map(([solutionLanguage, solution]) => {
+                          const isOpen = Boolean(openSolutionLanguages[solutionLanguage])
+                          const languageName = LANGUAGES.find((lang) => lang.id === solutionLanguage)?.name ?? solutionLanguage
+
+                          return (
+                            <div key={solutionLanguage} className="overflow-hidden rounded-lg border">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenSolutionLanguages((current) => ({
+                                    ...current,
+                                    [solutionLanguage]: !current[solutionLanguage],
+                                  }))
+                                }
+                                className="flex w-full items-center justify-between gap-3 p-3 text-left hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                                aria-expanded={isOpen}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Code2 className="h-4 w-4 text-primary" />
+                                  <span className="font-medium">{languageName}</span>
+                                </div>
+                                <ChevronDown
+                                  className={`h-4 w-4 text-muted-foreground transition-transform ${
+                                    isOpen ? 'rotate-180' : ''
+                                  }`}
+                                />
+                              </button>
+                              {isOpen && (
+                                <pre className="max-h-[32rem] overflow-auto border-t bg-zinc-950 p-4 text-xs text-zinc-100">
+                                  {solution as string}
+                                </pre>
+                              )}
+                            </div>
+                          )
+                        })}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                      No reference code has been added for this question yet.
+                    </div>
+                  )}
               </div>
             )}
 
@@ -715,7 +993,7 @@ export function QuestionPage() {
                         <p className="text-sm font-semibold">{formatStatus(submissionTimeline.summary.latestStatus || undefined)}</p>
                       </div>
                       <div className="rounded-lg border p-3">
-                        <p className="text-xs text-muted-foreground">Best AI score</p>
+                        <p className="text-xs text-muted-foreground">Best review score</p>
                         <p className="text-2xl font-bold">{submissionTimeline.summary.bestScore ?? '-'}</p>
                       </div>
                       <div className="rounded-lg border p-3">
@@ -724,39 +1002,63 @@ export function QuestionPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-lg border p-4">
-                      <div className="mb-3 flex items-center gap-2">
-                        <Brain className="h-4 w-4 text-primary" />
-                        <h3 className="font-semibold">Mistake Memory</h3>
-                      </div>
-                      {submissionTimeline.mistakeMemory.length > 0 ? (
-                        <div className="space-y-3">
-                          {submissionTimeline.mistakeMemory.map((item) => (
-                            <div key={`${item.type}-${item.label}`} className="rounded-lg bg-muted/40 p-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-medium">{item.label}</p>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Seen {item.count} time{item.count === 1 ? '' : 's'} · Last seen {formatDateTime(item.lastSeenAt)}
-                                  </p>
-                                </div>
-                                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                              </div>
-                              <p className="mt-2 text-sm text-muted-foreground">{item.suggestion}</p>
-                              {item.evidence.length > 0 && (
-                                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                                  {item.evidence.map((evidence, index) => (
-                                    <li key={index}>{evidence}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          ))}
+                    <div className="rounded-lg border">
+                      <button
+                        type="button"
+                        onClick={() => setIsMistakeMemoryOpen((open) => !open)}
+                        className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                        aria-expanded={isMistakeMemoryOpen}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Brain className="h-4 w-4 shrink-0 text-primary" />
+                          <div className="min-w-0">
+                            <h3 className="font-semibold">Mistake Memory</h3>
+                            <p className="truncate text-sm text-muted-foreground">
+                              {submissionTimeline.mistakeMemory.length > 0
+                                ? `${submissionTimeline.mistakeMemory.length} pattern${submissionTimeline.mistakeMemory.length === 1 ? '' : 's'} found · ${submissionTimeline.mistakeMemory[0].label}`
+                                : 'No repeated mistake pattern yet'}
+                            </p>
+                          </div>
                         </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No repeated mistake pattern yet. A couple more submissions will make this smarter.
-                        </p>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                            isMistakeMemoryOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+
+                      {isMistakeMemoryOpen && (
+                        <div className="border-t p-4">
+                          {submissionTimeline.mistakeMemory.length > 0 ? (
+                            <div className="max-h-96 space-y-3 overflow-auto pr-1">
+                              {submissionTimeline.mistakeMemory.map((item) => (
+                                <div key={`${item.type}-${item.label}`} className="rounded-lg bg-muted/40 p-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm font-medium">{item.label}</p>
+                                      <p className="mt-1 text-xs text-muted-foreground">
+                                        Seen {item.count} time{item.count === 1 ? '' : 's'} · Last seen {formatDateTime(item.lastSeenAt)}
+                                      </p>
+                                    </div>
+                                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                                  </div>
+                                  <p className="mt-2 text-sm text-muted-foreground">{item.suggestion}</p>
+                                  {item.evidence.length > 0 && (
+                                    <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                      {item.evidence.map((evidence, index) => (
+                                        <li key={index}>{evidence}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              A couple more submissions will make this smarter.
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
 
@@ -816,13 +1118,7 @@ export function QuestionPage() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (selectedAttempt.code) {
-                                setLanguage(getSupportedLanguage(selectedAttempt.language))
-                                setCode(selectedAttempt.code)
-                                toast.success('Loaded this attempt into the editor.')
-                              }
-                            }}
+                            onClick={() => handleLoadAttemptCode(selectedAttempt)}
                             disabled={!selectedAttempt.code}
                             className="flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           >
@@ -841,7 +1137,7 @@ export function QuestionPage() {
                             <p className="font-semibold">{selectedAttempt.executionTime ?? 0} ms</p>
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">AI score</p>
+                            <p className="text-xs text-muted-foreground">Review score</p>
                             <p className="font-semibold">{selectedAttempt.aiScore ?? '-'}</p>
                           </div>
                           <div>
@@ -871,10 +1167,42 @@ export function QuestionPage() {
 
                         {selectedAttempt.feedback ? (
                           <div className="mt-4 border-t pt-4">
-                            <h4 className="font-semibold">Feedback</h4>
+                            <div className="flex items-center justify-between gap-3">
+                              <h4 className="font-semibold">AI Review</h4>
+                              {selectedAttempt.feedback.codeQualityScore !== null && (
+                                <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+                                  Quality {selectedAttempt.feedback.codeQualityScore}/100
+                                </span>
+                              )}
+                            </div>
                             <p className="mt-1 text-sm text-muted-foreground">
                               {selectedAttempt.feedback.summary || 'Feedback generated.'}
                             </p>
+                            <div className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                              <div className="rounded-lg border p-3">
+                                <p className="text-xs text-muted-foreground">Approach</p>
+                                <p className="mt-1 font-medium">
+                                  {selectedAttempt.feedback.approachUsed || 'Not identified'}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border p-3">
+                                <p className="text-xs text-muted-foreground">Time Complexity</p>
+                                <p className="mt-1 font-medium">
+                                  {selectedAttempt.feedback.timeComplexityActual || 'Unknown'}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border p-3">
+                                <p className="text-xs text-muted-foreground">Space Complexity</p>
+                                <p className="mt-1 font-medium">
+                                  {selectedAttempt.feedback.spaceComplexityActual || 'Unknown'}
+                                </p>
+                              </div>
+                            </div>
+                            {selectedAttempt.feedback.codeQualityFeedback && (
+                              <p className="mt-3 text-sm text-muted-foreground">
+                                {selectedAttempt.feedback.codeQualityFeedback}
+                              </p>
+                            )}
                             {selectedAttempt.feedback.improvementSuggestions?.length > 0 && (
                               <ul className="mt-3 list-disc list-inside space-y-1 text-sm text-muted-foreground">
                                 {selectedAttempt.feedback.improvementSuggestions.slice(0, 3).map((suggestion, index) => (
@@ -885,8 +1213,32 @@ export function QuestionPage() {
                           </div>
                         ) : (
                           <div className="mt-4 flex items-center gap-2 border-t pt-4 text-muted-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            {selectedAttemptRunning ? 'Judge is running...' : 'Feedback is still being generated...'}
+                            {selectedAttemptRunning ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Judge is running...
+                              </>
+                            ) : (
+                              <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Brain className="h-4 w-4 text-primary" />
+                                  <span>Generate AI review for approach, complexity, and improvement notes.</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => feedbackMutation.mutate(selectedAttempt.id)}
+                                  disabled={feedbackMutation.isPending}
+                                  className="flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                >
+                                  {feedbackMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Brain className="h-4 w-4" />
+                                  )}
+                                  Generate AI Review
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -909,19 +1261,30 @@ export function QuestionPage() {
           </div>
         </div>
 
+        <button
+          type="button"
+          className="hidden cursor-col-resize items-center justify-center rounded-md border bg-muted/40 text-muted-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:flex"
+          aria-label="Resize problem and editor panels"
+          onPointerDown={(event) => {
+            event.preventDefault()
+            if (splitContainerRef.current) {
+              splitContainerRef.current.dataset.dragging = 'true'
+            }
+            document.body.style.cursor = 'col-resize'
+            document.body.style.userSelect = 'none'
+          }}
+        >
+          <GripVertical className="h-5 w-5" />
+        </button>
+
         {/* Right Panel - Code Editor */}
-        <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card lg:max-h-[calc(100vh-176px)]">
           {/* Editor Toolbar */}
           <div className="flex flex-col gap-3 p-3 border-b sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <select
                 value={language}
-                onChange={(e) => {
-                  const nextLanguage = e.target.value
-                  setLanguage(nextLanguage)
-                  setRunResult(null)
-                  setCode(getStarterCode(question, nextLanguage))
-                }}
+                onChange={(e) => handleLanguageChange(e.target.value)}
                 className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 aria-label="Programming language"
               >
@@ -941,21 +1304,32 @@ export function QuestionPage() {
                 Vim Mode
               </label>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              {Math.floor((Date.now() - startTime.current) / 60000)}m{' '}
-              {Math.floor(((Date.now() - startTime.current) % 60000) / 1000)}s
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Keyboard className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Use Ctrl/⌘+' to run</span>
+              <span className="md:hidden">Shortcuts enabled</span>
             </div>
           </div>
 
           {/* Code Editor */}
-          <div className="flex-1 min-h-[400px]">
+          <div className="min-h-[420px] flex-1 lg:min-h-0">
             <Editor
               height="100%"
               language={language}
               value={code}
-              onMount={(editor) => {
+              onMount={(editor, monaco) => {
                 editorRef.current = editor
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+                  submitActionRef.current()
+                })
+
+                const quoteKeyCode = (monaco.KeyCode as any).Quote ?? (monaco.KeyCode as any).US_QUOTE
+                if (quoteKeyCode) {
+                  editor.addCommand(monaco.KeyMod.CtrlCmd | quoteKeyCode, () => {
+                    runActionRef.current()
+                  })
+                }
+
                 if (vimMode) {
                   const statusNode = document.getElementById('vim-status')
                   if (statusNode) {
@@ -964,7 +1338,7 @@ export function QuestionPage() {
                   vimAdapterRef.current = initVimMode(editor, statusNode)
                 }
               }}
-              onChange={(value) => setCode(value || '')}
+              onChange={(value) => updateCode(value || '')}
               theme="vs-dark"
               options={{
                 minimap: { enabled: false },
@@ -978,10 +1352,11 @@ export function QuestionPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 border-t">
+          <div className="grid grid-cols-1 border-t md:grid-cols-2">
             <div className="border-b md:border-b-0 md:border-r">
               <div className="flex h-10 items-center justify-between border-b px-3">
                 <span className="text-sm font-medium">Custom Input</span>
+                <span className="text-xs text-muted-foreground">Run only</span>
               </div>
               <textarea
                 value={customInput}
@@ -991,24 +1366,41 @@ export function QuestionPage() {
                 aria-label="Custom input"
               />
             </div>
-            <div>
-              <div className="flex h-10 items-center justify-between border-b px-3">
+            <div className="min-w-0">
+              <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Terminal className="h-4 w-4" />
-                  Output
+                  Run Result
                 </div>
                 {runResult && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className={`rounded-full border px-2 py-0.5 text-xs ${statusTone(runResult.status)}`}>
                     {formatStatus(runResult.status)} · {runResult.executionTime} ms
                   </span>
                 )}
               </div>
               <pre
-                className="h-36 overflow-auto whitespace-pre-wrap bg-zinc-950 p-3 font-mono text-xs text-zinc-100"
+                className="h-24 overflow-auto whitespace-pre-wrap bg-zinc-950 p-3 font-mono text-xs text-zinc-100 md:h-28"
                 aria-live="polite"
               >
                 {getConsoleText(runResult)}
               </pre>
+              <div className="border-t px-3 py-2">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Latest Submit</span>
+                  {latestAttempt ? (
+                    <span className={`rounded-full border px-2 py-0.5 text-xs ${statusTone(latestAttempt.status)}`}>
+                      {formatStatus(latestAttempt.status)}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">None</span>
+                  )}
+                </div>
+                <p className="truncate text-xs text-muted-foreground">
+                  {latestAttempt
+                    ? `${latestAttempt.testCasesPassed}/${latestAttempt.testCasesTotal} tests · ${formatDateTime(latestAttempt.submittedAt)}`
+                    : 'Submit once to see persisted judge results here.'}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -1018,7 +1410,7 @@ export function QuestionPage() {
             <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
               <button
                 type="button"
-                onClick={() => runMutation.mutate()}
+                onClick={handleRun}
                 disabled={runMutation.isPending || !code.trim()}
                 className="flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
@@ -1031,7 +1423,7 @@ export function QuestionPage() {
               </button>
               <button
                 type="button"
-                onClick={() => submitMutation.mutate()}
+                onClick={handleSubmit}
                 disabled={submitMutation.isPending || !code.trim()}
                 className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >

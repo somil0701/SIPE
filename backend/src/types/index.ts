@@ -617,6 +617,7 @@ export interface AIResumeAnalysisInput {
 export interface AIFeedbackOutput {
   overallScore: number;
   summary: string;
+  approachUsed?: string;
   codeQualityScore: number;
   codeQualityFeedback: string;
   timeComplexity: string;

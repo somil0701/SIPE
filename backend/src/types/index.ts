@@ -600,6 +600,41 @@ export interface AIAnswerEvaluationInput {
   code: string;
   language: string;
   userExplanation?: string;
+  question?: {
+    title: string;
+    statement: string;
+    inputFormat?: string | null;
+    outputFormat?: string | null;
+    constraints: string[];
+    examples: Array<{
+      input: string;
+      expectedOutput: string;
+      explanation?: string | null;
+    }>;
+    tags: string[];
+    difficulty: string;
+    expectedTimeComplexity?: string | null;
+    expectedSpaceComplexity?: string | null;
+  };
+  submission?: {
+    status: string;
+    passedTests: number;
+    totalTests: number;
+    executionTime?: number | null;
+    memoryUsed?: number | null;
+  };
+  judge?: {
+    failedTestCases: Array<{
+      input: string;
+      expectedOutput: string;
+      actualOutput?: string | null;
+      stderr?: string | null;
+    }>;
+    compileError?: string | null;
+    runtimeError?: string | null;
+    executionTime?: number | null;
+    memoryUsed?: number | null;
+  };
 }
 
 export interface AIMockInterviewInput {
@@ -616,8 +651,40 @@ export interface AIResumeAnalysisInput {
 
 export interface AIFeedbackOutput {
   overallScore: number;
+  verdict?: string;
+  confidence?: number;
   summary: string;
   approachUsed?: string;
+  algorithmDetected?: string;
+  correctness?: {
+    score: number;
+    mainIssue: string;
+    bugCategory: string;
+    evidence: string[];
+  };
+  complexity?: {
+    detectedTime: string;
+    detectedSpace: string;
+    expectedTime?: string | null;
+    willPassConstraints: boolean;
+    explanation: string;
+  };
+  failedCaseAnalysis?: Array<{
+    input: string;
+    expectedOutput: string;
+    actualOutput?: string | null;
+    likelyReason: string;
+  }>;
+  lineFeedback?: Array<{
+    lineStart: number;
+    lineEnd?: number;
+    severity: 'info' | 'warning' | 'error';
+    message: string;
+  }>;
+  codeQuality?: {
+    score: number;
+    feedback: string;
+  };
   codeQualityScore: number;
   codeQualityFeedback: string;
   timeComplexity: string;
@@ -625,5 +692,6 @@ export interface AIFeedbackOutput {
   strengths: string[];
   weaknesses: string[];
   suggestions: string[];
-  resources: Resource[];
+  resourceTopics: string[];
+  resources?: Resource[];
 }

@@ -1,4 +1,5 @@
 import {
+  Prisma,
   AttemptStatus as PrismaAttemptStatus,
   SpacedRepetitionStatus as PrismaSpacedRepetitionStatus,
 } from '@prisma/client';
@@ -13,6 +14,41 @@ import { judgeService } from '../judge/judge.service';
 import { Attempt, AttemptInput, AttemptFeedback, AttemptStatus, RunCodeInput } from '../types';
 
 type TimelineAttemptStatus = keyof typeof PrismaAttemptStatus;
+
+const attemptFeedbackContextInclude = Prisma.validator<Prisma.AttemptInclude>()({
+  feedback: true,
+  attemptTestCases: {
+    orderBy: { testCaseIndex: 'asc' },
+  },
+  question: {
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      problemStatement: true,
+      difficulty: true,
+      constraints: true,
+      testCases: true,
+      topicTags: true,
+      companyTags: true,
+      optimalTimeComplexity: true,
+      optimalSpaceComplexity: true,
+      questionTags: {
+        include: {
+          tag: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
+type AttemptFeedbackContext = Prisma.AttemptGetPayload<{
+  include: typeof attemptFeedbackContextInclude;
+}>;
 
 interface SubmissionTimelineAttempt {
   id: string;
@@ -233,9 +269,7 @@ class AttemptService {
   async generateAttemptFeedback(attemptId: string, userId: string): Promise<AttemptFeedback> {
     const attempt = await prisma.attempt.findFirst({
       where: { id: attemptId, userId },
-      include: {
-        feedback: true,
-      },
+      include: attemptFeedbackContextInclude,
     });
 
     if (!attempt) {
@@ -254,14 +288,7 @@ class AttemptService {
       throw ApiError.badRequest('Cannot generate AI review for an attempt without a code snapshot');
     }
 
-    const aiFeedback = await this.createAttemptFeedbackPayload(
-      attempt.questionId,
-      attempt.code,
-      attempt.language,
-      attempt.status,
-      attempt.testCasesPassed,
-      attempt.testCasesTotal
-    );
+    const aiFeedback = await this.createAttemptFeedbackPayload(attempt);
 
     const feedback = await prisma.attemptFeedback.upsert({
       where: { attemptId },
@@ -275,7 +302,7 @@ class AttemptService {
         strengths: aiFeedback.strengths,
         weaknesses: aiFeedback.weaknesses,
         improvementSuggestions: aiFeedback.suggestions,
-        recommendedResources: aiFeedback.resources as any,
+        recommendedResources: aiFeedback.resourceTopics as any,
       },
       create: {
         attemptId,
@@ -289,7 +316,7 @@ class AttemptService {
         strengths: aiFeedback.strengths,
         weaknesses: aiFeedback.weaknesses,
         improvementSuggestions: aiFeedback.suggestions,
-        recommendedResources: aiFeedback.resources as any,
+        recommendedResources: aiFeedback.resourceTopics as any,
       },
     });
 
@@ -316,39 +343,106 @@ class AttemptService {
     return feedback as unknown as AttemptFeedback;
   }
 
-  private async createAttemptFeedbackPayload(
-    questionId: string,
-    code: string,
-    language: string,
-    status: PrismaAttemptStatus,
-    testCasesPassed: number,
-    testCasesTotal: number
-  ) {
+  private async createAttemptFeedbackPayload(attempt: AttemptFeedbackContext) {
     try {
+      const failedTestCases = attempt.attemptTestCases
+        .filter((testCase) => !testCase.passed)
+        .slice(0, 3)
+        .map((testCase) => ({
+          input: testCase.input,
+          expectedOutput: testCase.expectedOutput,
+          actualOutput: testCase.actualOutput,
+          stderr: testCase.errorMessage,
+        }));
+      const joinedErrors = failedTestCases
+        .map((testCase) => testCase.stderr)
+        .filter(Boolean)
+        .join('\n');
+
       return await aiService.evaluateAnswer({
-        questionId,
-        code,
-        language,
+        questionId: attempt.questionId,
+        code: attempt.code ?? '',
+        language: attempt.language,
+        question: {
+          title: attempt.question.title,
+          statement: this.stripHtml(attempt.question.problemStatement || attempt.question.description),
+          inputFormat: null,
+          outputFormat: null,
+          constraints: attempt.question.constraints,
+          examples: this.extractQuestionExamples(attempt.question.testCases),
+          tags: [
+            ...attempt.question.topicTags,
+            ...attempt.question.companyTags,
+            ...attempt.question.questionTags.map((questionTag) => questionTag.tag.name),
+          ],
+          difficulty: attempt.question.difficulty,
+          expectedTimeComplexity: attempt.question.optimalTimeComplexity,
+          expectedSpaceComplexity: attempt.question.optimalSpaceComplexity,
+        },
+        submission: {
+          status: attempt.status,
+          passedTests: attempt.testCasesPassed,
+          totalTests: attempt.testCasesTotal,
+          executionTime: attempt.executionTime,
+          memoryUsed: attempt.memoryUsed,
+        },
+        judge: {
+          failedTestCases,
+          compileError: attempt.status === PrismaAttemptStatus.COMPILATION_ERROR ? joinedErrors || null : null,
+          runtimeError: attempt.status === PrismaAttemptStatus.RUNTIME_ERROR ? joinedErrors || null : null,
+          executionTime: attempt.executionTime,
+          memoryUsed: attempt.memoryUsed,
+        },
       });
     } catch (error) {
       logger.error('AI feedback generation failed; using durable fallback feedback', {
         error,
-        questionId,
+        questionId: attempt.questionId,
         provider: aiService.getProvider(),
       });
 
-      const accepted = status === PrismaAttemptStatus.ACCEPTED;
-      const passRate = testCasesTotal > 0
-        ? Math.round((testCasesPassed / testCasesTotal) * 100)
+      const accepted = attempt.status === PrismaAttemptStatus.ACCEPTED;
+      const passRate = attempt.testCasesTotal > 0
+        ? Math.round((attempt.testCasesPassed / attempt.testCasesTotal) * 100)
         : 0;
       const score = accepted ? Math.max(75, passRate) : Math.max(35, passRate);
 
       return {
         overallScore: score,
+        verdict: attempt.status,
+        confidence: 0.25,
         summary: accepted
           ? 'All visible test cases passed. AI semantic feedback was unavailable, so this fallback review is based on judge results.'
           : 'The judge completed this attempt, but AI semantic feedback was unavailable. Review failed test cases and error output first.',
         approachUsed: 'Approach unavailable because AI semantic review failed.',
+        algorithmDetected: 'Unknown',
+        correctness: {
+          score,
+          mainIssue: accepted ? 'No stored judge failure.' : 'AI review failed; inspect the first stored failing testcase.',
+          bugCategory: accepted ? 'none' : 'unknown',
+          evidence: [`${attempt.testCasesPassed}/${attempt.testCasesTotal} tests passed`],
+        },
+        complexity: {
+          detectedTime: 'Unknown',
+          detectedSpace: 'Unknown',
+          expectedTime: attempt.question.optimalTimeComplexity,
+          willPassConstraints: accepted,
+          explanation: 'AI complexity analysis was unavailable.',
+        },
+        failedCaseAnalysis: attempt.attemptTestCases
+          .filter((testCase) => !testCase.passed)
+          .slice(0, 3)
+          .map((testCase) => ({
+            input: testCase.input,
+            expectedOutput: testCase.expectedOutput,
+            actualOutput: testCase.actualOutput,
+            likelyReason: testCase.errorMessage ?? 'Output differed from expected output.',
+          })),
+        lineFeedback: [],
+        codeQuality: {
+          score,
+          feedback: `AI provider feedback timed out or failed (${aiService.getProvider()}). This durable fallback prevents the submission from staying in a generating state.`,
+        },
         codeQualityScore: score,
         codeQualityFeedback: `AI provider feedback timed out or failed (${aiService.getProvider()}). This durable fallback prevents the submission from staying in a generating state.`,
         timeComplexity: 'Unknown',
@@ -360,9 +454,51 @@ class AttemptService {
           'Compare your approach with the expected complexity',
           'Try one small refactor after confirming the sample cases still pass',
         ],
+        resourceTopics: attempt.question.topicTags.slice(0, 4),
         resources: [],
       };
     }
+  }
+
+  private stripHtml(value: string): string {
+    return value
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  private extractQuestionExamples(testCases: unknown): Array<{
+    input: string;
+    expectedOutput: string;
+    explanation?: string | null;
+  }> {
+    if (!Array.isArray(testCases)) return [];
+
+    return testCases
+      .filter((testCase) => testCase && typeof testCase === 'object' && (testCase as any).isExample)
+      .slice(0, 3)
+      .map((testCase) => {
+        const item = testCase as {
+          input?: unknown;
+          expectedOutput?: unknown;
+          expected?: unknown;
+          explanation?: unknown;
+        };
+
+        return {
+          input: typeof item.input === 'string' ? item.input : String(item.input ?? ''),
+          expectedOutput: typeof item.expectedOutput === 'string'
+            ? item.expectedOutput
+            : String(item.expected ?? ''),
+          explanation: typeof item.explanation === 'string' ? item.explanation : null,
+        };
+      });
   }
 
   /**

@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { z } from 'zod';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
 import {
@@ -11,6 +12,59 @@ import {
   ResumeParsedData,
   DetectedSkill,
 } from '../types';
+
+const textField = (fallback: string) =>
+  z.preprocess((value) => value ?? fallback, z.string());
+
+const scoreField = (fallback: number) =>
+  z.coerce.number().min(0).max(100).default(fallback);
+
+const lineFeedbackSchema = z.object({
+  lineStart: z.coerce.number().int().min(1),
+  lineEnd: z.preprocess((value) => value ?? undefined, z.coerce.number().int().min(1).optional()),
+  severity: z.enum(['info', 'warning', 'error']).default('info'),
+  message: textField(''),
+});
+
+const failedCaseAnalysisSchema = z.object({
+  input: textField(''),
+  expectedOutput: textField(''),
+  actualOutput: z.string().nullable().optional(),
+  likelyReason: textField(''),
+});
+
+const judgeAwareFeedbackSchema = z.object({
+  overallScore: scoreField(50),
+  verdict: textField('UNKNOWN'),
+  confidence: z.coerce.number().min(0).max(100).default(50),
+  summary: textField('Evaluation completed.'),
+  algorithmDetected: textField('Unknown'),
+  correctness: z.object({
+    score: scoreField(50),
+    mainIssue: textField('No specific correctness issue identified.'),
+    bugCategory: textField('unknown'),
+    evidence: z.array(z.string()).default([]),
+  }).default({}),
+  complexity: z.object({
+    detectedTime: textField('Unknown'),
+    detectedSpace: textField('Unknown'),
+    expectedTime: z.string().nullable().optional(),
+    willPassConstraints: z.boolean().default(false),
+    explanation: textField('Complexity could not be confidently determined.'),
+  }).default({}),
+  failedCaseAnalysis: z.array(failedCaseAnalysisSchema).default([]),
+  lineFeedback: z.array(lineFeedbackSchema).default([]),
+  codeQuality: z.object({
+    score: scoreField(50),
+    feedback: textField('No specific code-quality feedback provided.'),
+  }).default({}),
+  strengths: z.array(z.string()).default([]),
+  weaknesses: z.array(z.string()).default([]),
+  suggestions: z.array(z.string()).default([]),
+  resourceTopics: z.array(z.string()).default([]),
+});
+
+type JudgeAwareFeedback = z.infer<typeof judgeAwareFeedbackSchema>;
 
 /**
  * AI Service
@@ -76,37 +130,105 @@ class AIService {
     }
 
     try {
-      const { code, language, userExplanation } = input;
+      const { code, language, userExplanation, question, submission, judge } = input;
+      const numberedCode = this.numberCodeLines(code);
 
-      const systemPrompt = `You are an expert technical interviewer and code reviewer. 
-Evaluate the provided code solution comprehensively.
+      const systemPrompt = `You are a senior technical interviewer reviewing a judged coding submission.
+Return valid JSON only. Do not include markdown, prose outside JSON, comments, trailing commas, invented test cases, or URLs.
 
-Provide your evaluation in the following JSON format:
+Review rules:
+- Analyze correctness using the problem statement, constraints, submission verdict, and provided failed cases.
+- Use only the failed cases provided; do not invent new inputs or outputs.
+- Compare detected complexity against the expected complexity and constraints.
+- Give specific bug reasons grounded in evidence, not generic advice.
+- Include line-level feedback when the numbered code makes a specific issue visible.
+- Mention resource topics only, never links.
+- Respect the verdict score caps:
+  ACCEPTED: 75-100
+  WRONG_ANSWER: 0-65
+  TIME_LIMIT_EXCEEDED: 0-70
+  RUNTIME_ERROR: 0-60
+  COMPILATION_ERROR: 0-40
+
+Return exactly this JSON shape:
 {
-  "overallScore": number (0-100),
-  "summary": string (2-3 sentences),
-  "approachUsed": string (briefly name the algorithmic approach or data structure used),
-  "codeQualityScore": number (0-100),
-  "codeQualityFeedback": string,
-  "timeComplexity": string (e.g., "O(n)"),
-  "spaceComplexity": string (e.g., "O(1)"),
-  "strengths": string[] (3-5 items),
-  "weaknesses": string[] (2-4 items),
-  "suggestions": string[] (3-5 actionable improvements),
-  "resources": [{ "title": string, "url": string, "type": string }]
-}
+  "overallScore": number,
+  "verdict": string,
+  "confidence": number,
+  "summary": string,
+  "algorithmDetected": string,
+  "correctness": {
+    "score": number,
+    "mainIssue": string,
+    "bugCategory": string,
+    "evidence": string[]
+  },
+  "complexity": {
+    "detectedTime": string,
+    "detectedSpace": string,
+    "expectedTime": string | null,
+    "willPassConstraints": boolean,
+    "explanation": string
+  },
+  "failedCaseAnalysis": [
+    {
+      "input": string,
+      "expectedOutput": string,
+      "actualOutput": string | null,
+      "likelyReason": string
+    }
+  ],
+  "lineFeedback": [
+    {
+      "lineStart": number,
+      "lineEnd": number,
+      "severity": "info" | "warning" | "error",
+      "message": string
+    }
+  ],
+  "codeQuality": {
+    "score": number,
+    "feedback": string
+  },
+  "strengths": string[],
+  "weaknesses": string[],
+  "suggestions": string[],
+  "resourceTopics": string[]
+}`;
 
-Be thorough but constructive. Focus on both correctness and best practices.`;
+      const userPrompt = `Problem context:
+${JSON.stringify({
+  title: question?.title ?? 'Unknown question',
+  statement: question?.statement ?? 'Problem statement unavailable.',
+  inputFormat: question?.inputFormat ?? null,
+  outputFormat: question?.outputFormat ?? null,
+  constraints: question?.constraints ?? [],
+  examples: question?.examples ?? [],
+  tags: question?.tags ?? [],
+  difficulty: question?.difficulty ?? 'unknown',
+  expectedTimeComplexity: question?.expectedTimeComplexity ?? null,
+  expectedSpaceComplexity: question?.expectedSpaceComplexity ?? null,
+}, null, 2)}
 
-      const userPrompt = `Please evaluate this ${language} solution:
+Submission context:
+${JSON.stringify({
+  language,
+  verdict: submission?.status ?? 'UNKNOWN',
+  passedTests: submission?.passedTests ?? 0,
+  totalTests: submission?.totalTests ?? 0,
+  executionTime: submission?.executionTime ?? judge?.executionTime ?? null,
+  memoryUsed: submission?.memoryUsed ?? judge?.memoryUsed ?? null,
+  failedTestCases: judge?.failedTestCases ?? [],
+  compileError: judge?.compileError ?? null,
+  runtimeError: judge?.runtimeError ?? null,
+}, null, 2)}
 
+Numbered submitted code:
 \`\`\`${language}
-${code}
+${numberedCode}
 \`\`\`
 
-${userExplanation ? `User explanation: ${userExplanation}` : ''}
-
-Analyze the code and provide detailed feedback.`;
+${userExplanation ? `User explanation: ${userExplanation}` : ''}`;
 
       const response = await this.openai.chat.completions.create({
         model: this.model,
@@ -115,8 +237,8 @@ Analyze the code and provide detailed feedback.`;
           { role: 'user', content: userPrompt },
         ],
         response_format: { type: 'json_object' },
-        temperature: 0.3,
-        max_tokens: 2000,
+        temperature: 0.2,
+        max_tokens: 3500,
       });
 
       const content = response.choices[0].message.content;
@@ -124,10 +246,8 @@ Analyze the code and provide detailed feedback.`;
         throw new Error('Empty response from AI');
       }
 
-      const feedback = JSON.parse(content) as AIFeedbackOutput;
-      
-      // Validate response structure
-      return this.validateFeedbackOutput(feedback);
+      const parsed = judgeAwareFeedbackSchema.parse(JSON.parse(content));
+      return this.validateFeedbackOutput(parsed, input);
     } catch (error) {
       logger.error('AI evaluation failed; using fallback feedback', {
         error,
@@ -440,54 +560,159 @@ Generate a comprehensive interview summary.`;
   /**
    * Validate AI feedback output structure
    */
-  private validateFeedbackOutput(feedback: Partial<AIFeedbackOutput>): AIFeedbackOutput {
+  private validateFeedbackOutput(feedback: JudgeAwareFeedback, input: AIAnswerEvaluationInput): AIFeedbackOutput {
+    const verdict = feedback.verdict || input.submission?.status || 'UNKNOWN';
+    const overallScore = this.capScoreForVerdict(feedback.overallScore, verdict);
+    const codeQualityScore = this.capScoreForVerdict(feedback.codeQuality.score, verdict);
+
     return {
-      overallScore: feedback.overallScore ?? 50,
-      summary: feedback.summary ?? 'Evaluation completed.',
-      approachUsed: feedback.approachUsed ?? 'Could not determine the approach from the submitted code.',
-      codeQualityScore: feedback.codeQualityScore ?? 50,
-      codeQualityFeedback: feedback.codeQualityFeedback ?? 'No specific feedback provided.',
-      timeComplexity: feedback.timeComplexity ?? 'Unknown',
-      spaceComplexity: feedback.spaceComplexity ?? 'Unknown',
-      strengths: feedback.strengths ?? [],
-      weaknesses: feedback.weaknesses ?? [],
-      suggestions: feedback.suggestions ?? [],
-      resources: feedback.resources ?? [],
+      overallScore,
+      verdict,
+      confidence: feedback.confidence,
+      summary: feedback.summary,
+      approachUsed: feedback.algorithmDetected,
+      algorithmDetected: feedback.algorithmDetected,
+      correctness: {
+        ...feedback.correctness,
+        score: this.capScoreForVerdict(feedback.correctness.score, verdict),
+      },
+      complexity: feedback.complexity,
+      failedCaseAnalysis: feedback.failedCaseAnalysis,
+      lineFeedback: feedback.lineFeedback,
+      codeQuality: {
+        ...feedback.codeQuality,
+        score: codeQualityScore,
+      },
+      codeQualityScore,
+      codeQualityFeedback: feedback.codeQuality.feedback,
+      timeComplexity: feedback.complexity.detectedTime,
+      spaceComplexity: feedback.complexity.detectedSpace,
+      strengths: feedback.strengths,
+      weaknesses: feedback.weaknesses,
+      suggestions: feedback.suggestions,
+      resourceTopics: feedback.resourceTopics,
+      resources: [],
     };
   }
 
   private fallbackCodeFeedback(input: AIAnswerEvaluationInput): AIFeedbackOutput {
     const hasLoopOrMap = /\b(for|while|map|reduce|filter|forEach)\b/.test(input.code);
     const hasReturn = /\breturn\b/.test(input.code);
-    const score = hasReturn ? (hasLoopOrMap ? 82 : 72) : 45;
+    const verdict = input.submission?.status ?? 'UNKNOWN';
+    const accepted = verdict === 'ACCEPTED';
+    const failedCase = input.judge?.failedTestCases?.[0];
+    const baseScore = accepted
+      ? (hasLoopOrMap ? 82 : 76)
+      : Math.max(35, Math.round(((input.submission?.passedTests ?? 0) / Math.max(input.submission?.totalTests ?? 1, 1)) * 70));
+    const score = this.capScoreForVerdict(hasReturn ? baseScore : 35, verdict);
+    const mainIssue = accepted
+      ? 'No correctness issue detected from stored judge results.'
+      : failedCase
+        ? `First stored failing case expected "${this.compactPromptValue(failedCase.expectedOutput)}" but got "${this.compactPromptValue(failedCase.actualOutput ?? '')}".`
+        : 'Judge did not accept the submission; detailed failing case evidence was unavailable.';
 
     return {
       overallScore: score,
-      summary: hasReturn
-        ? 'Fallback review completed locally. The solution has a plausible structure and returns a value for the tested cases.'
-        : 'Fallback review completed locally. Add a clear return value so the evaluator can compare your output.',
+      verdict,
+      confidence: 0.35,
+      summary: accepted
+        ? 'Fallback review completed locally using the stored judge verdict. The submission passed the available judged cases, but semantic AI analysis was unavailable.'
+        : 'Fallback review completed locally using the stored judge verdict and failed-case evidence. Review the listed failure before changing unrelated parts of the solution.',
       approachUsed: hasLoopOrMap
         ? 'Iterative traversal or collection-based processing detected.'
         : 'Approach could not be confidently identified by the local fallback reviewer.',
+      algorithmDetected: hasLoopOrMap
+        ? 'Iterative traversal or collection-based processing detected.'
+        : 'Unknown',
+      correctness: {
+        score,
+        mainIssue,
+        bugCategory: accepted ? 'none' : this.bugCategoryForVerdict(verdict),
+        evidence: [
+          `${input.submission?.passedTests ?? 0}/${input.submission?.totalTests ?? 0} tests passed`,
+          ...(failedCase ? [`Failing case input: ${this.compactPromptValue(failedCase.input)}`] : []),
+        ],
+      },
+      complexity: {
+        detectedTime: hasLoopOrMap ? 'O(n)' : 'Unknown',
+        detectedSpace: 'Unknown',
+        expectedTime: input.question?.expectedTimeComplexity ?? null,
+        willPassConstraints: accepted || verdict !== 'TIME_LIMIT_EXCEEDED',
+        explanation: input.question?.expectedTimeComplexity
+          ? `Expected time is ${input.question.expectedTimeComplexity}; local fallback could only infer a coarse pattern.`
+          : 'Local fallback could only infer coarse complexity from code structure.',
+      },
+      failedCaseAnalysis: (input.judge?.failedTestCases ?? []).slice(0, 3).map((testCase) => ({
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput,
+        actualOutput: testCase.actualOutput ?? null,
+        likelyReason: testCase.stderr || 'Compare the actual output with the expected output for this stored failing case.',
+      })),
+      lineFeedback: hasReturn
+        ? []
+        : [{
+            lineStart: 1,
+            severity: 'warning',
+            message: 'No return statement was detected by the local fallback reviewer; verify the solution prints or returns the required output.',
+          }],
+      codeQuality: {
+        score,
+        feedback: 'Local fallback feedback is based on stored judge data and basic structure checks because AI JSON generation was unavailable.',
+      },
       codeQualityScore: score,
-      codeQualityFeedback: 'Local fallback feedback is based on basic structure checks because no usable AI provider key is configured.',
+      codeQualityFeedback: 'Local fallback feedback is based on stored judge data and basic structure checks because AI JSON generation was unavailable.',
       timeComplexity: hasLoopOrMap ? 'O(n)' : 'Unknown',
-      spaceComplexity: 'O(1)',
+      spaceComplexity: 'Unknown',
       strengths: hasReturn ? ['Defines a return path', 'Keeps the solution concise'] : ['Submission was received'],
-      weaknesses: hasReturn ? ['Full semantic review requires an AI key'] : ['No return statement detected'],
+      weaknesses: accepted
+        ? ['Full semantic review was unavailable']
+        : [mainIssue],
       suggestions: [
-        'Add comments only where they clarify non-obvious logic',
-        'Consider edge cases from the prompt constraints',
-        'Run through the example test cases before submitting',
+        'Trace the first stored failing case line by line',
+        'Compare the implementation against the prompt constraints',
+        'Confirm the output format exactly matches the expected output',
       ],
-      resources: [
-        {
-          title: 'JavaScript algorithms practice',
-          url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript',
-          type: 'documentation',
-        },
-      ],
+      resourceTopics: input.question?.tags?.slice(0, 4) ?? [],
+      resources: [],
     };
+  }
+
+  private numberCodeLines(code: string): string {
+    return code
+      .split(/\r?\n/)
+      .map((line, index) => `${String(index + 1).padStart(4, ' ')} | ${line}`)
+      .join('\n');
+  }
+
+  private capScoreForVerdict(score: number, verdict: string): number {
+    const rounded = Math.round(Number.isFinite(score) ? score : 50);
+    const normalized = verdict.toUpperCase();
+    if (normalized === 'ACCEPTED') return Math.min(100, Math.max(75, rounded));
+    if (normalized === 'WRONG_ANSWER') return Math.min(65, Math.max(0, rounded));
+    if (normalized === 'TIME_LIMIT_EXCEEDED') return Math.min(70, Math.max(0, rounded));
+    if (normalized === 'RUNTIME_ERROR') return Math.min(60, Math.max(0, rounded));
+    if (normalized === 'COMPILATION_ERROR') return Math.min(40, Math.max(0, rounded));
+    return Math.min(100, Math.max(0, rounded));
+  }
+
+  private bugCategoryForVerdict(verdict: string): string {
+    switch (verdict.toUpperCase()) {
+      case 'WRONG_ANSWER':
+        return 'logic_or_output_mismatch';
+      case 'TIME_LIMIT_EXCEEDED':
+        return 'complexity';
+      case 'RUNTIME_ERROR':
+        return 'runtime_exception';
+      case 'COMPILATION_ERROR':
+        return 'compilation';
+      default:
+        return 'unknown';
+    }
+  }
+
+  private compactPromptValue(value: string): string {
+    const compacted = value.replace(/\s+/g, ' ').trim();
+    return compacted.length > 120 ? `${compacted.slice(0, 117)}...` : compacted;
   }
 
   private fallbackInterviewQuestion(input: AIMockInterviewInput): Partial<InterviewQuestion> {

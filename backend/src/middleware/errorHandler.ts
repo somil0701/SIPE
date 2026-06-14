@@ -133,7 +133,7 @@ export const errorHandler = (
       stack: err.stack,
       path: req.path,
       method: req.method,
-      requestId: req.requestId,
+      requestId: (req as any).requestId,
     });
   } else {
     logger.warn('Client error', {
@@ -142,7 +142,7 @@ export const errorHandler = (
       code,
       path: req.path,
       method: req.method,
-      requestId: req.requestId,
+      requestId: (req as any).requestId,
     });
   }
 

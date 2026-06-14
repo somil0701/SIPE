@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { ThemeToggle } from './ThemeToggle';
 import {
   LayoutDashboard,
   Users,
@@ -44,7 +45,7 @@ export function AdminLayout() {
             className="fixed inset-0 bg-gray-900/80"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-900">
+          <div className="fixed inset-y-0 left-0 w-64 bg-card">
             <div className="flex h-16 items-center justify-between px-4">
               <Link to="/admin" className="flex items-center gap-2">
                 <Shield className="h-8 w-8 text-primary" />
@@ -80,6 +81,9 @@ export function AdminLayout() {
                 </Link>
               </div>
             </nav>
+            <div className="mt-4 px-3">
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       )}
@@ -117,7 +121,8 @@ export function AdminLayout() {
               </Link>
             </div>
           </nav>
-          <div className="mt-auto">
+          <div className="mt-auto space-y-2">
+            <ThemeToggle />
             <div className="flex items-center gap-3 rounded-lg border p-3">
               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="h-5 w-5 text-primary" />

@@ -120,57 +120,57 @@ export function AdminDashboardPage() {
       name: 'Total Users',
       value: stats?.totalUsers || 0,
       icon: Users,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
     },
     {
       name: 'New Signups Today',
       value: stats?.newSignupsToday || 0,
       icon: UserPlus,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
+      color: 'text-green-600 dark:text-green-400',
+      bgColor: 'bg-green-100 dark:bg-green-900/30',
     },
     {
       name: 'Daily Active Users (DAU)',
       value: stats?.dau || 0,
       icon: Activity,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100',
+      color: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-100 dark:bg-orange-900/30',
     },
     {
       name: 'Monthly Active Users',
       value: stats?.mau || 0,
       icon: Users,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-100 dark:bg-purple-900/30',
     },
     {
       name: 'Problems Solved Today',
       value: stats?.problemsSolvedToday || 0,
       icon: Code2,
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-100',
+      color: 'text-indigo-600 dark:text-indigo-400',
+      bgColor: 'bg-indigo-100 dark:bg-indigo-900/30',
     },
     {
       name: 'Mock Interviews Today',
       value: stats?.mockInterviewsToday || 0,
       icon: Mic,
-      color: 'text-red-600',
-      bgColor: 'bg-red-100',
+      color: 'text-red-600 dark:text-red-400',
+      bgColor: 'bg-red-100 dark:bg-red-900/30',
     },
     {
       name: 'Resumes Uploaded Today',
       value: stats?.resumesToday || 0,
       icon: FileText,
-      color: 'text-teal-600',
-      bgColor: 'bg-teal-100',
+      color: 'text-teal-600 dark:text-teal-400',
+      bgColor: 'bg-teal-100 dark:bg-teal-900/30',
     },
     {
       name: 'Total Revenue',
       value: `$${stats?.totalRevenue || 0}`,
       icon: DollarSign,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-100',
+      color: 'text-yellow-600 dark:text-yellow-400',
+      bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
     },
   ];
 
@@ -180,32 +180,32 @@ export function AdminDashboardPage() {
       value: formatPercent(judgeReliability?.summary.successRate),
       detail: `${judgeReliability?.summary.acceptedSubmissions || 0} accepted`,
       icon: Gauge,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
+      color: 'text-green-600 dark:text-green-400',
+      bgColor: 'bg-green-100 dark:bg-green-900/30',
     },
     {
       name: 'Failure Rate',
       value: formatPercent(judgeReliability?.summary.failureRate),
       detail: `${judgeReliability?.summary.failureSubmissions || 0} failed`,
       icon: AlertTriangle,
-      color: 'text-red-600',
-      bgColor: 'bg-red-100',
+      color: 'text-red-600 dark:text-red-400',
+      bgColor: 'bg-red-100 dark:bg-red-900/30',
     },
     {
       name: 'Avg Runtime',
       value: formatMs(judgeReliability?.summary.averageExecutionTimeMs),
       detail: `Peak ${formatMs(judgeReliability?.summary.maxExecutionTimeMs)}`,
       icon: Cpu,
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-100',
+      color: 'text-indigo-600 dark:text-indigo-400',
+      bgColor: 'bg-indigo-100 dark:bg-indigo-900/30',
     },
     {
       name: 'Timeout Rate',
       value: formatPercent(judgeReliability?.summary.timeoutRate),
       detail: `${formatPercent(judgeReliability?.summary.compilationErrorRate)} compile errors`,
       icon: TimerReset,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-100',
+      color: 'text-amber-600 dark:text-amber-400',
+      bgColor: 'bg-amber-100 dark:bg-amber-900/30',
     },
   ];
 
@@ -271,8 +271,10 @@ export function AdminDashboardPage() {
                     contentStyle={{ 
                       backgroundColor: 'hsl(var(--card))',
                       borderColor: 'hsl(var(--border))',
-                      borderRadius: '8px'
+                      borderRadius: '8px',
+                      color: 'hsl(var(--card-foreground))',
                     }}
+                    labelStyle={{ color: 'hsl(var(--card-foreground))' }}
                   />
                   <Line 
                     type="monotone" 
@@ -395,7 +397,7 @@ export function AdminDashboardPage() {
                 <div key={error.signature} className="rounded-lg border p-4">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm font-medium">{error.signature}</p>
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                    <span className="rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-300">
                       {error.count}
                     </span>
                   </div>
@@ -425,7 +427,7 @@ export function AdminDashboardPage() {
                         {failure.userName || failure.userEmail} · {formatDateTime(failure.submittedAt)}
                       </p>
                     </div>
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                    <span className="rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-300">
                       {failure.label}
                     </span>
                   </div>

@@ -328,7 +328,7 @@ export function AdminQuestionForm({ question, onClose }: { question?: any, onClo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-gray-900/80 p-4 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 sm:p-6 overflow-y-auto">
       <div className="bg-card w-full max-w-5xl rounded-xl shadow-xl overflow-hidden animate-fade-in relative my-8">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-3">

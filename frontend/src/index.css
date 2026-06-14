@@ -24,28 +24,30 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+    color-scheme: light;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --background: 222.2 47% 6.2%;
+    --foreground: 210 40% 96%;
+    --card: 222.2 47% 9%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222.2 47% 9%;
+    --popover-foreground: 210 40% 96%;
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217.2 32.6% 14%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 217.2 32.6% 14%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 217.2 32.6% 14%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    color-scheme: dark;
   }
 }
 
@@ -56,6 +58,15 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Theme transition — scoped to background/color only to avoid perf issues */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 0.3s ease, color 0.15s ease, border-color 0.3s ease !important;
+  transition-delay: 0s !important;
 }
 
 /* Custom scrollbar */
@@ -84,19 +95,19 @@
 
 /* Difficulty badges */
 .difficulty-easy {
-  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100;
+  @apply bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300;
 }
 
 .difficulty-medium {
-  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100;
+  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300;
 }
 
 .difficulty-hard {
-  @apply bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100;
+  @apply bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300;
 }
 
 .difficulty-expert {
-  @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100;
+  @apply bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300;
 }
 
 /* Animation utilities */

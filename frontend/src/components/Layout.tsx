@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
+import { ThemeToggle } from './ThemeToggle'
 import {
   LayoutDashboard,
   Code2,
@@ -61,7 +62,7 @@ export function Layout() {
             className="fixed inset-0 bg-gray-900/80"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-900">
+          <div className="fixed inset-y-0 left-0 w-64 bg-card">
             <div className="flex h-16 items-center justify-between px-4">
               <Link
                 to="/dashboard"
@@ -69,7 +70,7 @@ export function Layout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Brain className="h-8 w-8 text-primary" />
-                <span className="text-xl font-bold">InterviewPrep</span>
+                <span className="text-xl font-bold">SIPE</span>
               </Link>
               <button
                 type="button"
@@ -108,6 +109,9 @@ export function Layout() {
                   </Link>
                 </div>
               )}
+              <div className="pt-4 mt-4 border-t border-border px-3">
+                <ThemeToggle />
+              </div>
             </nav>
           </div>
         </div>
@@ -126,10 +130,10 @@ export function Layout() {
               className={`flex min-w-0 items-center rounded-lg px-2 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 sidebarCollapsed ? 'justify-center' : 'gap-2'
               }`}
-              title="InterviewPrep"
+              title="SIPE"
             >
               <Brain className="h-8 w-8 shrink-0 text-primary" />
-              {!sidebarCollapsed && <span className="truncate text-xl font-bold">InterviewPrep</span>}
+              {!sidebarCollapsed && <span className="truncate text-xl font-bold">SIPE</span>}
             </Link>
             {!sidebarCollapsed && (
               <button
@@ -185,7 +189,8 @@ export function Layout() {
               </div>
             )}
           </nav>
-          <div className="mt-auto">
+          <div className="mt-auto space-y-2">
+            <ThemeToggle collapsed={sidebarCollapsed} />
             <div className={`flex items-center rounded-lg border p-3 ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
               <div
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10"
@@ -243,7 +248,7 @@ export function Layout() {
             className="flex items-center gap-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Brain className="h-6 w-6 text-primary" />
-            <span className="font-bold">InterviewPrep</span>
+            <span className="font-bold">SIPE</span>
           </Link>
         </div>
 

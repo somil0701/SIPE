@@ -39,29 +39,29 @@ export function DashboardPage() {
       value: analytics?.totalSolved || 0,
       total: analytics?.totalAttempts || 0,
       icon: Code2,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
+      color: 'text-green-600 dark:text-green-400',
+      bgColor: 'bg-green-100 dark:bg-green-900/30',
     },
     {
       name: 'Accuracy Rate',
       value: `${analytics?.overallAccuracy || 0}%`,
       icon: Target,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
     },
     {
       name: 'Current Streak',
       value: analytics?.currentStreak || 0,
       icon: Flame,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100',
+      color: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-100 dark:bg-orange-900/30',
     },
     {
       name: 'Study Time',
       value: `${Math.floor((analytics?.totalTimeSpent || 0) / 3600)}h`,
       icon: Clock,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-100 dark:bg-purple-900/30',
     },
   ]
 
@@ -319,8 +319,8 @@ export function DashboardPage() {
                         </span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           interview.status === 'completed'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300'
                         }`}>
                           {interview.status}
                         </span>

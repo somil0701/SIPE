@@ -109,25 +109,25 @@ export function MockInterviewPage() {
               <div className="flex items-start justify-between mb-4">
                 <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
                   interview.status === 'completed'
-                    ? 'bg-green-100'
+                    ? 'bg-green-100 dark:bg-green-900/30'
                     : interview.status === 'in_progress'
-                    ? 'bg-blue-100'
-                    : 'bg-gray-100'
+                    ? 'bg-blue-100 dark:bg-blue-900/30'
+                    : 'bg-muted'
                 }`}>
                   <Mic className={`h-5 w-5 ${
                     interview.status === 'completed'
-                      ? 'text-green-600'
+                      ? 'text-green-600 dark:text-green-400'
                       : interview.status === 'in_progress'
-                      ? 'text-blue-600'
-                      : 'text-gray-600'
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-muted-foreground'
                   }`} />
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full ${
                   interview.status === 'completed'
-                    ? 'bg-green-100 text-green-800'
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
                     : interview.status === 'in_progress'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-800'
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                    : 'bg-muted text-muted-foreground'
                 }`}>
                   {interview.status}
                 </span>
@@ -172,7 +172,7 @@ export function MockInterviewPage() {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div
-            className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-lg dark:bg-gray-900"
+            className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-xl bg-card p-6 shadow-lg"
             role="dialog"
             aria-modal="true"
             aria-labelledby="new-interview-title"

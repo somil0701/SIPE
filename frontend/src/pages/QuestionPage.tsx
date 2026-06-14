@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { questionsApi, attemptsApi } from '../services/api'
 import { useAuthStore } from '../store/authStore'
+import { useThemeStore } from '../store/themeStore'
 import { initVimMode } from 'monaco-vim'
 import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
 
@@ -406,6 +407,8 @@ export function QuestionPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
+  const appTheme = useThemeStore((s) => s.theme)
+  const editorTheme = appTheme === 'dark' || (appTheme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'custom-dark' : 'light'
   const [language, setLanguage] = useState(getSupportedLanguage(user?.preferredLanguage))
   const [vimMode, setVimMode] = useState(() => {
     return localStorage.getItem('editor-vim-mode') === 'true'
@@ -1317,6 +1320,17 @@ export function QuestionPage() {
               height="100%"
               language={language}
               value={code}
+              beforeMount={(monaco) => {
+                monaco.editor.defineTheme('custom-dark', {
+                  base: 'vs-dark',
+                  inherit: true,
+                  rules: [],
+                  colors: {
+                    'editor.background': '#0B1120',
+                    'editorGutter.background': '#111827',
+                  },
+                })
+              }}
               onMount={(editor, monaco) => {
                 editorRef.current = editor
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
@@ -1339,7 +1353,7 @@ export function QuestionPage() {
                 }
               }}
               onChange={(value) => updateCode(value || '')}
-              theme="vs-dark"
+              theme={editorTheme}
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,

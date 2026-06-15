@@ -93,6 +93,27 @@ html.theme-transition *::after {
   border-radius: var(--radius);
 }
 
+/* Problem statement inline code */
+.prose :where(code):not(:where(pre code)) {
+  display: inline-block;
+  border-radius: 0.25rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted));
+  padding: 0.05rem 0.35rem;
+  color: hsl(var(--foreground));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.dark .prose :where(code):not(:where(pre code)) {
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted) / 0.9);
+  color: hsl(var(--foreground));
+}
+
 /* Difficulty badges */
 .difficulty-easy {
   @apply bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300;

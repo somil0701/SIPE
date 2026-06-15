@@ -92,6 +92,7 @@ export interface Question {
   difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   type: 'coding' | 'system-design' | 'behavioral' | 'theoretical' | 'quiz';
   starterCode?: Record<string, string>;
+  solutionCode?: Record<string, string>;
   hints: string[];
   testCases: TestCase[];
   constraints: string[];

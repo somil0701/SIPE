@@ -463,21 +463,36 @@ export function QuestionPage() {
     },
   })
 
+  const ignoreEditsRef = useRef(false)
+  const isViewingSubmissionCodeRef = useRef(false)
+
   const updateCode = useCallback((nextCode: string) => {
     setCode(nextCode)
     setIsCodeDirty(nextCode !== codeBaselineRef.current)
   }, [])
 
   const replaceCode = useCallback((nextCode: string) => {
+    ignoreEditsRef.current = true
     codeBaselineRef.current = nextCode
     setCode(nextCode)
     setIsCodeDirty(false)
+    setTimeout(() => {
+      ignoreEditsRef.current = false
+    }, 100)
   }, [])
 
   const canReplaceCode = useCallback((message: string) => {
     if (!isCodeDirty) return true
     return window.confirm(message)
   }, [isCodeDirty])
+
+  const handleTabChange = useCallback((tab: 'description' | 'solution' | 'submissions') => {
+    if (activeTab === 'submissions' && tab !== 'submissions') {
+      ignoreEditsRef.current = true
+      setTimeout(() => { ignoreEditsRef.current = false }, 100)
+    }
+    setActiveTab(tab)
+  }, [activeTab])
 
   // Populate starter code when question or language changes
   useEffect(() => {
@@ -681,9 +696,9 @@ export function QuestionPage() {
 
     replaceCode(attempt.code)
     setRunResult(null)
-    setActiveTab('description')
+    handleTabChange('description')
     toast.success('Loaded this attempt into the editor.')
-  }, [canReplaceCode, language, replaceCode])
+  }, [canReplaceCode, language, replaceCode, handleTabChange])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -752,6 +767,7 @@ export function QuestionPage() {
   const isViewingSubmissionCode = activeTab === 'submissions' && !!selectedAttempt?.code;
   const displayCode = isViewingSubmissionCode ? selectedAttempt.code! : code;
   const displayLanguage = isViewingSubmissionCode ? getSupportedLanguage(selectedAttempt.language) : language;
+  isViewingSubmissionCodeRef.current = isViewingSubmissionCode;
 
   return (
     <div className="space-y-4 -mt-2 sm:-mt-3">
@@ -833,7 +849,7 @@ export function QuestionPage() {
               <button
                 type="button"
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => handleTabChange(tab)}
                 role="tab"
                 aria-selected={activeTab === tab}
                 className={`flex-1 px-4 py-3 text-sm font-medium capitalize focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${activeTab === tab
@@ -1281,10 +1297,11 @@ export function QuestionPage() {
             <div className="flex flex-col gap-3 p-3 border-b sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <select
-                  value={language}
+                  value={displayLanguage}
                   onChange={(e) => handleLanguageChange(e.target.value)}
                   className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   aria-label="Programming language"
+                  disabled={isViewingSubmissionCode}
                 >
                   {LANGUAGES.map((lang) => (
                     <option key={lang.id} value={lang.id}>
@@ -1353,7 +1370,10 @@ export function QuestionPage() {
                     vimAdapterRef.current = initVimMode(editor, statusNode)
                   }
                 }}
-                onChange={(value) => updateCode(value || '')}
+                onChange={(value) => {
+                  if (ignoreEditsRef.current || isViewingSubmissionCodeRef.current) return
+                  updateCode(value || '')
+                }}
                 theme={editorTheme}
                 options={{
                   minimap: { enabled: false },

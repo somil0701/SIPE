@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { ThemeToggle } from './ThemeToggle'
 import {
@@ -44,6 +44,14 @@ export function Layout() {
     logout()
     navigate('/login')
   }
+
+  // Auto-collapse sidebar when viewing a specific question
+  useEffect(() => {
+    if (location.pathname.startsWith('/practice/') && location.pathname !== '/practice') {
+      setSidebarCollapsed(true)
+      localStorage.setItem('sidebar-collapsed', 'true')
+    }
+  }, [location.pathname])
 
   const toggleSidebarCollapsed = () => {
     setSidebarCollapsed((collapsed) => {

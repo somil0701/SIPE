@@ -426,13 +426,18 @@ export function QuestionPage() {
     const stored = Number(localStorage.getItem('practice-split-percent'))
     return Number.isFinite(stored) ? clamp(stored, 35, 65) : 48
   })
+  const [verticalSplitPercent, setVerticalSplitPercent] = useState(() => {
+    const stored = Number(localStorage.getItem('practice-vertical-split-percent'))
+    return Number.isFinite(stored) ? clamp(stored, 20, 80) : 65
+  })
   const [isCodeDirty, setIsCodeDirty] = useState(false)
   const startTime = useRef(Date.now())
   const codeBaselineRef = useRef('')
   const suppressStarterResetRef = useRef(false)
-  const runActionRef = useRef<() => void>(() => {})
-  const submitActionRef = useRef<() => void>(() => {})
+  const runActionRef = useRef<() => void>(() => { })
+  const submitActionRef = useRef<() => void>(() => { })
   const splitContainerRef = useRef<HTMLDivElement | null>(null)
+  const verticalContainerRef = useRef<HTMLDivElement | null>(null)
   const editorRef = useRef<any>(null)
   const vimAdapterRef = useRef<any>(null)
 
@@ -507,18 +512,32 @@ export function QuestionPage() {
   }, [splitPercent])
 
   useEffect(() => {
-    const handlePointerMove = (event: PointerEvent) => {
-      if (!splitContainerRef.current || event.buttons === 0) return
-      if (!splitContainerRef.current.dataset.dragging) return
+    localStorage.setItem('practice-vertical-split-percent', String(verticalSplitPercent))
+  }, [verticalSplitPercent])
 
-      const bounds = splitContainerRef.current.getBoundingClientRect()
-      const nextPercent = ((event.clientX - bounds.left) / bounds.width) * 100
-      setSplitPercent(clamp(nextPercent, 35, 65))
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.buttons === 0) return
+
+      if (splitContainerRef.current?.dataset.dragging) {
+        const bounds = splitContainerRef.current.getBoundingClientRect()
+        const nextPercent = ((event.clientX - bounds.left) / bounds.width) * 100
+        setSplitPercent(clamp(nextPercent, 35, 65))
+      }
+
+      if (verticalContainerRef.current?.dataset.dragging) {
+        const bounds = verticalContainerRef.current.getBoundingClientRect()
+        const nextPercent = ((event.clientY - bounds.top) / bounds.height) * 100
+        setVerticalSplitPercent(clamp(nextPercent, 20, 80))
+      }
     }
 
     const stopDragging = () => {
       if (splitContainerRef.current) {
         delete splitContainerRef.current.dataset.dragging
+      }
+      if (verticalContainerRef.current) {
+        delete verticalContainerRef.current.dataset.dragging
       }
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
@@ -548,14 +567,14 @@ export function QuestionPage() {
         return current
       }
 
-      return submissionTimeline.attempts[0].id
+      return null
     })
   }, [submissionTimeline])
 
   useEffect(() => {
     localStorage.setItem('editor-vim-mode', String(vimMode))
     if (!editorRef.current) return
-    
+
     if (vimMode) {
       const statusNode = document.getElementById('vim-status')
       if (statusNode) {
@@ -601,7 +620,7 @@ export function QuestionPage() {
         code,
         language,
         timeSpent: Math.floor((Date.now() - startTime.current) / 1000),
-    }),
+      }),
     onSuccess: (attempt: any) => {
       setSelectedAttemptId(attempt.id)
       setActiveTab('submissions')
@@ -663,6 +682,7 @@ export function QuestionPage() {
 
     replaceCode(attempt.code)
     setRunResult(null)
+    setActiveTab('description')
     toast.success('Loaded this attempt into the editor.')
   }, [canReplaceCode, language, replaceCode])
 
@@ -727,22 +747,26 @@ export function QuestionPage() {
 
   const timelineAttempts = submissionTimeline?.attempts ?? []
   const latestAttempt = timelineAttempts[0]
-  const selectedAttempt = timelineAttempts.find((attempt) => attempt.id === selectedAttemptId) ?? timelineAttempts[0]
+  const selectedAttempt = timelineAttempts.find((attempt) => attempt.id === selectedAttemptId)
   const selectedAttemptRunning = isJudgeInProgress(selectedAttempt?.status)
   const failedAttemptCase = latestFailedCase(selectedAttempt)
 
+  const isViewingSubmissionCode = activeTab === 'submissions' && !!selectedAttempt?.code;
+  const displayCode = isViewingSubmissionCode ? selectedAttempt.code! : code;
+  const displayLanguage = isViewingSubmissionCode ? getSupportedLanguage(selectedAttempt.language) : language;
+
   return (
-    <div className="space-y-4">
-      <div className="sticky top-0 z-30 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6">
+    <div className="space-y-4 -mt-2 sm:-mt-3">
+      <div className="sticky top-0 z-30 -mx-4 border-b bg-background/95 px-4 pt-1 pb-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <button
               type="button"
-              onClick={() => navigate('/practice')}
+              onClick={() => navigate(-1)}
               className="mb-2 flex items-center gap-2 rounded-lg text-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <ChevronLeft className="h-4 w-4" />
-              Back to Practice
+              Back
             </button>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h1 className="min-w-0 truncate text-lg font-semibold sm:text-xl">{question.title}</h1>
@@ -752,7 +776,7 @@ export function QuestionPage() {
               <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">
                 {question.acceptanceRate}% acceptance
               </span>
-              {isCodeDirty && (
+              {isCodeDirty && !isViewingSubmissionCode && (
                 <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
                   Unsaved edits
                 </span>
@@ -760,21 +784,17 @@ export function QuestionPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between xl:justify-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between xl:justify-end xl:gap-8">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span className="font-mono tabular-nums">{formatClock(elapsedSeconds)}</span>
-            </div>
-            <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
-              <Keyboard className="h-3.5 w-3.5" />
-              <span>Ctrl/⌘+' run</span>
-              <span>Ctrl/⌘+Enter submit</span>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <button
                 type="button"
                 onClick={handleRun}
                 disabled={runMutation.isPending || !code.trim()}
+                title="Run (Ctrl/⌘+')"
                 className="flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {runMutation.isPending ? (
@@ -788,6 +808,7 @@ export function QuestionPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitMutation.isPending || !code.trim()}
+                title="Submit (Ctrl/⌘+Enter)"
                 className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {submitMutation.isPending ? (
@@ -804,12 +825,12 @@ export function QuestionPage() {
 
       <div
         ref={splitContainerRef}
-        className="grid grid-cols-1 gap-4 lg:grid-cols-[var(--practice-grid)]"
-        style={{ '--practice-grid': `${splitPercent}% 10px minmax(0, 1fr)` } as any}
+        className="grid grid-cols-1 gap-4 lg:grid-cols-[var(--practice-grid)] lg:h-[calc(100vh-141px)]"
+        style={{ '--practice-grid': `${splitPercent}% 4px minmax(0, 1fr)` } as any}
       >
         {/* Left Panel - Problem Description */}
-        <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="flex border-b" role="tablist" aria-label="Question details">
+        <div className="flex flex-col overflow-hidden rounded-lg border bg-card flex-1">
+          <div className="flex-none flex border-b" role="tablist" aria-label="Question details">
             {(['description', 'solution', 'submissions'] as const).map((tab) => (
               <button
                 type="button"
@@ -817,18 +838,17 @@ export function QuestionPage() {
                 onClick={() => setActiveTab(tab)}
                 role="tab"
                 aria-selected={activeTab === tab}
-                className={`flex-1 px-4 py-3 text-sm font-medium capitalize focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
-                  activeTab === tab
+                className={`flex-1 px-4 py-3 text-sm font-medium capitalize focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${activeTab === tab
                     ? 'border-b-2 border-primary text-primary'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 {tab}
               </button>
             ))}
           </div>
 
-          <div className="max-h-none overflow-auto p-4 sm:p-6 lg:max-h-[calc(100vh-176px)]">
+          <div className="flex-1 overflow-auto p-4 sm:p-6">
             {activeTab === 'description' && (
               <div className="space-y-6">
                 <h1 className="text-2xl font-bold">{question.title}</h1>
@@ -908,56 +928,55 @@ export function QuestionPage() {
                 {Object.entries(question.solutionCode ?? {})
                   .filter(([, solution]) => typeof solution === 'string' && solution.trim())
                   .length > 0 ? (
-                    <div className="space-y-3 pt-2">
-                      <div>
-                        <h3 className="font-semibold">Reference Code</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Expand a language when you want to compare against the official solution.
-                        </p>
-                      </div>
-                      {Object.entries(question.solutionCode ?? {})
-                        .filter(([, solution]) => typeof solution === 'string' && solution.trim())
-                        .map(([solutionLanguage, solution]) => {
-                          const isOpen = Boolean(openSolutionLanguages[solutionLanguage])
-                          const languageName = LANGUAGES.find((lang) => lang.id === solutionLanguage)?.name ?? solutionLanguage
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <h3 className="font-semibold">Reference Code</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Expand a language when you want to compare against the official solution.
+                      </p>
+                    </div>
+                    {Object.entries(question.solutionCode ?? {})
+                      .filter(([, solution]) => typeof solution === 'string' && solution.trim())
+                      .map(([solutionLanguage, solution]) => {
+                        const isOpen = Boolean(openSolutionLanguages[solutionLanguage])
+                        const languageName = LANGUAGES.find((lang) => lang.id === solutionLanguage)?.name ?? solutionLanguage
 
-                          return (
-                            <div key={solutionLanguage} className="overflow-hidden rounded-lg border">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setOpenSolutionLanguages((current) => ({
-                                    ...current,
-                                    [solutionLanguage]: !current[solutionLanguage],
-                                  }))
-                                }
-                                className="flex w-full items-center justify-between gap-3 p-3 text-left hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                                aria-expanded={isOpen}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Code2 className="h-4 w-4 text-primary" />
-                                  <span className="font-medium">{languageName}</span>
-                                </div>
-                                <ChevronDown
-                                  className={`h-4 w-4 text-muted-foreground transition-transform ${
-                                    isOpen ? 'rotate-180' : ''
+                        return (
+                          <div key={solutionLanguage} className="overflow-hidden rounded-lg border">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenSolutionLanguages((current) => ({
+                                  ...current,
+                                  [solutionLanguage]: !current[solutionLanguage],
+                                }))
+                              }
+                              className="flex w-full items-center justify-between gap-3 p-3 text-left hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                              aria-expanded={isOpen}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Code2 className="h-4 w-4 text-primary" />
+                                <span className="font-medium">{languageName}</span>
+                              </div>
+                              <ChevronDown
+                                className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''
                                   }`}
-                                />
-                              </button>
-                              {isOpen && (
-                                <pre className="max-h-[32rem] overflow-auto border-t bg-zinc-950 p-4 text-xs text-zinc-100">
-                                  {solution as string}
-                                </pre>
-                              )}
-                            </div>
-                          )
-                        })}
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border p-4 text-sm text-muted-foreground">
-                      No reference code has been added for this question yet.
-                    </div>
-                  )}
+                              />
+                            </button>
+                            {isOpen && (
+                              <pre className="max-h-[32rem] overflow-auto border-t bg-zinc-950 p-4 text-xs text-zinc-100">
+                                {solution as string}
+                              </pre>
+                            )}
+                          </div>
+                        )
+                      })}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                    No reference code has been added for this question yet.
+                  </div>
+                )}
               </div>
             )}
 
@@ -984,7 +1003,7 @@ export function QuestionPage() {
                   <p className="text-muted-foreground">
                     Submit a solution to build your timeline and mistake memory.
                   </p>
-                ) : submissionTimeline && selectedAttempt ? (
+                ) : submissionTimeline ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-lg border p-3">
@@ -1024,9 +1043,8 @@ export function QuestionPage() {
                           </div>
                         </div>
                         <ChevronDown
-                          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-                            isMistakeMemoryOpen ? 'rotate-180' : ''
-                          }`}
+                          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isMistakeMemoryOpen ? 'rotate-180' : ''
+                            }`}
                         />
                       </button>
 
@@ -1065,194 +1083,157 @@ export function QuestionPage() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                      <div className="space-y-2">
-                        <h3 className="font-semibold">Attempts</h3>
-                        {timelineAttempts.map((attempt) => (
-                          <button
-                            type="button"
-                            key={attempt.id}
-                            onClick={() => setSelectedAttemptId(attempt.id)}
-                            className={`w-full rounded-lg border p-3 text-left transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                              selectedAttempt.id === attempt.id ? 'border-primary bg-muted/60' : ''
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                {isJudgeInProgress(attempt.status) ? (
-                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                ) : attempt.status === 'ACCEPTED' ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                ) : (
-                                  <XCircle className="h-4 w-4 text-red-600" />
-                                )}
-                                <span className="text-sm font-medium">Attempt {attempt.attemptNumber}</span>
-                              </div>
-                              <span className={`rounded-full border px-2 py-0.5 text-xs ${statusTone(attempt.status)}`}>
-                                {formatStatus(attempt.status)}
-                              </span>
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                              <span>{attempt.language}</span>
-                              <span>{attempt.testCasesPassed}/{attempt.testCasesTotal} tests</span>
-                              <span>{formatDuration(attempt.timeSpent)}</span>
-                              <span>{formatDateTime(attempt.submittedAt)}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="flex flex-col gap-6">
+                      <div className="flex flex-col gap-3">
+                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">History</h3>
+                        <div className="flex flex-col gap-3 overflow-y-auto max-h-[800px] pr-2 scrollbar-thin scrollbar-thumb-border">
+                          {timelineAttempts.map((attempt) => {
+                            const isSelected = selectedAttempt?.id === attempt.id;
 
-                      <div className="rounded-lg border p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Selected attempt</p>
-                            <div className="mt-1 flex items-center gap-2">
-                              {selectedAttemptRunning ? (
-                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                              ) : selectedAttempt.status === 'ACCEPTED' ? (
-                                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              ) : (
-                                <XCircle className="h-4 w-4 text-red-600" />
-                              )}
-                              <p className="font-semibold">
-                                Attempt {selectedAttempt.attemptNumber} · {formatStatus(selectedAttempt.status)}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleLoadAttemptCode(selectedAttempt)}
-                            disabled={!selectedAttempt.code}
-                            className="flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          >
-                            <Code2 className="h-4 w-4" />
-                            Load Code
-                          </button>
-                        </div>
-
-                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Tests</p>
-                            <p className="font-semibold">{selectedAttempt.testCasesPassed} / {selectedAttempt.testCasesTotal}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Runtime</p>
-                            <p className="font-semibold">{selectedAttempt.executionTime ?? 0} ms</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Review score</p>
-                            <p className="font-semibold">{selectedAttempt.aiScore ?? '-'}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Submitted</p>
-                            <p className="font-semibold">{formatDateTime(selectedAttempt.submittedAt)}</p>
-                          </div>
-                        </div>
-
-                        {failedAttemptCase && (
-                          <div className="mt-4 space-y-2">
-                            <h4 className="text-sm font-semibold">First failing case</h4>
-                            {failedAttemptCase.errorMessage && (
-                              <pre className="whitespace-pre-wrap rounded-md bg-red-950/10 p-3 text-xs text-red-700 dark:text-red-300">
-                                {failedAttemptCase.errorMessage}
-                              </pre>
-                            )}
-                            <div className="grid grid-cols-1 gap-2">
-                              <pre className="overflow-auto rounded-md bg-muted p-2 text-xs">
-                                {`Input:\n${failedAttemptCase.input}`}
-                              </pre>
-                              <pre className="overflow-auto rounded-md bg-muted p-2 text-xs">
-                                {`Expected:\n${failedAttemptCase.expectedOutput}\n\nActual:\n${failedAttemptCase.actualOutput || ''}`}
-                              </pre>
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedAttempt.feedback ? (
-                          <div className="mt-4 border-t pt-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <h4 className="font-semibold">AI Review</h4>
-                              {selectedAttempt.feedback.codeQualityScore !== null && (
-                                <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
-                                  Quality {selectedAttempt.feedback.codeQualityScore}/100
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {selectedAttempt.feedback.summary || 'Feedback generated.'}
-                            </p>
-                            <div className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-                              <div className="rounded-lg border p-3">
-                                <p className="text-xs text-muted-foreground">Approach</p>
-                                <p className="mt-1 font-medium">
-                                  {selectedAttempt.feedback.approachUsed || 'Not identified'}
-                                </p>
-                              </div>
-                              <div className="rounded-lg border p-3">
-                                <p className="text-xs text-muted-foreground">Time Complexity</p>
-                                <p className="mt-1 font-medium">
-                                  {selectedAttempt.feedback.timeComplexityActual || 'Unknown'}
-                                </p>
-                              </div>
-                              <div className="rounded-lg border p-3">
-                                <p className="text-xs text-muted-foreground">Space Complexity</p>
-                                <p className="mt-1 font-medium">
-                                  {selectedAttempt.feedback.spaceComplexityActual || 'Unknown'}
-                                </p>
-                              </div>
-                            </div>
-                            {selectedAttempt.feedback.codeQualityFeedback && (
-                              <p className="mt-3 text-sm text-muted-foreground">
-                                {selectedAttempt.feedback.codeQualityFeedback}
-                              </p>
-                            )}
-                            {selectedAttempt.feedback.improvementSuggestions?.length > 0 && (
-                              <ul className="mt-3 list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                                {selectedAttempt.feedback.improvementSuggestions.slice(0, 3).map((suggestion, index) => (
-                                  <li key={index}>{suggestion}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="mt-4 flex items-center gap-2 border-t pt-4 text-muted-foreground">
-                            {selectedAttemptRunning ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Judge is running...
-                              </>
-                            ) : (
-                              <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Brain className="h-4 w-4 text-primary" />
-                                  <span>Generate AI review for approach, complexity, and improvement notes.</span>
-                                </div>
+                            return (
+                              <div
+                                key={attempt.id}
+                                className={`w-full shrink-0 rounded-xl border transition-all duration-200 overflow-hidden ${isSelected ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20' : 'bg-card hover:bg-muted/30 hover:border-primary/50'
+                                  }`}
+                              >
                                 <button
                                   type="button"
-                                  onClick={() => feedbackMutation.mutate(selectedAttempt.id)}
-                                  disabled={feedbackMutation.isPending}
-                                  className="flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                  onClick={() => setSelectedAttemptId(isSelected ? null : attempt.id)}
+                                  className="w-full text-left p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
-                                  {feedbackMutation.isPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Brain className="h-4 w-4" />
-                                  )}
-                                  Generate AI Review
+                                  <div className="flex items-center justify-between gap-3 mb-2">
+                                    <div className="flex items-center gap-2.5">
+                                      {isJudgeInProgress(attempt.status) ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                      ) : attempt.status === 'ACCEPTED' ? (
+                                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                      ) : (
+                                        <XCircle className="h-4 w-4 text-red-600" />
+                                      )}
+                                      <span className="text-sm font-semibold">Attempt {attempt.attemptNumber}</span>
+                                    </div>
+                                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${statusTone(attempt.status)}`}>
+                                      {formatStatus(attempt.status)}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-1.5">
+                                      <Code2 className="h-3.5 w-3.5" />
+                                      <span>{LANGUAGES.find(l => l.id === attempt.language)?.name || attempt.language}</span>
+                                    </div>
+                                    <span>{attempt.testCasesPassed}/{attempt.testCasesTotal} passed</span>
+                                    <span className="ml-auto">{formatDateTime(attempt.submittedAt)}</span>
+                                  </div>
                                 </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
 
-                        {selectedAttempt.code && (
-                          <div className="mt-4">
-                            <h4 className="mb-2 text-sm font-semibold">Code snapshot</h4>
-                            <pre className="max-h-72 overflow-auto rounded-md bg-zinc-950 p-3 text-xs text-zinc-100">
-                              {selectedAttempt.code}
-                            </pre>
-                          </div>
-                        )}
+                                {isSelected && (
+                                  <div className="p-5 border-t border-primary/10 bg-background/50">
+                                    <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/30 p-4 sm:grid-cols-4">
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Tests</p>
+                                        <p className="font-medium">{attempt.testCasesPassed} <span className="text-muted-foreground">/ {attempt.testCasesTotal}</span></p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Runtime</p>
+                                        <p className="font-medium">{attempt.executionTime ?? 0} <span className="text-muted-foreground">ms</span></p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Review</p>
+                                        <p className="font-medium">{attempt.aiScore ?? '-'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Submitted</p>
+                                        <p className="font-medium">{formatDateTime(attempt.submittedAt)}</p>
+                                      </div>
+                                    </div>
+
+
+
+                                    {attempt.feedback ? (
+                                      <div className="mt-5 border-t pt-5">
+                                        <div className="flex items-center justify-between gap-3">
+                                          <h4 className="font-semibold">AI Review</h4>
+                                          {attempt.feedback.codeQualityScore !== null && (
+                                            <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+                                              Quality {attempt.feedback.codeQualityScore}/100
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                          {attempt.feedback.summary || 'Feedback generated.'}
+                                        </p>
+                                        <div className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                                          <div className="rounded-lg border p-3 bg-muted/20">
+                                            <p className="text-xs text-muted-foreground">Approach</p>
+                                            <p className="mt-1 font-medium">
+                                              {attempt.feedback.approachUsed || 'Not identified'}
+                                            </p>
+                                          </div>
+                                          <div className="rounded-lg border p-3 bg-muted/20">
+                                            <p className="text-xs text-muted-foreground">Time Complexity</p>
+                                            <p className="mt-1 font-medium">
+                                              {attempt.feedback.timeComplexityActual || 'Unknown'}
+                                            </p>
+                                          </div>
+                                          <div className="rounded-lg border p-3 bg-muted/20">
+                                            <p className="text-xs text-muted-foreground">Space Complexity</p>
+                                            <p className="mt-1 font-medium">
+                                              {attempt.feedback.spaceComplexityActual || 'Unknown'}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        {attempt.feedback.codeQualityFeedback && (
+                                          <p className="mt-3 text-sm text-muted-foreground">
+                                            {attempt.feedback.codeQualityFeedback}
+                                          </p>
+                                        )}
+                                        {attempt.feedback.improvementSuggestions?.length > 0 && (
+                                          <ul className="mt-3 list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                                            {attempt.feedback.improvementSuggestions.slice(0, 3).map((suggestion, index) => (
+                                              <li key={index}>{suggestion}</li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="mt-5 flex items-center gap-2 border-t pt-5 text-muted-foreground">
+                                        {selectedAttemptRunning ? (
+                                          <>
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Judge is running...
+                                          </>
+                                        ) : (
+                                          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="flex items-center gap-2">
+                                              <Brain className="h-4 w-4 text-primary" />
+                                              <span className="text-sm">Generate AI review for approach, complexity, and improvement notes.</span>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                feedbackMutation.mutate(attempt.id);
+                                              }}
+                                              disabled={feedbackMutation.isPending}
+                                              className="flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                            >
+                                              {feedbackMutation.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                              ) : (
+                                                <Brain className="h-4 w-4" />
+                                              )}
+                                              Generate AI Review
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1266,7 +1247,7 @@ export function QuestionPage() {
 
         <button
           type="button"
-          className="hidden cursor-col-resize items-center justify-center rounded-md border bg-muted/40 text-muted-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:flex"
+          className="hidden group cursor-col-resize items-center justify-center lg:flex focus:outline-none"
           aria-label="Resize problem and editor panels"
           onPointerDown={(event) => {
             event.preventDefault()
@@ -1277,179 +1258,219 @@ export function QuestionPage() {
             document.body.style.userSelect = 'none'
           }}
         >
-          <GripVertical className="h-5 w-5" />
+          <div className="h-24 w-1 rounded-full bg-border transition-colors group-hover:bg-primary group-data-[dragging]:bg-primary" />
         </button>
 
         {/* Right Panel - Code Editor */}
-        <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card lg:max-h-[calc(100vh-176px)]">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card flex-1">
           {/* Editor Toolbar */}
-          <div className="flex flex-col gap-3 p-3 border-b sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <select
-                value={language}
-                onChange={(e) => handleLanguageChange(e.target.value)}
-                className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                aria-label="Programming language"
-              >
-                {LANGUAGES.map((lang) => (
-                  <option key={lang.id} value={lang.id}>
-                    {lang.name}
-                  </option>
-                ))}
-              </select>
-              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground">
-                <input 
-                  type="checkbox" 
-                  checked={vimMode}
-                  onChange={(e) => setVimMode(e.target.checked)}
-                  className="rounded border-input bg-background focus:ring-2 focus:ring-ring"
-                />
-                Vim Mode
-              </label>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Keyboard className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Use Ctrl/⌘+' to run</span>
-              <span className="md:hidden">Shortcuts enabled</span>
-            </div>
-          </div>
-
-          {/* Code Editor */}
-          <div className="min-h-[420px] flex-1 lg:min-h-0">
-            <Editor
-              height="100%"
-              language={language}
-              value={code}
-              beforeMount={(monaco) => {
-                monaco.editor.defineTheme('custom-dark', {
-                  base: 'vs-dark',
-                  inherit: true,
-                  rules: [],
-                  colors: {
-                    'editor.background': '#0B1120',
-                    'editorGutter.background': '#111827',
-                  },
-                })
-              }}
-              onMount={(editor, monaco) => {
-                editorRef.current = editor
-                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-                  submitActionRef.current()
-                })
-
-                const quoteKeyCode = (monaco.KeyCode as any).Quote ?? (monaco.KeyCode as any).US_QUOTE
-                if (quoteKeyCode) {
-                  editor.addCommand(monaco.KeyMod.CtrlCmd | quoteKeyCode, () => {
-                    runActionRef.current()
-                  })
-                }
-
-                if (vimMode) {
-                  const statusNode = document.getElementById('vim-status')
-                  if (statusNode) {
-                    statusNode.innerHTML = ''
-                  }
-                  vimAdapterRef.current = initVimMode(editor, statusNode)
-                }
-              }}
-              onChange={(value) => updateCode(value || '')}
-              theme={editorTheme}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                lineNumbers: 'on',
-                roundedSelection: false,
-                scrollBeyondLastLine: false,
-                readOnly: false,
-                automaticLayout: true,
-              }}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 border-t md:grid-cols-2">
-            <div className="border-b md:border-b-0 md:border-r">
-              <div className="flex h-10 items-center justify-between border-b px-3">
-                <span className="text-sm font-medium">Custom Input</span>
-                <span className="text-xs text-muted-foreground">Run only</span>
+          {isViewingSubmissionCode ? (
+            <div className="flex items-center justify-between border-b bg-muted/20 px-4 py-2.5 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-muted-foreground">Viewing Attempt {selectedAttempt?.attemptNumber} ({LANGUAGES.find(l => l.id === selectedAttempt?.language)?.name || selectedAttempt?.language})</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">Read-only</span>
               </div>
-              <textarea
-                value={customInput}
-                onChange={(e) => setCustomInput(e.target.value)}
-                className="h-36 w-full resize-none bg-background p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-inset focus:ring-ring"
-                spellCheck={false}
-                aria-label="Custom input"
+              <button
+                type="button"
+                onClick={() => handleLoadAttemptCode(selectedAttempt)}
+                className="flex items-center gap-2 text-primary hover:text-primary/80 font-medium"
+              >
+                <Code2 className="h-4 w-4" />
+                Load into Editor
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 p-3 border-b sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <select
+                  value={language}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  aria-label="Programming language"
+                >
+                  {LANGUAGES.map((lang) => (
+                    <option key={lang.id} value={lang.id}>
+                      {lang.name}
+                    </option>
+                  ))}
+                </select>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={vimMode}
+                    onChange={(e) => setVimMode(e.target.checked)}
+                    className="rounded border-input bg-background focus:ring-2 focus:ring-ring"
+                  />
+                  Vim Mode
+                </label>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Keyboard className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Use Ctrl/⌘+' to run</span>
+                <span className="md:hidden">Shortcuts enabled</span>
+              </div>
+            </div>
+          )}
+
+          {/* Vertical Container */}
+          <div
+            ref={verticalContainerRef}
+            className="flex-1 flex flex-col min-h-0"
+            style={!isViewingSubmissionCode ? { display: 'grid', gridTemplateRows: `${verticalSplitPercent}% 4px minmax(0, 1fr)` } : undefined}
+          >
+            <div className="min-h-0 flex-1">
+              <Editor
+                height="100%"
+                language={displayLanguage}
+                value={displayCode}
+                beforeMount={(monaco) => {
+                  monaco.editor.defineTheme('custom-dark', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [],
+                    colors: {
+                      'editor.background': '#0B1120',
+                      'editorGutter.background': '#111827',
+                    },
+                  })
+                }}
+                onMount={(editor, monaco) => {
+                  editorRef.current = editor
+                  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+                    submitActionRef.current()
+                  })
+
+                  const quoteKeyCode = (monaco.KeyCode as any).Quote ?? (monaco.KeyCode as any).US_QUOTE
+                  if (quoteKeyCode) {
+                    editor.addCommand(monaco.KeyMod.CtrlCmd | quoteKeyCode, () => {
+                      runActionRef.current()
+                    })
+                  }
+
+                  if (vimMode) {
+                    const statusNode = document.getElementById('vim-status')
+                    if (statusNode) {
+                      statusNode.innerHTML = ''
+                    }
+                    vimAdapterRef.current = initVimMode(editor, statusNode)
+                  }
+                }}
+                onChange={(value) => updateCode(value || '')}
+                theme={editorTheme}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  lineNumbers: 'on',
+                  roundedSelection: false,
+                  scrollBeyondLastLine: false,
+                  readOnly: isViewingSubmissionCode,
+                  automaticLayout: true,
+                }}
               />
             </div>
-            <div className="min-w-0">
-              <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Terminal className="h-4 w-4" />
-                  Run Result
-                </div>
-                {runResult && (
-                  <span className={`rounded-full border px-2 py-0.5 text-xs ${statusTone(runResult.status)}`}>
-                    {formatStatus(runResult.status)} · {runResult.executionTime} ms
-                  </span>
-                )}
-              </div>
-              <pre
-                className="h-24 overflow-auto whitespace-pre-wrap bg-zinc-950 p-3 font-mono text-xs text-zinc-100 md:h-28"
-                aria-live="polite"
+
+            {!isViewingSubmissionCode && (
+              <div
+                className="w-full h-1 cursor-row-resize flex items-center justify-center hover:bg-primary/20 active:bg-primary transition-colors relative z-10 group"
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  if (verticalContainerRef.current) {
+                    verticalContainerRef.current.dataset.dragging = 'true'
+                  }
+                  document.body.style.cursor = 'row-resize'
+                  document.body.style.userSelect = 'none'
+                }}
               >
-                {getConsoleText(runResult)}
-              </pre>
-              <div className="border-t px-3 py-2">
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">Latest Submit</span>
-                  {latestAttempt ? (
-                    <span className={`rounded-full border px-2 py-0.5 text-xs ${statusTone(latestAttempt.status)}`}>
-                      {formatStatus(latestAttempt.status)}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">None</span>
-                  )}
-                </div>
-                <p className="truncate text-xs text-muted-foreground">
-                  {latestAttempt
-                    ? `${latestAttempt.testCasesPassed}/${latestAttempt.testCasesTotal} tests · ${formatDateTime(latestAttempt.submittedAt)}`
-                    : 'Submit once to see persisted judge results here.'}
-                </p>
+                <div className="h-0.5 w-8 rounded-full bg-border group-hover:bg-primary/50 group-active:bg-primary" />
               </div>
-            </div>
+            )}
+
+            {!isViewingSubmissionCode && (
+              <div className="flex flex-col min-h-0 bg-background border-t">
+                <div className="grid grid-cols-1 md:grid-cols-2 flex-1 min-h-0">
+                  <div className="border-b md:border-b-0 md:border-r flex flex-col min-h-0">
+                    <div className="flex h-10 flex-none items-center justify-between border-b px-3">
+                      <span className="text-sm font-medium">Custom Input</span>
+                      <span className="text-xs text-muted-foreground">Run only</span>
+                    </div>
+                    <textarea
+                      value={customInput}
+                      onChange={(e) => setCustomInput(e.target.value)}
+                      className="flex-1 w-full resize-none bg-background p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-inset focus:ring-ring"
+                      spellCheck={false}
+                      aria-label="Custom input"
+                    />
+                  </div>
+                  <div className="flex flex-col min-h-0">
+                    <div className="flex h-10 flex-none items-center justify-between gap-2 border-b px-3">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Terminal className="h-4 w-4" />
+                        Run Result
+                      </div>
+                      {runResult && (
+                        <span className={`rounded-full border px-2 py-0.5 text-xs ${statusTone(runResult.status)}`}>
+                          {formatStatus(runResult.status)} · {runResult.executionTime} ms
+                        </span>
+                      )}
+                    </div>
+                    <pre
+                      className="flex-1 overflow-auto whitespace-pre-wrap bg-zinc-950 p-3 font-mono text-sm text-zinc-100 min-h-0"
+                      aria-live="polite"
+                    >
+                      {getConsoleText(runResult)}
+                    </pre>
+                  </div>
+                </div>
+                <div className="p-2 border-t flex items-center min-h-[36px] flex-none">
+                  <div id="vim-status" className="text-xs font-mono text-muted-foreground ml-2"></div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="p-3 border-t flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div id="vim-status" className="text-xs font-mono text-muted-foreground sm:ml-2"></div>
-            <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={handleRun}
-                disabled={runMutation.isPending || !code.trim()}
-                className="flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                {runMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="h-4 w-4" />
-                )}
-                Run Code
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitMutation.isPending || !code.trim()}
-                className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                {submitMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-                Submit
-              </button>
+          {isViewingSubmissionCode && selectedAttempt && (
+            <div className="border-t bg-muted/5 p-4 flex-none border-b sm:border-b-0">
+              <div className="flex items-center gap-2 mb-3">
+                <Terminal className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Submission Output</span>
+                <span className={`ml-2 rounded-full border px-2 py-0.5 text-xs ${statusTone(selectedAttempt.status)}`}>
+                  {formatStatus(selectedAttempt.status)}
+                </span>
+                <span className="text-xs text-muted-foreground ml-auto">{selectedAttempt.executionTime ?? 0} ms</span>
+              </div>
+
+              {failedAttemptCase ? (
+                <div className="space-y-3">
+                  {failedAttemptCase.errorMessage && (
+                    <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded-md bg-red-950/10 p-3 text-xs text-red-700 dark:text-red-300">
+                      {failedAttemptCase.errorMessage}
+                    </pre>
+                  )}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Input</p>
+                      <pre className="max-h-24 overflow-auto rounded-md bg-muted p-2 text-xs">
+                        {failedAttemptCase.input}
+                      </pre>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Output</p>
+                      <pre className="max-h-24 overflow-auto rounded-md bg-muted p-2 text-xs">
+                        {`Expected:\n${failedAttemptCase.expectedOutput}\n\nActual:\n${failedAttemptCase.actualOutput || ''}`}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-4 text-center">
+                  <CheckCircle2 className="mx-auto h-6 w-6 text-green-500 mb-2" />
+                  <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                    All {selectedAttempt.testCasesTotal} test cases passed
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

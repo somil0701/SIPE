@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   Clock,
   Code2,
-  GripVertical,
   Keyboard,
   Lightbulb,
   Loader2,
@@ -746,7 +745,6 @@ export function QuestionPage() {
   }
 
   const timelineAttempts = submissionTimeline?.attempts ?? []
-  const latestAttempt = timelineAttempts[0]
   const selectedAttempt = timelineAttempts.find((attempt) => attempt.id === selectedAttemptId)
   const selectedAttemptRunning = isJudgeInProgress(selectedAttempt?.status)
   const failedAttemptCase = latestFailedCase(selectedAttempt)

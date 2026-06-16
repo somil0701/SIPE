@@ -21,7 +21,7 @@ import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedbac
 
 export function DashboardPage() {
   const { user } = useAuthStore()
-  const isAdmin = user?.role === 'ADMIN'
+  const isAdmin = user?.role === 'admin'
 
   const {
     data: dashboard,

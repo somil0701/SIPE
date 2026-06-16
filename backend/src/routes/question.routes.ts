@@ -12,6 +12,7 @@ const questionFilterSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard', 'expert']).optional(),
   skillId: z.string().uuid().optional(),
   type: z.enum(['coding', 'system-design', 'behavioral', 'theoretical', 'quiz']).optional(),
+  topic: z.string().optional(),
   company: z.string().optional(),
   search: z.string().optional(),
   isPremium: z.boolean().optional(),

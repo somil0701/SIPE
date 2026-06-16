@@ -31,6 +31,7 @@ class QuestionService {
       difficulty,
       skillId,
       type,
+      topic,
       company,
       search,
       isPremium,
@@ -53,6 +54,7 @@ class QuestionService {
 
     // Build where clause
     const where: any = { isActive: true };
+    const andFilters: any[] = [];
 
     if (difficulty) {
       where.difficulty = difficulty;
@@ -66,6 +68,16 @@ class QuestionService {
       where.type = this.toPrismaQuestionType(type);
     }
 
+    if (topic) {
+      const topicAliases = this.getTopicAliases(topic);
+      andFilters.push({
+        OR: [
+          { topicTags: { hasSome: topicAliases } },
+          { skill: { slug: { in: topicAliases } } },
+        ],
+      });
+    }
+
     if (company) {
       where.companyTags = { has: company };
     }
@@ -75,11 +87,17 @@ class QuestionService {
     }
 
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { problemStatement: { contains: search, mode: 'insensitive' } },
-      ];
+      andFilters.push({
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { problemStatement: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (andFilters.length > 0) {
+      where.AND = andFilters;
     }
 
     // Count total
@@ -531,6 +549,30 @@ class QuestionService {
     };
 
     return typeMap[type] ?? PrismaQuestionType.CODING;
+  }
+
+  private getTopicAliases(topic: string): string[] {
+    const normalized = topic.trim().toLowerCase();
+    const aliases: Record<string, string[]> = {
+      arrays: ['arrays', 'array'],
+      strings: ['strings', 'string'],
+      'hash-tables': ['hash-tables', 'hash-table', 'hash-map'],
+      'two-pointers': ['two-pointers', 'two-pointer'],
+      'sliding-window': ['sliding-window'],
+      'binary-search': ['binary-search'],
+      recursion: ['recursion'],
+      backtracking: ['backtracking'],
+      'dynamic-programming': ['dynamic-programming', 'dp', 'memoization', 'tabulation'],
+      'greedy-algorithms': ['greedy-algorithms', 'greedy'],
+      trees: ['trees', 'tree', 'binary-tree', 'binary-search-tree'],
+      graphs: ['graphs', 'graph', 'bfs', 'dfs'],
+      'heaps-priority-queues': ['heaps-priority-queues', 'heap', 'priority-queue', 'heaps'],
+      tries: ['tries', 'trie'],
+      intervals: ['intervals', 'interval'],
+      'bit-manipulation': ['bit-manipulation', 'bitmask', 'bit-mask'],
+    };
+
+    return aliases[normalized] ?? [normalized];
   }
 
   private getSafeSortField(sortBy: string): string {

@@ -6,12 +6,30 @@ import { questionsApi } from '../services/api'
 import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
 
 const difficulties = ['all', 'easy', 'medium', 'hard', 'expert']
-const types = ['all', 'coding', 'system-design', 'behavioral', 'theoretical']
+const topics = [
+  { value: 'all', label: 'All Topics' },
+  { value: 'arrays', label: 'Arrays' },
+  { value: 'strings', label: 'Strings' },
+  { value: 'hash-tables', label: 'Hash Tables' },
+  { value: 'two-pointers', label: 'Two Pointers' },
+  { value: 'sliding-window', label: 'Sliding Window' },
+  { value: 'binary-search', label: 'Binary Search' },
+  { value: 'recursion', label: 'Recursion' },
+  { value: 'backtracking', label: 'Backtracking' },
+  { value: 'dynamic-programming', label: 'Dynamic Programming' },
+  { value: 'greedy-algorithms', label: 'Greedy Algorithms' },
+  { value: 'trees', label: 'Trees' },
+  { value: 'graphs', label: 'Graphs' },
+  { value: 'heaps-priority-queues', label: 'Heaps & Priority Queues' },
+  { value: 'tries', label: 'Tries' },
+  { value: 'intervals', label: 'Intervals' },
+  { value: 'bit-manipulation', label: 'Bit Manipulation' },
+]
 
 export function PracticePage() {
   const [search, setSearch] = useState('')
   const [difficulty, setDifficulty] = useState('all')
-  const [type, setType] = useState('all')
+  const [topic, setTopic] = useState('all')
   const [page, setPage] = useState(1)
 
   const {
@@ -20,12 +38,12 @@ export function PracticePage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ['questions', { search, difficulty, type, page }],
+    queryKey: ['questions', { search, difficulty, topic, page }],
     queryFn: () =>
       questionsApi.getAll({
         search: search || undefined,
         difficulty: difficulty !== 'all' ? difficulty : undefined,
-        type: type !== 'all' ? type : undefined,
+        topic: topic !== 'all' ? topic : undefined,
         page,
         limit: 20,
       }),
@@ -85,17 +103,17 @@ export function PracticePage() {
           </div>
           <div className="relative shrink-0">
             <select
-              value={type}
+              value={topic}
               onChange={(e) => {
-                setType(e.target.value)
+                setTopic(e.target.value)
                 setPage(1)
               }}
               className="appearance-none w-full sm:w-[160px] rounded-lg border border-border/50 bg-background shadow-sm pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all font-medium text-foreground cursor-pointer"
-              aria-label="Filter by question type"
+              aria-label="Filter by topic"
             >
-              {types.map((t) => (
-                <option key={t} value={t}>
-                  {t === 'all' ? 'All Topics' : t.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+              {topics.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
                 </option>
               ))}
             </select>
@@ -159,6 +177,15 @@ export function PracticePage() {
                       <div className="flex items-center gap-1.5 border-l pl-2.5 ml-0.5 border-border/50">
                         {question.companyTags.slice(0, 3).map((tag: string) => (
                           <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {question.topicTags?.length > 0 && (
+                      <div className="flex items-center gap-1.5 border-l pl-2.5 ml-0.5 border-border/50">
+                        {question.topicTags.slice(0, 3).map((tag: string) => (
+                          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
                             {tag}
                           </span>
                         ))}

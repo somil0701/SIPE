@@ -115,6 +115,7 @@ export interface QuestionFilter {
   difficulty?: string;
   skillId?: string;
   type?: string;
+  topic?: string;
   company?: string;
   search?: string;
   isPremium?: boolean;

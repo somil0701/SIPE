@@ -44,8 +44,8 @@ const envSchema = z.object({
   // Docker Judge
   DOCKER_BINARY: z.string().default('docker'),
   JUDGE_TEMP_DIR: z.string().default('tmp/judge'),
-  JUDGE_RUN_TIMEOUT_MS: z.string().transform(Number).default('3000'),
-  JUDGE_COMPILE_TIMEOUT_MS: z.string().transform(Number).default('10000'),
+  JUDGE_RUN_TIMEOUT_MS: z.string().transform(Number).default('10000'),
+  JUDGE_COMPILE_TIMEOUT_MS: z.string().transform(Number).default('20000'),
   JUDGE_MEMORY_LIMIT: z.string().default('512m'),
   JUDGE_CPU_LIMIT: z.string().default('0.5'),
   JUDGE_PIDS_LIMIT: z.string().transform(Number).default('64'),

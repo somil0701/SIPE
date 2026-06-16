@@ -5,10 +5,10 @@ import toast from 'react-hot-toast'
 import { 
   Mic, Plus, Clock, ChevronRight, Loader2, Play, 
   XCircle, Calendar, BarChart2, CheckCircle2, 
-  AlertCircle, Star, Brain, ArrowRight, Activity, TrendingUp
+  AlertCircle, Star, Brain, ArrowRight, TrendingUp
 } from 'lucide-react'
 import { interviewsApi } from '../services/api'
-import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
+import { ErrorState } from '../components/StateFeedback'
 
 const INTERVIEW_TYPES = [
   { id: 'technical', name: 'Technical', description: 'Coding and algorithm questions' },

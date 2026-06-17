@@ -24,6 +24,8 @@ import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { initVimMode } from 'monaco-vim'
 import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 const LANGUAGES = [
   { id: 'javascript', name: 'JavaScript' },
@@ -978,9 +980,15 @@ export function QuestionPage() {
                               />
                             </button>
                             {isOpen && (
-                              <pre className="max-h-[32rem] overflow-auto border-t bg-zinc-950 p-4 text-xs text-zinc-100">
-                                {solution as string}
-                              </pre>
+                              <div className="max-h-[32rem] overflow-auto border-t bg-zinc-950 text-xs">
+                                <SyntaxHighlighter
+                                  language={solutionLanguage}
+                                  style={vscDarkPlus}
+                                  customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+                                >
+                                  {solution as string}
+                                </SyntaxHighlighter>
+                              </div>
                             )}
                           </div>
                         )

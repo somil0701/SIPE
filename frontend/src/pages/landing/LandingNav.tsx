@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Brain, Menu, X } from 'lucide-react'
 import { ThemeToggle } from '../../components/ThemeToggle'
@@ -37,23 +38,35 @@ export function LandingNav() {
     }
   }, [mobileOpen])
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [mobileOpen])
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <nav
-        className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6"
+        className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr]"
         aria-label="Main navigation"
       >
         {/* Logo */}
         <Link
           to="/"
-          className="flex items-center gap-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex items-center gap-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:justify-self-start"
         >
           <Brain className="h-7 w-7 text-primary" aria-hidden="true" />
           <span className="text-xl font-bold">SIPE</span>
         </Link>
 
         {/* Desktop links */}
-        <div className="hidden items-center gap-1 lg:flex">
+        <div className="hidden items-center gap-1 lg:flex lg:justify-self-center">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
@@ -66,17 +79,17 @@ export function LandingNav() {
         </div>
 
         {/* Desktop right */}
-        <div className="hidden items-center gap-2 lg:flex xl:gap-3">
+        <div className="hidden items-center gap-2 lg:flex xl:gap-3 lg:justify-self-end">
           <ThemeToggle collapsed />
           <Link
             to="/login"
-            className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-9 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             Sign in
           </Link>
           <Link
             to="/register"
-            className="whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-9 items-center whitespace-nowrap rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             Create account
           </Link>
@@ -101,11 +114,11 @@ export function LandingNav() {
       </nav>
 
       {/* Mobile panel */}
-      {mobileOpen && (
+      {mobileOpen && typeof document !== 'undefined' && createPortal(
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            className="fixed inset-0 z-[60] bg-black/60 lg:hidden"
             aria-hidden="true"
             onClick={closeMobile}
           />
@@ -115,7 +128,7 @@ export function LandingNav() {
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
-            className="fixed inset-y-0 right-0 z-50 w-72 border-l bg-background p-6 shadow-lg lg:hidden"
+            className="fixed inset-y-0 right-0 z-[70] h-dvh w-72 max-w-[85vw] border-l bg-background text-foreground p-6 shadow-xl lg:hidden overflow-y-auto"
           >
             <div className="mb-6 flex items-center justify-between">
               <span className="text-lg font-bold">Menu</span>
@@ -158,7 +171,8 @@ export function LandingNav() {
               </Link>
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </header>
   )

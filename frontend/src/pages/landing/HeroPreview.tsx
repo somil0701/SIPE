@@ -22,19 +22,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id']
 
-/* ---------- static sample code ---------- */
-const SAMPLE_CODE = `import sys
 
-data = list(map(int, sys.stdin.read().split()))
-n, target = data[0], data[-1]
-nums = data[1:1 + n]
-seen = {}
-for i, num in enumerate(nums):
-    diff = target - num
-    if diff in seen:
-        print(seen[diff], i)
-        break
-    seen[num] = i`
 
 export function HeroPreview() {
   const [activeTab, setActiveTab] = useState<TabId>('practice')
@@ -156,7 +144,22 @@ function PracticePreview() {
 
       {/* Code area */}
       <div className="bg-[#1e1e1e] px-4 py-3 font-mono text-[11px] leading-[1.6] text-[#d4d4d4] overflow-x-auto">
-        <pre aria-label="Sample Python solution for Two Sum">{SAMPLE_CODE}</pre>
+        <pre aria-label="Sample Python solution for Two Sum">
+          <code>
+            <span className="text-[#c586c0]">import</span> sys{'\n'}
+            {'\n'}
+            <span className="text-[#9cdcfe]">data</span> = <span className="text-[#4ec9b0]">list</span>(<span className="text-[#4ec9b0]">map</span>(<span className="text-[#4ec9b0]">int</span>, sys.stdin.<span className="text-[#dcdcaa]">read</span>().<span className="text-[#dcdcaa]">split</span>())){'\n'}
+            <span className="text-[#9cdcfe]">n</span>, <span className="text-[#9cdcfe]">target</span> = <span className="text-[#9cdcfe]">data</span>[<span className="text-[#b5cea8]">0</span>], <span className="text-[#9cdcfe]">data</span>[-<span className="text-[#b5cea8]">1</span>]{'\n'}
+            <span className="text-[#9cdcfe]">nums</span> = <span className="text-[#9cdcfe]">data</span>[<span className="text-[#b5cea8]">1</span>:<span className="text-[#b5cea8]">1</span> + <span className="text-[#9cdcfe]">n</span>]{'\n'}
+            <span className="text-[#9cdcfe]">seen</span> = {'{}'}{'\n'}
+            <span className="text-[#c586c0]">for</span> <span className="text-[#9cdcfe]">i</span>, <span className="text-[#9cdcfe]">num</span> <span className="text-[#c586c0]">in</span> <span className="text-[#dcdcaa]">enumerate</span>(<span className="text-[#9cdcfe]">nums</span>):{'\n'}
+            {'    '}<span className="text-[#9cdcfe]">diff</span> = <span className="text-[#9cdcfe]">target</span> - <span className="text-[#9cdcfe]">num</span>{'\n'}
+            {'    '}<span className="text-[#c586c0]">if</span> <span className="text-[#9cdcfe]">diff</span> <span className="text-[#c586c0]">in</span> <span className="text-[#9cdcfe]">seen</span>:{'\n'}
+            {'        '}<span className="text-[#dcdcaa]">print</span>(<span className="text-[#9cdcfe]">seen</span>[<span className="text-[#9cdcfe]">diff</span>], <span className="text-[#9cdcfe]">i</span>){'\n'}
+            {'        '}<span className="text-[#c586c0]">break</span>{'\n'}
+            {'    '}<span className="text-[#9cdcfe]">seen</span>[<span className="text-[#9cdcfe]">num</span>] = <span className="text-[#9cdcfe]">i</span>
+          </code>
+        </pre>
       </div>
 
       {/* Action bar */}

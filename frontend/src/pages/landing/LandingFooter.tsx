@@ -68,9 +68,12 @@ export function LandingFooter() {
           </div>
         </div>
 
-        <div className="mt-8 border-t pt-6">
+        <div className="mt-8 border-t pt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground/60">
             SIPE — Smart Interview Preparation Engine
+          </p>
+          <p className="text-xs text-muted-foreground/60">
+            Made with ❤️ by Somil Choudhary
           </p>
         </div>
       </div>

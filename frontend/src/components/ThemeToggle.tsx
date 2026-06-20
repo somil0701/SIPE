@@ -10,9 +10,10 @@ const modes = [
 interface ThemeToggleProps {
   /** When true, only show the icon (no label text). */
   collapsed?: boolean
+  className?: string
 }
 
-export function ThemeToggle({ collapsed = false }: ThemeToggleProps) {
+export function ThemeToggle({ collapsed = false, className = '' }: ThemeToggleProps) {
   const { theme, setTheme } = useThemeStore()
 
   const cycle = () => {
@@ -30,9 +31,9 @@ export function ThemeToggle({ collapsed = false }: ThemeToggleProps) {
     <button
       type="button"
       onClick={cycle}
-      className={`flex w-full items-center rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-        collapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2'
-      }`}
+      className={`flex items-center rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+        collapsed ? 'h-9 w-9 justify-center' : 'w-full gap-3 px-3 py-2'
+      } ${className}`}
       title={current.label}
       aria-label={current.label}
     >

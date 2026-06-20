@@ -66,47 +66,47 @@ function App() {
         <Route element={<Layout />}>
           <Route
             path="/dashboard"
-            element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <DashboardPage /> : <Navigate to="/" />}
           />
           <Route
             path="/practice"
-            element={isAuthenticated ? <PracticePage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <PracticePage /> : <Navigate to="/" />}
           />
           <Route
             path="/practice/:slug"
-            element={isAuthenticated ? <QuestionPage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <QuestionPage /> : <Navigate to="/" />}
           />
           <Route
             path="/mock-interview"
-            element={isAuthenticated ? <MockInterviewPage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <MockInterviewPage /> : <Navigate to="/" />}
           />
           <Route
             path="/mock-interview/:id"
-            element={isAuthenticated ? <InterviewSessionPage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <InterviewSessionPage /> : <Navigate to="/" />}
           />
           <Route
             path="/analytics"
-            element={isAuthenticated ? <AnalyticsPage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <AnalyticsPage /> : <Navigate to="/" />}
           />
           <Route
             path="/resume"
-            element={isAuthenticated ? <ResumePage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <ResumePage /> : <Navigate to="/" />}
           />
           <Route
             path="/spaced-repetition"
-            element={isAuthenticated ? <SpacedRepetitionPage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <SpacedRepetitionPage /> : <Navigate to="/" />}
           />
           <Route
             path="/learning-path"
-            element={isAuthenticated ? <LearningPathPage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <LearningPathPage /> : <Navigate to="/" />}
           />
           <Route
             path="/learning-path/:id"
-            element={isAuthenticated ? <LearningPathDetailPage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <LearningPathDetailPage /> : <Navigate to="/" />}
           />
           <Route
             path="/profile"
-            element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />}
+            element={isAuthenticated ? <ProfilePage /> : <Navigate to="/" />}
           />
         </Route>
 

@@ -12,9 +12,16 @@ function getSystemPreference(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+let transitionTimeout: number | undefined;
+
 function applyTheme(theme: Theme, animate = false) {
   const resolved = theme === 'system' ? getSystemPreference() : theme
   const root = document.documentElement
+
+  if (transitionTimeout !== undefined) {
+    window.clearTimeout(transitionTimeout)
+    transitionTimeout = undefined
+  }
 
   if (animate) {
     root.classList.add('theme-transition')
@@ -28,9 +35,10 @@ function applyTheme(theme: Theme, animate = false) {
 
   if (animate) {
     // Remove transition class after animation completes to avoid perf overhead
-    window.setTimeout(() => {
+    transitionTimeout = window.setTimeout(() => {
       root.classList.remove('theme-transition')
-    }, 350)
+      transitionTimeout = undefined
+    }, 150)
   }
 }
 

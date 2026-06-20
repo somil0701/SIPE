@@ -60,13 +60,17 @@
   }
 }
 
-/* Theme transition — scoped to background/color only to avoid perf issues */
-html.theme-transition,
-html.theme-transition *,
-html.theme-transition *::before,
-html.theme-transition *::after {
-  transition: background-color 0.3s ease, color 0.15s ease, border-color 0.3s ease !important;
-  transition-delay: 0s !important;
+/* Theme transition — limited to major surfaces to avoid perf issues */
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-transition body,
+  html.theme-transition header,
+  html.theme-transition nav,
+  html.theme-transition .bg-card,
+  html.theme-transition .bg-background,
+  html.theme-transition .bg-muted,
+  html.theme-transition .border {
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
 }
 
 /* Custom scrollbar */

@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore'
 import { Layout } from './components/Layout'
 import { AdminLayout } from './components/AdminLayout'
 
+const LandingPage = lazy(() => import('./pages/landing/LandingPage').then((module) => ({ default: module.LandingPage })))
 const LoginPage = lazy(() => import('./pages/LoginPage').then((module) => ({ default: module.LoginPage })))
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((module) => ({ default: module.RegisterPage })))
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
@@ -133,10 +134,10 @@ function App() {
           />
         </Route>
 
-        {/* Default Redirect */}
+        {/* Default: landing for visitors, dashboard for authenticated */}
         <Route
           path="/"
-          element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />}
+          element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />}
         />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

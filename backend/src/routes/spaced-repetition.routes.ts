@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../config/database';
+import { logger } from '../config/logger';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { asyncHandler, ApiError } from '../middleware/errorHandler';
 import { serializeSpacedRepetition } from '../utils/apiFormat';
+import { learningPathService } from '../services/learning-path.service';
 
 const router = Router();
 
@@ -275,6 +277,18 @@ router.post(
         newEf: easeFactor,
       },
     });
+
+    if (qualityRating >= 3) {
+      try {
+        await learningPathService.markReviewCompleted(req.user!.id, entry.questionId);
+      } catch (error) {
+        logger.error('Learning-path review completion failed', {
+          userId: req.user!.id,
+          questionId: entry.questionId,
+          error,
+        });
+      }
+    }
 
     res.json({
       success: true,

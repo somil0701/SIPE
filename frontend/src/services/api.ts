@@ -1,6 +1,15 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/authStore'
-import { ApiResponse, JobMatchAnalysis, Resume } from '../types'
+import {
+  ApiResponse,
+  JobMatchAnalysis,
+  LearningPath,
+  LearningPathInput,
+  LearningPathItem,
+  LearningPathOptions,
+  LearningPathPreview,
+  Resume,
+} from '../types'
 
 const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000/api/v1'
 
@@ -260,7 +269,7 @@ export const questionsApi = {
 // Attempts API
 // ============================================================
 export const attemptsApi = {
-  submit: (data: { questionId: string; code: string; language: string; timeSpent: number }) =>
+  submit: (data: { questionId: string; code: string; language: string; timeSpent: number; pathItemId?: string }) =>
     api.post<any>('/attempts', data),
   run: (data: { questionId: string; code: string; language: string; input: string }) =>
     api.post<any>('/attempts/run', data),
@@ -345,11 +354,16 @@ export const userApi = {
 // Learning Path API
 // ============================================================
 export const learningPathApi = {
-  getAll: () => api.get<any[]>('/learning-paths'),
-  create: (data: any) => api.post<any>('/learning-paths', data),
-  getById: (id: string) => api.get<any>(`/learning-paths/${id}`),
+  getAll: () => api.get<LearningPath[]>('/learning-paths'),
+  getToday: () => api.get<any[]>('/learning-paths/today'),
+  getOptions: () => api.get<LearningPathOptions>('/learning-paths/options'),
+  preview: (data: LearningPathInput) => api.post<LearningPathPreview>('/learning-paths/preview', data),
+  create: (data: LearningPathInput) => api.post<LearningPath>('/learning-paths', data),
+  getById: (id: string) => api.get<LearningPath>(`/learning-paths/${id}`),
   updateItem: (pathId: string, itemId: string, status: string) =>
-    api.patch<any>(`/learning-paths/${pathId}/items/${itemId}`, { status }),
+    api.patch<LearningPathItem>(`/learning-paths/${pathId}/items/${itemId}`, { status }),
+  previewRebalance: (id: string) => api.post<{ added: Array<{ title: string }>; removed: Array<{ title: string }>; retainedCount: number }>(`/learning-paths/${id}/rebalance/preview`),
+  rebalance: (id: string) => api.post<LearningPath>(`/learning-paths/${id}/rebalance`),
   pause: (id: string) => api.post<void>(`/learning-paths/${id}/pause`),
   resume: (id: string) => api.post<void>(`/learning-paths/${id}/resume`),
   delete: (id: string) => api.delete<void>(`/learning-paths/${id}`),

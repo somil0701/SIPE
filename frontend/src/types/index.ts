@@ -411,14 +411,22 @@ export interface LearningPath {
   id: string;
   name: string;
   description?: string;
+  goalType: 'general' | 'skill' | 'company' | 'interview';
   targetSkillId?: string;
   targetCompanyId?: string;
+  targetSkill?: { id: string; name: string };
+  targetCompany?: { id: string; name: string; slug?: string };
   totalItems: number;
   completedItems: number;
   progressPercentage: number;
   estimatedHours?: number;
+  weeklyStudyMinutes: number;
+  startDate?: string;
+  targetCompletionDate?: string;
+  actualCompletionDate?: string;
+  lastRebalancedAt?: string;
   status: 'active' | 'paused' | 'completed' | 'abandoned';
-  items: LearningPathItem[];
+  pathItems: LearningPathItem[];
 }
 
 export interface LearningPathItem {
@@ -426,19 +434,51 @@ export interface LearningPathItem {
   itemType: 'question' | 'lesson' | 'review' | 'milestone';
   title?: string;
   description?: string;
+  phase?: string;
+  selectionReason?: string;
+  completionEvidence?: Record<string, unknown>;
   questionId?: string;
   skillId?: string;
   orderIndex: number;
   scheduledDate?: string;
   estimatedMinutes?: number;
-  status: 'PENDING' | 'in_progress' | 'completed' | 'skipped';
+  status: 'pending' | 'in_progress' | 'completed' | 'skipped';
   completedAt?: string;
+  attemptId?: string;
+  attempt?: {
+    id: string;
+    status: string;
+    submittedAt: string;
+    aiScore?: number;
+  };
   question?: {
     id: string;
     title: string;
     difficulty: string;
     slug: string;
   };
+}
+
+export interface LearningPathInput {
+  name: string;
+  description?: string;
+  goalType: 'general' | 'skill' | 'company' | 'interview';
+  targetSkillId?: string;
+  targetCompanyId?: string;
+  weeklyStudyMinutes: number;
+  targetCompletionDate?: string;
+}
+
+export interface LearningPathOptions {
+  skills: Array<{ id: string; name: string; category: string; estimatedHours?: number }>;
+  companies: Array<{ id: string; name: string; slug: string }>;
+}
+
+export interface LearningPathPreview {
+  summary: string;
+  estimatedHours: number;
+  targetCompletionDate: string;
+  items: Array<Omit<LearningPathItem, 'id' | 'pathId' | 'status'>>;
 }
 
 // Spaced Repetition Types

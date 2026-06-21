@@ -80,7 +80,7 @@ export function LandingNav() {
 
         {/* Desktop right */}
         <div className="hidden items-center gap-2 lg:flex xl:gap-3 lg:justify-self-end">
-          <ThemeToggle collapsed />
+          <ThemeToggle collapsed className="h-9 w-9" />
           <Link
             to="/login"
             className="flex h-9 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

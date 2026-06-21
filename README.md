@@ -194,16 +194,23 @@ Implemented behavior:
 
 ### Learning Paths
 
-Learning paths organize practice around a goal. A path can target a skill or company and is generated from the user's weak topics.
+Learning paths organize DSA practice around a goal. A path can target a skill or company and is generated only from demonstrated coding and spaced-repetition performance. Resume claims are intentionally not treated as evidence of DSA mastery; resume analysis remains a separate preparation workflow.
 
 Implemented behavior:
 
 - List user learning paths.
-- Create a path with name, description, target skill, target company, and estimated hours.
-- Generate path items from weak topics and related easy questions.
+- Create a goal-driven path for general improvement, a target skill, a target company, or interview readiness.
+- Preview a plan before creation and pace it using weekly study time plus an optional target date.
+- Generate phased question, review, and mock-interview milestone items using reliable weak topics, recent failed attempts, target metadata, and progressive difficulty.
 - View path details and study items.
-- Mark items as pending, in progress, completed, or skipped.
-- Automatically update completed item count and progress percentage.
+- Explain why every generated task was selected and schedule it within the chosen workload.
+- Mark items as pending, in progress, completed, or skipped, with guarded state transitions.
+- Complete question items from accepted attempts, review items from successful spaced-repetition reviews, and milestones from completed mock interviews.
+- Carry exact path-item context into practice attempts and mock interviews so one activity completes only its originating task.
+- Combine due reviews, current path work, overdue tasks, and upcoming milestones into a prioritized dashboard Today queue.
+- Rebalance remaining work manually or automatically at three-task checkpoints using the user's latest performance.
+- Preview additions, removals, and retained work before applying a manual rebalance.
+- Automatically update completed item count and progress percentage in database transactions.
 - Mark the whole path completed when all items are completed.
 - Pause, resume, and delete paths.
 
@@ -450,9 +457,14 @@ All normal API routes are mounted under `/api/v1`.
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/learning-paths` | List user learning paths. |
+| `GET` | `/learning-paths/options` | List available target skills and companies. |
+| `GET` | `/learning-paths/today` | Return the prioritized cross-feature Today queue. |
+| `POST` | `/learning-paths/preview` | Preview a generated, scheduled path without saving it. |
 | `POST` | `/learning-paths` | Create a personalized path from weak topics. |
 | `GET` | `/learning-paths/:id` | Return path details and ordered items. |
 | `PATCH` | `/learning-paths/:id/items/:itemId` | Update path item status. |
+| `POST` | `/learning-paths/:id/rebalance` | Rebuild remaining work from current performance while preserving completed and in-progress tasks. |
+| `POST` | `/learning-paths/:id/rebalance/preview` | Preview retained, added, and removed tasks before rebalancing. |
 | `POST` | `/learning-paths/:id/pause` | Pause a path. |
 | `POST` | `/learning-paths/:id/resume` | Resume a path. |
 | `DELETE` | `/learning-paths/:id` | Delete a path. |

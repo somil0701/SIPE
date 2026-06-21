@@ -282,6 +282,7 @@ model InterviewSession {
   interviewType       InterviewType       @map("interview_type")
   difficulty          Difficulty          @default(medium)
   targetCompanyId     String?             @map("target_company_id")
+  learningPathItemId  String?             @unique @map("learning_path_item_id")
   scheduledAt         DateTime?           @map("scheduled_at")
   startedAt           DateTime?           @map("started_at")
   endedAt             DateTime?           @map("ended_at")
@@ -300,6 +301,7 @@ model InterviewSession {
   updatedAt           DateTime            @updatedAt @map("updated_at")
   interviewQuestions  InterviewQuestion[]
   targetCompany       Company?            @relation(fields: [targetCompanyId], references: [id])
+  learningPathItem    LearningPathItem?   @relation(fields: [learningPathItemId], references: [id], onDelete: SetNull)
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -377,9 +379,12 @@ model LearningPath {
   completedItems       Int                @default(0) @map("completed_items")
   progressPercentage   Float              @default(0) @map("progress_percentage")
   estimatedHours       Int?               @map("estimated_hours")
+  goalType              String             @default("general") @map("goal_type")
+  weeklyStudyMinutes    Int                @default(300) @map("weekly_study_minutes")
   startDate            DateTime?          @map("start_date")
   targetCompletionDate DateTime?          @map("target_completion_date")
   actualCompletionDate DateTime?          @map("actual_completion_date")
+  lastRebalancedAt     DateTime?          @map("last_rebalanced_at")
   status               PathStatus         @default(ACTIVE)
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
@@ -401,6 +406,9 @@ model LearningPathItem {
   itemType         PathItemType   @map("item_type")
   title            String?
   description      String?
+  phase            String?
+  selectionReason  String?        @map("selection_reason")
+  completionEvidence Json?        @map("completion_evidence")
   orderIndex       Int            @map("order_index")
   scheduledDate    DateTime?      @map("scheduled_date")
   estimatedMinutes Int?           @map("estimated_minutes")
@@ -409,10 +417,13 @@ model LearningPathItem {
   attemptId        String?        @map("attempt_id")
   createdAt        DateTime       @default(now()) @map("created_at")
   attempt          Attempt?       @relation(fields: [attemptId], references: [id])
+  interviewSession InterviewSession?
   learningPath     LearningPath   @relation(fields: [pathId], references: [id], onDelete: Cascade)
   question         Question?      @relation(fields: [questionId], references: [id])
 
   @@map("learning_path_items")
+  @@index([pathId, orderIndex])
+  @@index([pathId, status])
 }
 
 model SpacedRepetition {

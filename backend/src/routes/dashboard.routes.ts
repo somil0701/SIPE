@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { analyticsService } from '../services/analytics.service';
 import { interviewService } from '../services/interview.service';
 import { questionService } from '../services/question.service';
+import { learningPathService } from '../services/learning-path.service';
 
 const router = Router();
 const DASHBOARD_CACHE_TTL_SECONDS = 60;
@@ -62,18 +63,28 @@ router.get(
       recommendedQuestions,
       recentInterviews,
       spacedRepetition,
+      today,
+      activeLearningPath,
     ] = await Promise.all([
       analyticsService.getUserAnalytics(userId),
       questionService.getRecommendedQuestions(userId, 3),
       interviewService.getUserInterviews(userId, { limit: 3 }),
       getSpacedRepetitionSummary(userId),
+      learningPathService.getTodayQueue(userId),
+      prisma.learningPath.findFirst({
+        where: { userId, status: 'ACTIVE' },
+        select: { id: true, name: true },
+        orderBy: { updatedAt: 'desc' },
+      }),
     ]);
 
     const dashboard = {
       analytics,
-      recommendedQuestions,
+      recommendedQuestions: activeLearningPath ? [] : recommendedQuestions,
       recentInterviews: recentInterviews.interviews,
       spacedRepetition,
+      today,
+      activeLearningPath,
     };
 
     await cache.set(cacheKey, dashboard, DASHBOARD_CACHE_TTL_SECONDS);

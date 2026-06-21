@@ -15,6 +15,7 @@ const createInterviewSchema = z.object({
   targetCompanyId: z.string().uuid().optional(),
   scheduledAt: z.string().datetime().optional(),
   durationMinutes: z.number().int().min(15).max(180).optional(),
+  learningPathItemId: z.string().uuid().optional(),
 });
 
 const submitAnswerSchema = z.object({

@@ -32,8 +32,8 @@ export function ThemeToggle({ collapsed = false, className = '' }: ThemeTogglePr
       type="button"
       onClick={cycle}
       className={`flex items-center rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-        collapsed ? 'h-9 w-9 justify-center' : 'w-full gap-3 px-3 py-2'
-      } ${className}`}
+        collapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2'
+      } ${className || 'w-full'}`}
       title={current.label}
       aria-label={current.label}
     >

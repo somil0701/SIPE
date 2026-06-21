@@ -13,6 +13,7 @@ const submitAttemptSchema = z.object({
   code: z.string().min(1, 'Code is required'),
   language: z.enum(['javascript', 'python', 'java', 'cpp']),
   timeSpent: z.number().int().min(0, 'Time spent must be positive'),
+  pathItemId: z.string().uuid('Invalid learning-path item ID').optional(),
 });
 
 const runCodeSchema = z.object({

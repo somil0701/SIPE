@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import Editor from '@monaco-editor/react'
@@ -406,6 +406,8 @@ function clamp(value: number, min: number, max: number) {
 export function QuestionPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const pathItemId = searchParams.get('pathItemId') || undefined
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const appTheme = useThemeStore((s) => s.theme)
@@ -636,6 +638,7 @@ export function QuestionPage() {
         code,
         language,
         timeSpent: Math.floor((Date.now() - startTime.current) / 1000),
+        pathItemId,
       }),
     onSuccess: (attempt: any) => {
       setSelectedAttemptId(attempt.id)

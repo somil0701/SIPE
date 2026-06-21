@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { 
   Mic, Plus, Clock, ChevronRight, Loader2, Play, 
@@ -29,7 +29,9 @@ const TABS = [
 
 export function MockInterviewPage() {
   const navigate = useNavigate()
-  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [searchParams] = useSearchParams()
+  const pathItemId = searchParams.get('pathItemId') || undefined
+  const [showCreateModal, setShowCreateModal] = useState(Boolean(pathItemId))
   const [interviewType, setInterviewType] = useState('technical')
   const [difficulty, setDifficulty] = useState('medium')
   const [duration, setDuration] = useState(60)
@@ -51,6 +53,7 @@ export function MockInterviewPage() {
         interviewType,
         difficulty,
         durationMinutes: duration,
+        learningPathItemId: pathItemId,
       }),
     onSuccess: (data) => {
       toast.success('Interview created!')
@@ -60,6 +63,11 @@ export function MockInterviewPage() {
       toast.error(error.response?.data?.error?.message || 'Failed to create interview')
     },
   })
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false)
+    if (pathItemId) navigate('/mock-interview', { replace: true })
+  }
 
   const rawInterviews = useMemo(() => {
     if (!interviewsResponse) return []
@@ -383,7 +391,7 @@ export function MockInterviewPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={closeCreateModal}
                 className="rounded-full p-2 bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Close new interview dialog"
               >
@@ -458,7 +466,7 @@ export function MockInterviewPage() {
             <div className="p-6 border-t border-border/50 bg-background/50 flex justify-end gap-3 rounded-b-2xl">
               <button
                 type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={closeCreateModal}
                 className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Cancel

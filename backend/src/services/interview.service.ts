@@ -2,11 +2,15 @@ import {
   Difficulty as PrismaDifficulty,
   InterviewStatus as PrismaInterviewStatus,
   InterviewType as PrismaInterviewType,
+  PathItemStatus,
+  PathItemType,
+  PathStatus,
 } from '@prisma/client';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import { ApiError } from '../middleware/errorHandler';
 import { aiService } from './ai.service';
+import { learningPathService } from './learning-path.service';
 import {
   interviewTypeForApi,
   serializeInterview,
@@ -32,7 +36,35 @@ class InterviewService {
    * Create a new interview session
    */
   async createInterview(userId: string, input: CreateInterviewInput): Promise<InterviewSession> {
-    const { title, interviewType, difficulty, targetCompanyId, scheduledAt, durationMinutes } = input;
+    const {
+      title,
+      interviewType,
+      difficulty,
+      targetCompanyId,
+      scheduledAt,
+      durationMinutes,
+      learningPathItemId,
+    } = input;
+
+    let milestone: { id: string; learningPath: { targetCompanyId: string | null } } | null = null;
+    if (learningPathItemId) {
+      milestone = await prisma.learningPathItem.findFirst({
+        where: {
+          id: learningPathItemId,
+          itemType: PathItemType.MILESTONE,
+          status: { in: [PathItemStatus.PENDING, PathItemStatus.IN_PROGRESS] },
+          learningPath: { userId, status: PathStatus.ACTIVE },
+          interviewSession: null,
+        },
+        select: { id: true, learningPath: { select: { targetCompanyId: true } } },
+      });
+
+      if (!milestone) {
+        throw ApiError.validation('Invalid learning-path milestone', {
+          learningPathItemId: ['This milestone is unavailable or already has an interview'],
+        });
+      }
+    }
 
     const interview = await prisma.interviewSession.create({
       data: {
@@ -40,7 +72,8 @@ class InterviewService {
         title: title || `${interviewType} Interview`,
         interviewType: this.toPrismaInterviewType(interviewType),
         difficulty: difficulty ? this.toPrismaDifficulty(difficulty) : PrismaDifficulty.medium,
-        targetCompanyId,
+        targetCompanyId: milestone?.learningPath.targetCompanyId || targetCompanyId,
+        learningPathItemId,
         scheduledAt: scheduledAt || new Date(),
         durationMinutes: durationMinutes || 60,
         status: PrismaInterviewStatus.SCHEDULED,
@@ -358,6 +391,16 @@ class InterviewService {
         areasToImprove: summary.areasToImprove,
       },
     });
+
+    try {
+      await learningPathService.markInterviewMilestoneCompleted(
+        interview.userId,
+        interviewId,
+        interview.learningPathItemId
+      );
+    } catch (error) {
+      logger.error('Learning-path interview completion failed', { interviewId, error });
+    }
 
     logger.info('Interview completed', { interviewId, overallScore });
 

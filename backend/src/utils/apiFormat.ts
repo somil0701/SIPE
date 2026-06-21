@@ -38,7 +38,7 @@ const pathItemTypeToApi: Record<string, string> = {
 };
 
 const pathItemStatusToApi: Record<string, string> = {
-  PENDING: 'PENDING',
+  PENDING: 'pending',
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
   SKIPPED: 'skipped',
@@ -108,6 +108,14 @@ export function serializeLearningPath<T extends AnyRecord>(path: T): T {
     ...path,
     status: path.status ? pathStatusForApi(String(path.status)) : path.status,
     pathItems,
+  };
+}
+
+export function serializeLearningPathItem<T extends AnyRecord>(item: T): T {
+  return {
+    ...item,
+    itemType: item.itemType ? pathItemTypeForApi(String(item.itemType)) : item.itemType,
+    status: item.status ? pathItemStatusForApi(String(item.status)) : item.status,
   };
 }
 

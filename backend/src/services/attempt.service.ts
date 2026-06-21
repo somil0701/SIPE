@@ -11,6 +11,7 @@ import { aiService } from './ai.service';
 import { questionService } from './question.service';
 import { analyticsService } from './analytics.service';
 import { judgeService } from '../judge/judge.service';
+import { learningPathService } from './learning-path.service';
 import { Attempt, AttemptInput, AttemptFeedback, AttemptStatus, RunCodeInput } from '../types';
 
 type TimelineAttemptStatus = keyof typeof PrismaAttemptStatus;
@@ -135,7 +136,7 @@ class AttemptService {
    * Submit a solution attempt
    */
   async submitAttempt(userId: string, input: AttemptInput): Promise<Attempt> {
-    const { questionId, code, language, timeSpent } = input;
+    const { questionId, code, language, timeSpent, pathItemId } = input;
 
     // Verify question exists
     const question = await prisma.question.findUnique({
@@ -145,6 +146,23 @@ class AttemptService {
 
     if (!question) {
       throw ApiError.notFound('Question not found');
+    }
+
+    if (pathItemId) {
+      const pathItem = await prisma.learningPathItem.findFirst({
+        where: {
+          id: pathItemId,
+          questionId,
+          learningPath: { userId, status: 'ACTIVE' },
+        },
+        select: { id: true },
+      });
+
+      if (!pathItem) {
+        throw ApiError.validation('Invalid learning-path context', {
+          pathItemId: ['This task does not belong to the current user or question'],
+        });
+      }
     }
 
     // Get attempt number
@@ -166,7 +184,7 @@ class AttemptService {
     });
 
     // Run evaluation asynchronously
-    this.evaluateAttempt(attempt.id, userId, questionId, code, language, timeSpent).catch((error) => {
+    this.evaluateAttempt(attempt.id, userId, questionId, code, language, timeSpent, pathItemId).catch((error) => {
       logger.error('Attempt evaluation failed', { error, attemptId: attempt.id });
     });
 
@@ -182,7 +200,8 @@ class AttemptService {
     questionId: string,
     code: string,
     language: string,
-    timeSpent: number
+    timeSpent: number,
+    pathItemId?: string
   ): Promise<void> {
     try {
       await prisma.attempt.update({
@@ -248,7 +267,12 @@ class AttemptService {
 
       // Update spaced repetition if applicable
       if (status === PrismaAttemptStatus.ACCEPTED) {
-        await this.updateSpacedRepetition(userId, questionId, true);
+        await this.runNonCriticalAutomation('spaced repetition update', attemptId, () =>
+          this.updateSpacedRepetition(userId, questionId, true)
+        );
+        await this.runNonCriticalAutomation('learning-path completion', attemptId, () =>
+          learningPathService.markAcceptedAttempt(userId, questionId, attemptId, pathItemId)
+        );
       }
 
       // Invalidate caches
@@ -257,12 +281,27 @@ class AttemptService {
 
       logger.info('Attempt evaluated', { attemptId, status });
     } catch (error) {
-      // Update attempt with error status
-      await prisma.attempt.update({
-        where: { id: attemptId },
+      // Never overwrite a final judge verdict because a downstream update failed.
+      await prisma.attempt.updateMany({
+        where: {
+          id: attemptId,
+          status: { in: [PrismaAttemptStatus.PENDING, PrismaAttemptStatus.RUNNING] },
+        },
         data: { status: PrismaAttemptStatus.RUNTIME_ERROR },
       });
       throw error;
+    }
+  }
+
+  private async runNonCriticalAutomation(
+    automation: string,
+    attemptId: string,
+    task: () => Promise<unknown>
+  ): Promise<void> {
+    try {
+      await task();
+    } catch (error) {
+      logger.error('Post-attempt automation failed', { automation, attemptId, error });
     }
   }
 

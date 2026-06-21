@@ -94,11 +94,10 @@ export function Layout() {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
-                    location.pathname === item.href
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${location.pathname === item.href
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
+                    }`}
                   onClick={() => setSidebarOpen(false)}
                 >
                   <item.icon className="h-5 w-5" />
@@ -127,56 +126,62 @@ export function Layout() {
 
       {/* Desktop sidebar */}
       <div
-        className={`hidden transition-[width] duration-200 lg:fixed lg:inset-y-0 lg:flex lg:flex-col ${
-          sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'
-        }`}
+        className={`hidden transition-[width] duration-200 lg:fixed lg:inset-y-0 lg:flex lg:flex-col ${sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'
+          }`}
       >
         <div className={`flex flex-col gap-2 border-r bg-background py-4 ${sidebarCollapsed ? 'px-3' : 'px-4'}`}>
-          <div className={`flex items-center gap-2 ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
-            <Link
-              to="/dashboard"
-              className={`flex min-w-0 items-center rounded-lg px-2 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                sidebarCollapsed ? 'justify-center' : 'gap-2'
-              }`}
-              title="SIPE"
-            >
-              <Brain className="h-8 w-8 shrink-0 text-primary" />
-              {!sidebarCollapsed && <span className="truncate text-xl font-bold">SIPE</span>}
-            </Link>
-            {!sidebarCollapsed && (
-              <button
-                type="button"
-                onClick={toggleSidebarCollapsed}
-                className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label="Collapse sidebar"
-                title="Collapse sidebar"
-              >
-                <PanelLeftClose className="h-4 w-4" />
-              </button>
+          <div className={`group relative flex items-center min-h-[48px] ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+            {sidebarCollapsed ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="flex items-center justify-center transition-opacity duration-200 group-hover:opacity-0"
+                  title="SIPE"
+                >
+                  <Brain className="h-8 w-8 shrink-0 text-primary" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={toggleSidebarCollapsed}
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-2 text-muted-foreground opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-muted hover:text-foreground focus:outline-none focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  aria-label="Expand sidebar"
+                  title="Expand sidebar"
+                >
+                  <PanelLeftOpen className="h-5 w-5" />
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  title="SIPE"
+                >
+                  <Brain className="h-8 w-8 shrink-0 text-primary" />
+                  <span className="truncate text-xl font-bold">SIPE</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={toggleSidebarCollapsed}
+                  className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  aria-label="Collapse sidebar"
+                  title="Collapse sidebar"
+                >
+                  <PanelLeftClose className="h-5 w-5" />
+                </button>
+              </>
             )}
           </div>
-          {sidebarCollapsed && (
-            <button
-              type="button"
-              onClick={toggleSidebarCollapsed}
-              className="mx-auto rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              aria-label="Expand sidebar"
-              title="Expand sidebar"
-            >
-              <PanelLeftOpen className="h-4 w-4" />
-            </button>
-          )}
           <nav className="space-y-1">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
                 title={sidebarCollapsed ? item.name : undefined}
-                className={`flex items-center rounded-lg py-2 text-sm font-medium transition-colors ${
-                  location.pathname === item.href
+                className={`flex items-center rounded-lg py-2 text-sm font-medium transition-colors ${location.pathname === item.href
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                } ${sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'}`}
+                  } ${sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'}`}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
                 {!sidebarCollapsed && item.name}
@@ -187,9 +192,8 @@ export function Layout() {
                 <Link
                   to="/admin"
                   title={sidebarCollapsed ? 'Admin Portal' : undefined}
-                  className={`flex items-center rounded-lg py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10 ${
-                    sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'
-                  }`}
+                  className={`flex items-center rounded-lg py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10 ${sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'
+                    }`}
                 >
                   <Shield className="h-5 w-5 shrink-0" />
                   {!sidebarCollapsed && 'Admin Portal'}
@@ -197,7 +201,7 @@ export function Layout() {
               </div>
             )}
           </nav>
-          <div className="mt-auto space-y-2">
+          <div className="mt-auto space-y-2 pt-3">
             <ThemeToggle collapsed={sidebarCollapsed} />
             <div className={`flex items-center rounded-lg border p-3 ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
               <div

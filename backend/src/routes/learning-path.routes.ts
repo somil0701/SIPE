@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PathItemStatus, PathStatus } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../config/database';
+import { cache, cacheKeys } from '../config/redis';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { asyncHandler, ApiError } from '../middleware/errorHandler';
@@ -196,6 +197,7 @@ router.post(
     if (!path) throw ApiError.notFound('Learning path not found');
     if (path.status !== PathStatus.ACTIVE) throw ApiError.conflict('Only active paths can be paused');
     await prisma.learningPath.update({ where: { id: req.params.id }, data: { status: PathStatus.PAUSED } });
+    await cache.del(cacheKeys.dashboard(req.user!.id));
     res.json({ success: true, message: 'Learning path paused' });
   })
 );
@@ -211,6 +213,7 @@ router.post(
     if (!path) throw ApiError.notFound('Learning path not found');
     if (path.status !== PathStatus.PAUSED) throw ApiError.conflict('Only paused paths can be resumed');
     await prisma.learningPath.update({ where: { id: req.params.id }, data: { status: PathStatus.ACTIVE } });
+    await cache.del(cacheKeys.dashboard(req.user!.id));
     res.json({ success: true, message: 'Learning path resumed' });
   })
 );
@@ -225,6 +228,7 @@ router.delete(
     });
     if (!path) throw ApiError.notFound('Learning path not found');
     await prisma.learningPath.delete({ where: { id: req.params.id } });
+    await cache.del(cacheKeys.dashboard(req.user!.id));
     res.json({ success: true, message: 'Learning path deleted successfully' });
   })
 );

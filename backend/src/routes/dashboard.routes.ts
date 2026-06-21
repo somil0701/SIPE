@@ -11,6 +11,20 @@ import { learningPathService } from '../services/learning-path.service';
 const router = Router();
 const DASHBOARD_CACHE_TTL_SECONDS = 60;
 
+function isCurrentDashboardCache(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const dashboard = value as { today?: unknown; activeLearningPath?: unknown };
+  if (!Array.isArray(dashboard.today)) return false;
+  if (!dashboard.activeLearningPath) return true;
+  if (typeof dashboard.activeLearningPath !== 'object') return false;
+
+  const path = dashboard.activeLearningPath as Record<string, unknown>;
+  return typeof path.totalItems === 'number'
+    && typeof path.completedItems === 'number'
+    && typeof path.progressPercentage === 'number'
+    && Array.isArray(path.pathItems);
+}
+
 async function getSpacedRepetitionSummary(userId: string) {
   const now = new Date();
 
@@ -50,13 +64,14 @@ router.get(
     const cacheKey = cacheKeys.dashboard(userId);
     const cached = await cache.get(cacheKey);
 
-    if (cached) {
+    if (cached && isCurrentDashboardCache(cached)) {
       res.json({
         success: true,
         data: cached,
       });
       return;
     }
+    if (cached) await cache.del(cacheKey);
 
     const [
       analytics,
@@ -73,7 +88,29 @@ router.get(
       learningPathService.getTodayQueue(userId),
       prisma.learningPath.findFirst({
         where: { userId, status: 'ACTIVE' },
-        select: { id: true, name: true },
+        select: {
+          id: true,
+          name: true,
+          totalItems: true,
+          completedItems: true,
+          progressPercentage: true,
+          estimatedHours: true,
+          pathItems: {
+            where: { status: { in: ['PENDING', 'IN_PROGRESS'] } },
+            select: {
+              id: true,
+              title: true,
+              phase: true,
+              status: true,
+              itemType: true,
+              estimatedMinutes: true,
+              scheduledDate: true,
+              question: { select: { title: true, slug: true, difficulty: true } },
+            },
+            orderBy: [{ scheduledDate: 'asc' }, { orderIndex: 'asc' }],
+            take: 1,
+          },
+        },
         orderBy: { updatedAt: 'desc' },
       }),
     ]);

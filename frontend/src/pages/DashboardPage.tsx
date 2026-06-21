@@ -29,7 +29,7 @@ export function DashboardPage() {
     isError: isDashboardError,
     refetch: refetchDashboard,
   } = useQuery({
-    queryKey: ['dashboard-summary'],
+    queryKey: ['dashboard-summary-v3'],
     queryFn: () => dashboardApi.getSummary(),
   })
 
@@ -43,6 +43,8 @@ export function DashboardPage() {
   const interviews = dashboard?.recentInterviews || []
   const today = dashboard?.today || []
   const activeLearningPath = dashboard?.activeLearningPath
+  const activePathNextItem = activeLearningPath?.pathItems?.[0]
+  const activePathProgress = Math.round(activeLearningPath?.progressPercentage || 0)
 
   // Generate last 7 days array
   const last7Days = Array.from({ length: 7 }).map((_, i) => {
@@ -170,8 +172,8 @@ export function DashboardPage() {
             {isAdmin && <Crown className="h-6 w-6 text-yellow-500" />}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {isAdmin 
-              ? 'Here is a quick overview of your personal activity. Visit the Admin Dashboard for platform metrics.' 
+            {isAdmin
+              ? 'Here is a quick overview of your personal activity. Visit the Admin Dashboard for platform metrics.'
               : 'Here\'s your progress and recommended activities for today.'}
           </p>
         </div>
@@ -337,63 +339,63 @@ export function DashboardPage() {
             </h2>
           </div>
           <div className="p-4 flex-1 flex flex-col justify-end min-h-[180px]">
-             {hasChartData ? (
-               <ResponsiveContainer width="100%" height="100%" minHeight={150}>
-                 <BarChart data={chartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.6}/>
-                        <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0.05}/>
-                      </linearGradient>
-                    </defs>
-                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                   <XAxis 
-                     dataKey="name" 
-                     axisLine={false} 
-                     tickLine={false} 
-                     tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
-                     dy={10}
-                   />
-                   <YAxis 
-                     axisLine={false} 
-                     tickLine={false} 
-                     tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
-                     allowDecimals={false}
-                     domain={[0, 'auto']}
-                   />
-                   <RechartsTooltip 
-                      cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))',
-                        borderColor: 'hsl(var(--border))',
-                        borderRadius: '8px',
-                        color: 'hsl(var(--card-foreground))',
-                        fontSize: '12px',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                      }}
-                      itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 500 }}
-                   />
-                   <Bar 
-                     dataKey="activity" 
-                     fill="url(#colorActivity)" 
-                     radius={[4, 4, 0, 0]}
-                     barSize={20}
-                     animationDuration={1000}
-                   />
-                 </BarChart>
-               </ResponsiveContainer>
-             ) : (
-               <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
-                 <div className="flex items-end gap-2 h-16 mb-2 opacity-20">
-                   <div className="w-4 bg-primary rounded-t-sm h-4"></div>
-                   <div className="w-4 bg-primary rounded-t-sm h-8"></div>
-                   <div className="w-4 bg-primary rounded-t-sm h-6"></div>
-                   <div className="w-4 bg-primary rounded-t-sm h-10"></div>
-                 </div>
-                 <p className="text-sm font-medium text-foreground">No recent activity</p>
-                 <p className="text-xs text-muted-foreground">Solve questions to see your progress here.</p>
-               </div>
-             )}
+            {hasChartData ? (
+              <ResponsiveContainer width="100%" height="100%" minHeight={150}>
+                <BarChart data={chartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.6} />
+                      <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0.05} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    allowDecimals={false}
+                    domain={[0, 'auto']}
+                  />
+                  <RechartsTooltip
+                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: '8px',
+                      color: 'hsl(var(--card-foreground))',
+                      fontSize: '12px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }}
+                    itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 500 }}
+                  />
+                  <Bar
+                    dataKey="activity"
+                    fill="url(#colorActivity)"
+                    radius={[4, 4, 0, 0]}
+                    barSize={20}
+                    animationDuration={1000}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
+                <div className="flex items-end gap-2 h-16 mb-2 opacity-20">
+                  <div className="w-4 bg-primary rounded-t-sm h-4"></div>
+                  <div className="w-4 bg-primary rounded-t-sm h-8"></div>
+                  <div className="w-4 bg-primary rounded-t-sm h-6"></div>
+                  <div className="w-4 bg-primary rounded-t-sm h-10"></div>
+                </div>
+                <p className="text-sm font-medium text-foreground">No recent activity</p>
+                <p className="text-xs text-muted-foreground">Solve questions to see your progress here.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -443,37 +445,36 @@ export function DashboardPage() {
                       <div>
                         <h3 className="font-semibold text-foreground text-sm leading-none">{activeLearningPath.name}</h3>
                         <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1.5">
-                          <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> Module 4 of 12</span>
+                          <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {activeLearningPath.completedItems} of {activeLearningPath.totalItems} tasks</span>
                           <span>•</span>
-                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> ~45m left</span>
+                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {activePathNextItem?.estimatedMinutes || 30}m next</span>
                         </p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-background rounded-lg p-3 border shadow-sm mb-4">
                     <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-semibold text-foreground truncate mr-2">Up Next: Core Patterns</span>
-                      <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">In Progress</span>
+                      <span className="text-xs font-semibold text-foreground truncate mr-2">Up Next: {activePathNextItem?.title || activePathNextItem?.question?.title || 'No pending task'}</span>
+                      {activePathNextItem && <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">{String(activePathNextItem.status).replace(/_/g, ' ')}</span>}
                     </div>
                     <div className="w-full bg-secondary h-1.5 rounded-full mt-2 overflow-hidden">
-                      <div className="bg-black dark:bg-gradient-to-r dark:from-indigo-500/80 dark:to-purple-500/80 h-full rounded-full" style={{ width: '60%' }} />
+                      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full" style={{ width: `${activePathProgress}%` }} />
                     </div>
                     <div className="flex justify-between items-center mt-2">
-                      <p className="text-[10px] text-muted-foreground font-medium">60% completed</p>
+                      <p className="text-[10px] text-muted-foreground font-medium">{activePathProgress}% completed</p>
                       <div className="flex gap-1">
-                        <span className="h-1.5 w-4 rounded-full bg-green-500"></span>
-                        <span className="h-1.5 w-4 rounded-full bg-green-500"></span>
-                        <span className="h-1.5 w-4 rounded-full bg-primary"></span>
-                        <span className="h-1.5 w-4 rounded-full bg-secondary"></span>
+                        {Array.from({ length: 4 }).map((_, index) => (
+                          <span key={index} className={`h-1.5 w-4 rounded-full ${activePathProgress >= (index + 1) * 25 ? 'bg-green-500' : 'bg-secondary'}`} />
+                        ))}
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-auto pt-2">
                     <Link
                       to={`/learning-path/${activeLearningPath.id}`}
-                      className="flex items-center justify-center w-full gap-2 rounded-lg bg-black hover:bg-black/90 dark:bg-none dark:bg-gradient-to-r dark:from-indigo-600/80 dark:to-purple-600/80 dark:hover:from-indigo-600 dark:hover:to-purple-600 text-white py-2 text-xs font-medium shadow-sm transition-all border border-transparent"
+                      className="flex items-center justify-center w-full gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white py-2 text-xs font-medium shadow-sm transition-all border border-transparent"
                     >
                       Continue Path <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
@@ -499,7 +500,7 @@ export function DashboardPage() {
                         <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full difficulty-${question.difficulty?.toLowerCase() || 'medium'}`}>
                           {question.difficulty || 'Medium'}
                         </span>
-                        
+
                         {/* Tags Display */}
                         <div className="flex gap-1.5 flex-wrap">
                           {question.tags?.slice(0, 2).map((tag: string) => (
@@ -507,10 +508,10 @@ export function DashboardPage() {
                               {tag}
                             </span>
                           )) || (
-                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-600 dark:text-slate-400">
-                              {question.topic?.name || fallbackTags[i % fallbackTags.length]}
-                            </span>
-                          )}
+                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-600 dark:text-slate-400">
+                                {question.topic?.name || fallbackTags[i % fallbackTags.length]}
+                              </span>
+                            )}
                         </div>
 
                         <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 ml-auto sm:ml-2 shrink-0">
@@ -600,13 +601,12 @@ export function DashboardPage() {
                         <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-transparent shadow-sm">
                           {interview.type || interview.interviewType || 'General'}
                         </span>
-                        <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border border-transparent shadow-sm ${
-                          interview.status === 'completed' || interview.status === 'COMPLETED'
+                        <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border border-transparent shadow-sm ${interview.status === 'completed' || interview.status === 'COMPLETED'
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                             : interview.status === 'scheduled' || interview.status === 'SCHEDULED'
-                            ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                            : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                        }`}>
+                              ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                              : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                          }`}>
                           {interview.status?.toLowerCase()}
                         </span>
                       </div>

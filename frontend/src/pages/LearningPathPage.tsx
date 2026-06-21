@@ -208,7 +208,7 @@ export function LearningPathPage() {
             <span className="font-semibold">{Math.round(path.progressPercentage)}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-black dark:bg-gradient-to-r dark:from-indigo-500/80 dark:to-purple-500/80 transition-[width]" style={{ width: `${path.progressPercentage}%` }} />
+            <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-[width]" style={{ width: `${path.progressPercentage}%` }} />
           </div>
         </div>
 
@@ -239,7 +239,7 @@ export function LearningPathPage() {
                   <span className="text-indigo-500/90 dark:text-indigo-400/90">Due today</span>
                 </p>
               </div>
-              <Link to={`/learning-path/${path.id}`} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-black hover:bg-black/90 dark:bg-none dark:bg-gradient-to-r dark:from-indigo-600/80 dark:to-purple-600/80 dark:hover:from-indigo-600 dark:hover:to-purple-600 text-white px-3 py-1.5 text-xs font-medium transition-all border border-transparent shadow-sm shrink-0">
+              <Link to={`/learning-path/${path.id}`} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-3 py-1.5 text-xs font-medium transition-all border border-transparent shadow-sm shrink-0">
                 Continue <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
@@ -288,7 +288,7 @@ export function LearningPathPage() {
           <h1 className="mt-1 text-3xl font-bold tracking-tight">Learning Paths</h1>
           <p className="mt-1 text-muted-foreground">A plan that changes with what you solve, miss, and review.</p>
         </div>
-        <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-black hover:bg-black/90 dark:bg-none dark:bg-gradient-to-r dark:from-indigo-600/80 dark:to-purple-600/80 dark:hover:from-indigo-600 dark:hover:to-purple-600 text-white transition-all border border-transparent shadow-sm px-4 py-2.5 text-sm font-medium">
+        <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white transition-all border border-transparent shadow-sm px-4 py-2.5 text-sm font-medium">
           <Plus className="h-4 w-4" /> Create path
         </button>
       </header>

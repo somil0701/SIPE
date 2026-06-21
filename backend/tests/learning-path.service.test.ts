@@ -22,6 +22,11 @@ jest.mock('../src/config/database', () => {
   return { prisma };
 });
 
+jest.mock('../src/config/redis', () => ({
+  cache: { del: jest.fn().mockResolvedValue(undefined) },
+  cacheKeys: { dashboard: (userId: string) => `user:${userId}:dashboard:v3` },
+}));
+
 import { Difficulty, PathItemStatus, PathItemType, PathStatus } from '@prisma/client';
 import { prisma } from '../src/config/database';
 import { learningPathService } from '../src/services/learning-path.service';

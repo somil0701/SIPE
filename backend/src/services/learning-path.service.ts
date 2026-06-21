@@ -7,6 +7,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { prisma } from '../config/database';
+import { cache, cacheKeys } from '../config/redis';
 import { ApiError } from '../middleware/errorHandler';
 
 export type LearningPathGoalType = 'general' | 'skill' | 'company' | 'interview';
@@ -98,7 +99,7 @@ class LearningPathService {
 
     const preview = await this.buildPlan(userId, input);
 
-    return prisma.$transaction(async (tx) => tx.learningPath.create({
+    const path = await prisma.$transaction(async (tx) => tx.learningPath.create({
       data: {
         userId,
         name: input.name.trim(),
@@ -122,6 +123,8 @@ class LearningPathService {
         },
       },
     }));
+    await this.invalidateDashboard(userId);
+    return path;
   }
 
   async getTodayQueue(userId: string) {
@@ -253,7 +256,7 @@ class LearningPathService {
     itemId: string,
     status: PathItemStatus
   ) {
-    return prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
       const item = await tx.learningPathItem.findFirst({
         where: { id: itemId, pathId, learningPath: { userId } },
         include: { learningPath: { select: { status: true } } },
@@ -280,6 +283,8 @@ class LearningPathService {
       await this.recalculateProgress(tx, pathId, item.learningPath.status);
       return updated;
     });
+    await this.invalidateDashboard(userId);
+    return updated;
   }
 
   async markAcceptedAttempt(
@@ -322,6 +327,7 @@ class LearningPathService {
     });
 
     await this.rebalanceDuePaths(userId);
+    await this.invalidateDashboard(userId);
   }
 
   async rebalanceDuePaths(userId: string) {
@@ -372,6 +378,7 @@ class LearningPathService {
       }
     });
     await this.rebalanceDuePaths(userId);
+    await this.invalidateDashboard(userId);
   }
 
   async markInterviewMilestoneCompleted(userId: string, interviewId: string, pathItemId?: string | null) {
@@ -404,6 +411,7 @@ class LearningPathService {
         await this.recalculateProgress(tx, item.pathId, PathStatus.ACTIVE);
       }
     });
+    await this.invalidateDashboard(userId);
   }
 
   async rebalancePath(userId: string, pathId: string) {
@@ -426,7 +434,7 @@ class LearningPathService {
         : undefined,
     });
 
-    return prisma.$transaction(async (tx) => {
+    const rebalanced = await prisma.$transaction(async (tx) => {
       await this.lockPath(tx, pathId);
       const current = await tx.learningPath.findFirst({
         where: { id: pathId, userId, status: PathStatus.ACTIVE },
@@ -470,6 +478,8 @@ class LearningPathService {
         },
       });
     });
+    await this.invalidateDashboard(userId);
+    return rebalanced;
   }
 
   async previewRebalance(userId: string, pathId: string) {
@@ -749,6 +759,10 @@ class LearningPathService {
 
   private async lockPath(tx: Prisma.TransactionClient, pathId: string) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${pathId}))`;
+  }
+
+  private async invalidateDashboard(userId: string) {
+    await cache.del(cacheKeys.dashboard(userId));
   }
 }
 

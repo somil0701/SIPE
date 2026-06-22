@@ -120,7 +120,7 @@ function CreateAssessmentDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="assessment-dialog-title">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="assessment-dialog-title">
       <div className="w-full max-w-xl rounded-xl border bg-card p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -135,12 +135,17 @@ function CreateAssessmentDialog({
             ['mixed', 'Mixed DSA', 'Multiple skills'],
             ['skill', 'By skill', 'Choose one topic'],
             ['company', 'By company', 'Company-tagged mix'],
-          ] as const).map(([value, label, description]) => (
-            <button key={value} type="button" onClick={() => setFocus(value)} className={`rounded-lg border p-3 text-left transition ${focus === value ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'hover:bg-muted/50'}`}>
-              <p className="text-sm font-semibold">{label}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-            </button>
-          ))}
+          ] as const).map(([value, label, description]) => {
+            const active = focus === value;
+            return (
+              <div key={value} className={`rounded-lg transition-all ${active ? 'bg-black dark:bg-gradient-to-r dark:from-purple-500 dark:to-blue-500 p-[1px] shadow-sm' : ''}`}>
+                <button type="button" onClick={() => setFocus(value)} className={`h-full w-full rounded-[7px] p-3 text-left transition-colors ${active ? 'bg-card dark:bg-[#18182b] text-foreground dark:text-white' : 'border border-border hover:bg-muted/50'}`}>
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+                </button>
+              </div>
+            )
+          })}
         </div>
 
         {focus === 'skill' && (
@@ -201,6 +206,47 @@ function AssessmentList({
 }) {
   const navigate = useNavigate()
   const [showCreate, setShowCreate] = useState(false)
+  
+  const tabs = ['All', 'Scheduled', 'Completed', 'Needs Practice', 'Abandoned'] as const
+  const [activeTab, setActiveTab] = useState<typeof tabs[number]>('All')
+
+  const filteredAssessments = assessments.filter((a) => {
+    if (activeTab === 'All') return true
+    if (activeTab === 'Scheduled') return a.status === 'scheduled'
+    if (activeTab === 'Completed') return a.status === 'completed'
+    if (activeTab === 'Needs Practice') return a.status === 'needs_practice'
+    if (activeTab === 'Abandoned') return a.status === 'abandoned'
+    return true
+  })
+
+  const totalCounts: Record<string, number> = {}
+  assessments.forEach((a) => {
+    const t = assessmentFocus(a)
+    totalCounts[t] = (totalCounts[t] || 0) + 1
+  })
+
+  const currentCounts: Record<string, number> = {}
+  const titleMap = new Map<string, string>()
+  
+  // Assessments are generally newest first. Reverse to number chronologically.
+  ;[...assessments].reverse().forEach((a) => {
+    const t = assessmentFocus(a)
+    currentCounts[t] = (currentCounts[t] || 0) + 1
+    if (totalCounts[t] > 1) {
+      titleMap.set(a.id, `${t} Practice #${currentCounts[t]}`)
+    } else {
+      titleMap.set(a.id, t)
+    }
+  })
+
+  const counts = {
+    All: assessments.length,
+    Scheduled: assessments.filter((a) => a.status === 'scheduled').length,
+    Completed: assessments.filter((a) => a.status === 'completed').length,
+    'Needs Practice': assessments.filter((a) => a.status === 'needs_practice').length,
+    Abandoned: assessments.filter((a) => a.status === 'abandoned').length,
+  }
+
   return (
     <div className="space-y-8 pb-12">
       <header className="flex flex-col gap-5 rounded-xl border bg-card p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -219,22 +265,66 @@ function AssessmentList({
           <p className="mt-1 text-sm text-muted-foreground">Start with Mixed DSA or choose a focus.</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {assessments.map((assessment) => (
-            <button key={assessment.id} onClick={() => navigate(`/assessments/${assessment.id}`)} className="rounded-xl border bg-card p-5 text-left transition hover:border-primary/50 hover:shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-semibold">{assessmentFocus(assessment)}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{assessment.questionCount} questions · {assessment.durationMinutes} minutes</p>
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-2">
+            {tabs.map((tab) => {
+              const active = activeTab === tab;
+              return (
+                <div key={tab} className={`rounded-lg transition-all ${active ? 'bg-black dark:bg-gradient-to-r dark:from-purple-500 dark:to-blue-500 p-[1px] shadow-sm' : ''}`}>
+                  <button
+                    onClick={() => setActiveTab(tab)}
+                    className={`flex items-center justify-center rounded-[7px] px-3 py-1.5 text-sm font-medium transition-colors ${active ? 'bg-card dark:bg-[#18182b] text-foreground dark:text-white' : 'border border-transparent bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                  >
+                    {tab} ({counts[tab]})
+                  </button>
                 </div>
-                <span className={`text-xs font-semibold ${resultTone(assessment.status)}`}>{statusLabel(assessment.status)}</span>
-              </div>
-              <div className="mt-5 flex items-center justify-between text-sm">
-                <span>{assessment.overallScore == null ? 'Not scored' : `${assessment.overallScore}% score`}</span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </button>
-          ))}
+              )
+            })}
+          </div>
+
+          {filteredAssessments.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-12 text-center">
+              <Target className="mx-auto h-10 w-10 text-muted-foreground" />
+              <h2 className="mt-4 text-lg font-semibold">No {activeTab === 'All' ? '' : activeTab} assessments yet</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Start a new one to practice your skills.</p>
+              <button onClick={() => setShowCreate(true)} className={`${primaryActionClass} mt-6 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium`}><Play className="h-4 w-4" /> Create assessment</button>
+            </div>
+          ) : (
+            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))' }}>
+              {filteredAssessments.map((assessment) => {
+                const isScored = assessment.status === 'completed' || assessment.status === 'needs_practice'
+                const displayScore = isScored ? `${assessment.overallScore ?? 0}% score` : 'No score yet'
+
+                let metaText = 'General practice'
+                if (assessment.status === 'scheduled') metaText = 'Scheduled'
+                else if (assessment.completedAt || assessment.startedAt) metaText = `Last attempted: ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date((assessment.completedAt || assessment.startedAt)!))}`
+                else if (assessment.targetCompany) metaText = 'Company focused'
+
+                let badgeClass = 'bg-muted/50 text-muted-foreground'
+                if (assessment.status === 'completed') badgeClass = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                if (assessment.status === 'needs_practice') badgeClass = 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                if (assessment.status === 'scheduled') badgeClass = 'bg-slate-500/10 text-slate-700 dark:text-slate-400'
+                if (assessment.status === 'abandoned') badgeClass = 'bg-red-500/10 text-red-700 dark:text-red-400'
+
+                return (
+                  <button key={assessment.id} onClick={() => navigate(`/assessments/${assessment.id}`)} className="flex flex-col justify-between rounded-xl border bg-card p-5 text-left transition hover:border-primary/50 hover:shadow-sm">
+                    <div>
+                      <div className="flex items-start justify-between gap-4">
+                        <p className="font-semibold">{titleMap.get(assessment.id) || assessmentFocus(assessment)}</p>
+                        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${badgeClass}`}>{statusLabel(assessment.status)}</span>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{assessment.questionCount} questions · {assessment.durationMinutes} minutes</p>
+                      <p className="mt-1.5 text-xs text-muted-foreground/80">{metaText}</p>
+                    </div>
+                    <div className="mt-5 flex items-center justify-between text-sm">
+                      <span className={isScored ? 'font-medium' : 'text-muted-foreground'}>{displayScore}</span>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

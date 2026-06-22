@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { 
   Mic, Plus, Clock, ChevronRight, Loader2, Play, 
@@ -29,9 +29,7 @@ const TABS = [
 
 export function MockInterviewPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const pathItemId = searchParams.get('pathItemId') || undefined
-  const [showCreateModal, setShowCreateModal] = useState(Boolean(pathItemId))
+  const [showCreateModal, setShowCreateModal] = useState(false)
   const [interviewType, setInterviewType] = useState('technical')
   const [difficulty, setDifficulty] = useState('medium')
   const [duration, setDuration] = useState(60)
@@ -53,7 +51,6 @@ export function MockInterviewPage() {
         interviewType,
         difficulty,
         durationMinutes: duration,
-        learningPathItemId: pathItemId,
       }),
     onSuccess: (data) => {
       toast.success('Interview created!')
@@ -66,7 +63,6 @@ export function MockInterviewPage() {
 
   const closeCreateModal = () => {
     setShowCreateModal(false)
-    if (pathItemId) navigate('/mock-interview', { replace: true })
   }
 
   const rawInterviews = useMemo(() => {

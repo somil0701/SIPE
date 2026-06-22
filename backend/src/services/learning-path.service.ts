@@ -219,7 +219,7 @@ class LearningPathService {
         dueAt: item.scheduledDate,
         isOverdue: Boolean(item.scheduledDate && item.scheduledDate < now),
         href: isMilestone
-          ? `/mock-interview?pathItemId=${item.id}`
+          ? `/assessments?pathItemId=${item.id}`
           : item.question?.slug
           ? `/practice/${item.question.slug}?pathItemId=${item.id}`
           : `/learning-path/${item.pathId}`,
@@ -233,11 +233,11 @@ class LearningPathService {
       queue.push({
         id: `path:${upcomingMilestone.id}`,
         type: 'milestone',
-        title: upcomingMilestone.title || 'Mock interview checkpoint',
+        title: upcomingMilestone.title || 'DSA assessment checkpoint',
         context: `${upcomingMilestone.learningPath.name} · upcoming checkpoint`,
         dueAt: upcomingMilestone.scheduledDate,
         isOverdue: false,
-        href: `/mock-interview?pathItemId=${upcomingMilestone.id}`,
+        href: `/assessments?pathItemId=${upcomingMilestone.id}`,
         pathId: upcomingMilestone.pathId,
         pathItemId: upcomingMilestone.id,
         priority: 4,
@@ -381,7 +381,12 @@ class LearningPathService {
     await this.invalidateDashboard(userId);
   }
 
-  async markInterviewMilestoneCompleted(userId: string, interviewId: string, pathItemId?: string | null) {
+  async markAssessmentMilestoneCompleted(
+    userId: string,
+    assessmentId: string,
+    score: number,
+    pathItemId?: string | null
+  ) {
     if (!pathItemId) return;
     const item = await prisma.learningPathItem.findFirst({
       where: {
@@ -404,12 +409,90 @@ class LearningPathService {
         data: {
           status: PathItemStatus.COMPLETED,
           completedAt: new Date(),
-          completionEvidence: { type: 'mock_interview', interviewId, completedAt: new Date().toISOString() },
+          completionEvidence: {
+            type: 'dsa_assessment',
+            assessmentId,
+            score,
+            result: 'passed',
+            completedAt: new Date().toISOString(),
+          },
         },
       });
       if (result.count > 0) {
         await this.recalculateProgress(tx, item.pathId, PathStatus.ACTIVE);
       }
+    });
+    await this.invalidateDashboard(userId);
+  }
+
+  async recordAssessmentNeedsPractice(
+    userId: string,
+    assessmentId: string,
+    score: number,
+    pathItemId: string | null | undefined,
+    failedQuestions: Array<{
+      questionId: string;
+      skillId: string;
+      title: string;
+      difficulty: Difficulty;
+    }>
+  ) {
+    if (!pathItemId) return;
+    const item = await prisma.learningPathItem.findFirst({
+      where: {
+        id: pathItemId,
+        itemType: PathItemType.MILESTONE,
+        learningPath: { userId, status: PathStatus.ACTIVE },
+      },
+      select: { id: true, pathId: true, orderIndex: true },
+    });
+    if (!item) return;
+
+    await prisma.$transaction(async (tx) => {
+      await this.lockPath(tx, item.pathId);
+      const existing = await tx.learningPathItem.count({
+        where: { pathId: item.pathId, selectionReason: { contains: assessmentId } },
+      });
+      if (existing > 0) return;
+
+      const remediation = failedQuestions.slice(0, 3);
+      if (remediation.length > 0) {
+        await tx.learningPathItem.updateMany({
+          where: { pathId: item.pathId, orderIndex: { gte: item.orderIndex } },
+          data: { orderIndex: { increment: remediation.length } },
+        });
+        await tx.learningPathItem.createMany({
+          data: remediation.map((question, index) => ({
+            pathId: item.pathId,
+            questionId: question.questionId,
+            skillId: question.skillId,
+            itemType: PathItemType.REVIEW,
+            title: `Assessment follow-up: ${question.title}`,
+            description: `Targeted practice after a ${score}% DSA assessment result.`,
+            phase: 'Assessment Remediation',
+            selectionReason: `Prioritized from assessment ${assessmentId} judge evidence.`,
+            orderIndex: item.orderIndex + index,
+            scheduledDate: new Date(),
+            estimatedMinutes: estimateForDifficulty(question.difficulty),
+          })),
+        });
+      }
+
+      await tx.learningPathItem.update({
+        where: { id: item.id },
+        data: {
+          status: PathItemStatus.PENDING,
+          completedAt: null,
+          scheduledDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          completionEvidence: {
+            type: 'dsa_assessment',
+            assessmentId,
+            score,
+            result: 'needs_practice',
+          },
+        },
+      });
+      await this.recalculateProgress(tx, item.pathId, PathStatus.ACTIVE);
     });
     await this.invalidateDashboard(userId);
   }
@@ -702,15 +785,15 @@ class LearningPathService {
       scheduledDate.setDate(today.getDate() + Math.floor((accumulatedMinutes / input.weeklyStudyMinutes) * 7));
       items.push({
         itemType: PathItemType.MILESTONE,
-        title: 'Mock interview checkpoint',
-        description: 'Complete a focused technical mock interview and review the session feedback.',
-        phase: 'Interview Readiness',
-        selectionReason: 'A checkpoint validates whether practice is transferring to interview performance.',
+        title: 'DSA assessment checkpoint',
+        description: 'Complete a timed DSA assessment using objective judge results.',
+        phase: 'DSA Readiness',
+        selectionReason: 'A timed checkpoint validates whether practice is transferring to independent DSA performance.',
         orderIndex: items.length + 1,
         scheduledDate,
-        estimatedMinutes: 45,
+        estimatedMinutes: 60,
       });
-      accumulatedMinutes += 45;
+      accumulatedMinutes += 60;
     }
 
     const computedTarget = new Date(today);

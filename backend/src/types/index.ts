@@ -244,7 +244,6 @@ export interface CreateInterviewInput {
   targetCompanyId?: string;
   scheduledAt?: Date;
   durationMinutes?: number;
-  learningPathItemId?: string;
 }
 
 // ============================================

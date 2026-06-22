@@ -89,7 +89,7 @@ export function LearningPathDetailPage() {
       }
     }
     if (item.itemType === 'milestone') {
-      navigate(`/mock-interview?pathItemId=${encodeURIComponent(item.id)}`)
+      navigate(`/assessments?pathItemId=${encodeURIComponent(item.id)}`)
     } else if (item.question?.slug) {
       navigate(`/practice/${item.question.slug}?pathItemId=${encodeURIComponent(item.id)}`)
     }

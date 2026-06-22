@@ -27,6 +27,7 @@ import { dashboardRouter } from './routes/dashboard.routes';
 import { learningPathRouter } from './routes/learning-path.routes';
 import { spacedRepetitionRouter } from './routes/spaced-repetition.routes';
 import { adminRoutes } from './routes/admin.routes';
+import { assessmentRouter } from './routes/assessment.routes';
 
 // Initialize Express app
 const app = express();
@@ -217,6 +218,7 @@ app.use('/api/v1/users', userRouter);
 app.use('/api/v1/questions', questionRouter);
 app.use('/api/v1/attempts', attemptRouter);
 app.use('/api/v1/interviews', interviewRouter);
+app.use('/api/v1/assessments', assessmentRouter);
 app.use('/api/v1/resumes', resumeRouter);
 app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/dashboard', dashboardRouter);

@@ -13,8 +13,9 @@ const DASHBOARD_CACHE_TTL_SECONDS = 60;
 
 function isCurrentDashboardCache(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
-  const dashboard = value as { today?: unknown; activeLearningPath?: unknown };
+  const dashboard = value as { today?: unknown; recentAssessments?: unknown; activeLearningPath?: unknown };
   if (!Array.isArray(dashboard.today)) return false;
+  if (!Array.isArray(dashboard.recentAssessments)) return false;
   if (!dashboard.activeLearningPath) return true;
   if (typeof dashboard.activeLearningPath !== 'object') return false;
 
@@ -77,6 +78,7 @@ router.get(
       analytics,
       recommendedQuestions,
       recentInterviews,
+      recentAssessments,
       spacedRepetition,
       today,
       activeLearningPath,
@@ -84,6 +86,21 @@ router.get(
       analyticsService.getUserAnalytics(userId),
       questionService.getRecommendedQuestions(userId, 3),
       interviewService.getUserInterviews(userId, { limit: 3 }),
+      prisma.assessmentSession.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          status: true,
+          durationMinutes: true,
+          overallScore: true,
+          createdAt: true,
+          updatedAt: true,
+          targetSkill: { select: { name: true } },
+          targetCompany: { select: { name: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 3,
+      }),
       getSpacedRepetitionSummary(userId),
       learningPathService.getTodayQueue(userId),
       prisma.learningPath.findFirst({
@@ -119,6 +136,17 @@ router.get(
       analytics,
       recommendedQuestions: activeLearningPath ? [] : recommendedQuestions,
       recentInterviews: recentInterviews.interviews,
+      recentAssessments: recentAssessments.map((assessment) => ({
+        id: assessment.id,
+        title: `${assessment.targetCompany?.name || assessment.targetSkill?.name || 'Mixed DSA'} Assessment`,
+        kind: 'assessment',
+        status: assessment.status.toLowerCase(),
+        durationMinutes: assessment.durationMinutes,
+        overallScore: assessment.overallScore,
+        createdAt: assessment.createdAt,
+        updatedAt: assessment.updatedAt,
+        href: `/assessments/${assessment.id}`,
+      })),
       spacedRepetition,
       today,
       activeLearningPath,

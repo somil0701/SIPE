@@ -293,7 +293,7 @@ const input = fs.readFileSync(0, 'utf8');
 }
 
 function getConsoleText(runResult: any) {
-  if (!runResult) return 'No output yet.'
+  if (!runResult) return 'No run yet — run your code to see output, errors, and test results.'
   const output = runResult.output?.trim() || ''
 
   if (runResult.error) {
@@ -828,7 +828,7 @@ export function QuestionPage() {
                 onClick={handleSubmit}
                 disabled={submitMutation.isPending || !code.trim()}
                 title="Submit (Ctrl/⌘+Enter)"
-                className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 border border-blue-600 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {submitMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -883,11 +883,24 @@ export function QuestionPage() {
                       {question.testCases
                         .filter((testCase: any) => testCase.isExample)
                         .map((testCase: any, index: number) => (
-                          <div key={index} className="rounded-lg border bg-muted/30 p-3 text-sm">
-                            <p className="font-medium">Example {index + 1}</p>
-                            <pre className="mt-2 overflow-auto rounded-md bg-background p-2 text-xs">
+                          <div key={index} className="rounded-xl border bg-muted/20 p-5">
+                            <h4 className="font-semibold text-foreground">Example {index + 1}</h4>
+                            <pre className="mt-4 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-4 font-mono text-[13px] leading-relaxed text-foreground">
                               {`Input:\n${getTestCaseInput(testCase)}\n\nOutput:\n${getTestCaseExpectedOutput(testCase)}`}
                             </pre>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const input = getTestCaseInput(testCase)
+                                if (input) {
+                                  setCustomInput(input)
+                                  toast.success('Example input copied to custom input')
+                                }
+                              }}
+                              className="mt-3 text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 focus:outline-none"
+                            >
+                              Use this input for Run
+                            </button>
                           </div>
                         ))}
                     </div>
@@ -1443,10 +1456,10 @@ export function QuestionPage() {
                       )}
                     </div>
                     <pre
-                      className="flex-1 overflow-auto whitespace-pre-wrap bg-zinc-950 p-3 font-mono text-sm text-zinc-100 min-h-0"
+                      className="flex-1 overflow-auto whitespace-pre-wrap bg-background p-3 font-mono text-sm text-foreground min-h-0"
                       aria-live="polite"
                     >
-                      {getConsoleText(runResult)}
+                      {runMutation.isPending ? 'Running code…' : getConsoleText(runResult)}
                     </pre>
                   </div>
                 </div>

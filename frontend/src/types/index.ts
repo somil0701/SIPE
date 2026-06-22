@@ -205,6 +205,61 @@ export interface InterviewQuestion {
   questionOrder: number;
 }
 
+export type AssessmentStatus = 'scheduled' | 'in_progress' | 'completed' | 'needs_practice' | 'abandoned';
+export type AssessmentQuestionStatus = 'pending' | 'in_progress' | 'submitted' | 'skipped' | 'unanswered';
+
+export interface AssessmentQuestion {
+  id: string;
+  orderIndex: number;
+  status: AssessmentQuestionStatus;
+  verdict?: string | null;
+  testCasesPassed: number;
+  testCasesTotal: number;
+  timeSpentSeconds: number;
+  correctnessScore: number;
+  timeEfficiencyScore: number;
+  weightedScore: number;
+  submittedCode?: string;
+  language?: string;
+  question: {
+    id: string;
+    title: string;
+    slug?: string;
+    description?: string;
+    problemStatement?: string;
+    difficulty: 'easy' | 'medium' | 'hard' | 'expert';
+    starterCode?: Record<string, string>;
+    constraints?: string[];
+    topicTags?: string[];
+    examples?: Array<{ input: string; expectedOutput: string }>;
+    skill: { id: string; name: string };
+  };
+}
+
+export interface AssessmentSession {
+  id: string;
+  learningPathItemId?: string | null;
+  targetSkill?: { id: string; name: string } | null;
+  targetCompany?: { id: string; name: string } | null;
+  questionCount: number;
+  durationMinutes: number;
+  passingThreshold: number;
+  status: AssessmentStatus;
+  startedAt?: string | null;
+  expiresAt?: string | null;
+  completedAt?: string | null;
+  overallScore?: number | null;
+  currentQuestionId?: string | null;
+  result?: {
+    passed: boolean;
+    threshold: number;
+    strengths: string[];
+    weakSkills: string[];
+    recommendedQuestionIds: string[];
+  } | null;
+  questions: AssessmentQuestion[];
+}
+
 // Analytics Types
 export interface UserAnalytics {
   userId: string;

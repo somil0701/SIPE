@@ -41,6 +41,22 @@ export function DashboardPage() {
   const analytics = dashboard?.analytics
   const recommendedQuestions = dashboard?.recommendedQuestions || []
   const interviews = dashboard?.recentInterviews || []
+  const assessments = dashboard?.recentAssessments || []
+  const recentActivities = [
+    ...interviews.map((interview: any) => ({
+      ...interview,
+      kind: 'interview',
+      href: `/mock-interview/${interview.id}`,
+      activityAt: interview.endedAt || interview.updatedAt || interview.createdAt,
+    })),
+    ...assessments.map((assessment: any) => ({
+      ...assessment,
+      kind: 'assessment',
+      activityAt: assessment.updatedAt || assessment.createdAt,
+    })),
+  ].sort((first: any, second: any) => (
+    new Date(second.activityAt || 0).getTime() - new Date(first.activityAt || 0).getTime()
+  )).slice(0, 4)
   const today = dashboard?.today || []
   const activeLearningPath = dashboard?.activeLearningPath
   const activePathNextItem = activeLearningPath?.pathItems?.[0]
@@ -206,7 +222,7 @@ export function DashboardPage() {
               <Link key={item.id} to={item.href} className="group rounded-lg border bg-card p-3 hover:border-primary/40 hover:shadow-sm">
                 <div className="flex items-start gap-3">
                   <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                    {item.type === 'review' ? <Brain className="h-4 w-4" /> : item.type === 'milestone' ? <Mic className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
+                    {item.type === 'review' ? <Brain className="h-4 w-4" /> : item.type === 'milestone' ? <Target className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
@@ -527,28 +543,25 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Interviews */}
+        {/* Recent interviews and assessments */}
         <div className="relative rounded-xl border border-border/50 dark:border-white/10 bg-card shadow-lg dark:shadow-black/20 flex flex-col h-full hover:shadow-xl dark:hover:shadow-black/30 hover:border-primary/30 transition-all duration-300 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-black/[0.01] dark:from-white/[0.03] to-transparent pointer-events-none" />
           <div className="p-5 border-b border-border/50 dark:border-white/10 bg-muted/20 dark:bg-white/[0.02] flex items-center justify-between gap-4 flex-shrink-0 relative z-10">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-blue-500" />
-              Recent Mock Interviews
+              Recent Interviews and Assessments
             </h2>
-            <Link
-              to="/mock-interview"
-              className="text-sm text-primary hover:underline flex items-center gap-1 font-medium"
-            >
-              View all
-              <ChevronRight className="h-4 w-4" />
-            </Link>
+            <div className="flex items-center gap-3 text-xs font-medium">
+              <Link to="/mock-interview" className="text-primary hover:underline">Interviews</Link>
+              <Link to="/assessments" className="text-primary hover:underline">Assessments</Link>
+            </div>
           </div>
           <div className="p-5 flex-1 flex flex-col justify-center relative z-10">
             {isDashboardLoading ? (
-              <LoadingState message="Loading recent interviews..." bordered={false} />
+              <LoadingState message="Loading recent activity..." bordered={false} />
             ) : isDashboardError ? (
               <ErrorState
-                title="Unable to load interviews"
+                title="Unable to load recent activity"
                 bordered={false}
                 action={
                   <button
@@ -560,67 +573,70 @@ export function DashboardPage() {
                   </button>
                 }
               />
-            ) : !interviews || (Array.isArray(interviews) ? interviews.length === 0 : !(interviews as any)?.interviews?.length) ? (
+            ) : recentActivities.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 px-4 text-center bg-muted/30 dark:bg-background/30 rounded-xl border border-dashed border-border/50 dark:border-white/10 hover:border-primary/30 transition-colors h-full">
                 <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-3 shadow-sm">
                   <Mic className="h-5 w-5" />
                 </div>
-                <h3 className="font-semibold text-foreground text-sm">No mock interviews yet</h3>
+                <h3 className="font-semibold text-foreground text-sm">No interviews or assessments yet</h3>
                 <p className="text-xs text-muted-foreground mt-1.5 max-w-[240px] leading-relaxed">
-                  Establish your baseline score by taking a focused mock.
+                  Establish a baseline with an interview or objective DSA assessment.
                 </p>
                 <div className="mt-5 w-full max-w-[260px] bg-muted/50 dark:bg-background/50 border border-border/50 dark:border-white/10 rounded-lg p-3 text-left shadow-sm hover:bg-muted/80 dark:hover:bg-white/[0.02] transition-colors">
                   <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-xs font-semibold text-foreground">Recommended Mock</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded">45 mins</span>
+                    <span className="text-xs font-semibold text-foreground">Recommended Assessment</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded">60 mins</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mb-3 leading-snug">Data Structures & Algorithms - Core Patterns</p>
                   <Link
-                    to="/mock-interview"
+                    to="/assessments"
                     className="flex items-center justify-center w-full gap-2 rounded-md bg-black hover:bg-black/90 dark:bg-none dark:bg-gradient-to-r dark:from-indigo-600/80 dark:to-purple-600/80 dark:hover:from-indigo-600 dark:hover:to-purple-600 text-white py-1.5 text-xs font-medium shadow-sm transition-all hover:-translate-y-0.5 border border-transparent"
                   >
-                    Start Mock
+                    Start Assessment
                   </Link>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
-                {(Array.isArray(interviews) ? interviews : (interviews as any)?.interviews || []).slice(0, 3).map((interview: any) => (
-                  <div
-                    key={interview.id}
+                {recentActivities.map((activity: any) => (
+                  <Link
+                    key={`${activity.kind}:${activity.id}`}
+                    to={activity.href}
                     className="group flex items-center justify-between p-4 rounded-xl border border-border/50 dark:border-white/5 bg-muted/40 dark:bg-background/40 hover:border-primary/30 hover:shadow-md hover:bg-muted/60 dark:hover:bg-white/[0.02] transition-all duration-200"
                   >
                     <div className="flex-1 min-w-0 pr-4">
-                      <h3 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{interview.title || 'Technical Interview'}</h3>
+                      <h3 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{activity.title || 'Technical Interview'}</h3>
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1.5 mb-2">
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {interview.durationMinutes ? `${interview.durationMinutes}m` : '45m'}</span>
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {activity.durationMinutes ? `${activity.durationMinutes}m` : '45m'}</span>
                         <span>•</span>
-                        <span>{interview.createdAt ? new Date(interview.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today'}</span>
+                        <span>{activity.activityAt ? new Date(activity.activityAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today'}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-transparent shadow-sm">
-                          {interview.type || interview.interviewType || 'General'}
+                          {activity.kind === 'assessment' ? 'DSA Assessment' : activity.type || activity.interviewType || 'Interview'}
                         </span>
-                        <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border border-transparent shadow-sm ${interview.status === 'completed' || interview.status === 'COMPLETED'
+                        <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border border-transparent shadow-sm ${activity.status === 'completed' || activity.status === 'COMPLETED'
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                            : interview.status === 'scheduled' || interview.status === 'SCHEDULED'
+                            : activity.status === 'scheduled' || activity.status === 'SCHEDULED'
                               ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                              : activity.status === 'needs_practice'
+                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                               : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                           }`}>
-                          {interview.status?.toLowerCase()}
+                          {activity.status?.toLowerCase().replace(/_/g, ' ')}
                         </span>
                       </div>
                     </div>
-                    {interview.overallScore !== null && interview.overallScore !== undefined && (
+                    {activity.overallScore !== null && activity.overallScore !== undefined && (
                       <div className="text-right shrink-0">
                         <div className="flex items-baseline gap-1 justify-end">
-                          <p className="text-2xl font-bold text-primary group-hover:scale-105 transition-transform origin-right">{interview.overallScore}</p>
+                          <p className="text-2xl font-bold text-primary group-hover:scale-105 transition-transform origin-right">{activity.overallScore}</p>
                           <span className="text-[10px] text-muted-foreground font-medium">/100</span>
                         </div>
                         <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-0.5">score</p>
                       </div>
                     )}
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

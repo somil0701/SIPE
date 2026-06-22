@@ -2,6 +2,7 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/authStore'
 import {
   ApiResponse,
+  AssessmentSession,
   JobMatchAnalysis,
   LearningPath,
   LearningPathInput,
@@ -367,6 +368,30 @@ export const learningPathApi = {
   pause: (id: string) => api.post<void>(`/learning-paths/${id}/pause`),
   resume: (id: string) => api.post<void>(`/learning-paths/${id}/resume`),
   delete: (id: string) => api.delete<void>(`/learning-paths/${id}`),
+}
+
+// ============================================================
+// DSA Assessment API
+// ============================================================
+export const assessmentApi = {
+  getAll: () => api.get<AssessmentSession[]>('/assessments'),
+  getById: (id: string) => api.get<AssessmentSession>(`/assessments/${id}`),
+  create: (data: {
+    learningPathItemId?: string
+    targetSkillId?: string
+    targetCompanyId?: string
+    questionCount?: number
+    durationMinutes?: number
+  } = {}) => api.post<AssessmentSession>('/assessments', data),
+  start: (id: string) => api.post<AssessmentSession>(`/assessments/${id}/start`),
+  run: (id: string, questionId: string, data: { code: string; language: string; input?: string }) =>
+    api.post<any>(`/assessments/${id}/questions/${questionId}/run`, data),
+  submit: (id: string, questionId: string, data: { code: string; language: string; submissionKey: string }) =>
+    api.post<any>(`/assessments/${id}/questions/${questionId}/submit`, data),
+  skip: (id: string, questionId: string) =>
+    api.post<AssessmentSession>(`/assessments/${id}/questions/${questionId}/skip`),
+  complete: (id: string) => api.post<AssessmentSession>(`/assessments/${id}/complete`),
+  abandon: (id: string) => api.post<AssessmentSession>(`/assessments/${id}/abandon`),
 }
 
 // ============================================================

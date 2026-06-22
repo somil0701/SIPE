@@ -4,6 +4,7 @@ jest.mock('../src/config/database', () => {
       findFirst: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+      createMany: jest.fn(),
       count: jest.fn(),
     },
     learningPath: {
@@ -71,22 +72,56 @@ describe('LearningPathService completion integration', () => {
     expect(db.learningPathItem.updateMany).not.toHaveBeenCalled();
   });
 
-  it('does not guess an interview milestone without an exact path item link', async () => {
-    await learningPathService.markInterviewMilestoneCompleted('user-1', 'interview-1');
+  it('does not guess an assessment milestone without an exact path item link', async () => {
+    await learningPathService.markAssessmentMilestoneCompleted('user-1', 'assessment-1', 84);
 
     expect(db.learningPathItem.findFirst).not.toHaveBeenCalled();
   });
 
-  it('completes the exact linked interview milestone once', async () => {
+  it('completes the exact linked assessment milestone once with score evidence', async () => {
     db.learningPathItem.findFirst.mockResolvedValue({ id: 'milestone-1', pathId: 'path-1' });
 
-    await learningPathService.markInterviewMilestoneCompleted('user-1', 'interview-1', 'milestone-1');
+    await learningPathService.markAssessmentMilestoneCompleted('user-1', 'assessment-1', 84, 'milestone-1');
 
     expect(db.learningPathItem.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ id: 'milestone-1', itemType: PathItemType.MILESTONE }),
     }));
     expect(db.learningPathItem.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ id: 'milestone-1' }),
+      data: expect.objectContaining({
+        completionEvidence: expect.objectContaining({ assessmentId: 'assessment-1', score: 84 }),
+      }),
+    }));
+  });
+
+  it('keeps a failed milestone pending and inserts targeted remediation once', async () => {
+    db.learningPathItem.findFirst.mockResolvedValue({ id: 'milestone-1', pathId: 'path-1', orderIndex: 5 });
+    db.learningPathItem.count.mockImplementation(({ where }: any) => {
+      if (where.selectionReason) return Promise.resolve(0);
+      if (where.status === PathItemStatus.COMPLETED) return Promise.resolve(2);
+      if (where.status === PathItemStatus.SKIPPED) return Promise.resolve(0);
+      return Promise.resolve(6);
+    });
+    db.learningPathItem.createMany.mockResolvedValue({ count: 1 });
+    db.learningPathItem.update.mockResolvedValue({});
+
+    await learningPathService.recordAssessmentNeedsPractice(
+      'user-1',
+      'assessment-1',
+      55,
+      'milestone-1',
+      [{ questionId: 'question-1', skillId: 'skill-1', title: 'Two Sum', difficulty: Difficulty.easy }]
+    );
+
+    expect(db.learningPathItem.createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: [expect.objectContaining({ questionId: 'question-1', itemType: PathItemType.REVIEW })],
+    }));
+    expect(db.learningPathItem.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'milestone-1' },
+      data: expect.objectContaining({
+        status: PathItemStatus.PENDING,
+        completionEvidence: expect.objectContaining({ result: 'needs_practice', score: 55 }),
+      }),
     }));
   });
 
@@ -181,5 +216,6 @@ describe('LearningPathService generation', () => {
     });
     expect(preview.items[1].itemType).toBe(PathItemType.QUESTION);
     expect(preview.items.at(-1)?.itemType).toBe(PathItemType.MILESTONE);
+    expect(preview.items.at(-1)?.title).toBe('DSA assessment checkpoint');
   });
 });

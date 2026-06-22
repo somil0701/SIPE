@@ -17,6 +17,7 @@ const ResumePage = lazy(() => import('./pages/ResumePage').then((module) => ({ d
 const SpacedRepetitionPage = lazy(() => import('./pages/SpacedRepetitionPage').then((module) => ({ default: module.SpacedRepetitionPage })))
 const LearningPathPage = lazy(() => import('./pages/LearningPathPage').then((module) => ({ default: module.LearningPathPage })))
 const LearningPathDetailPage = lazy(() => import('./pages/LearningPathDetailPage').then((module) => ({ default: module.LearningPathDetailPage })))
+const AssessmentPage = lazy(() => import('./pages/AssessmentPage').then((module) => ({ default: module.AssessmentPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage })))
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then((module) => ({ default: module.AdminUsersPage })))
@@ -103,6 +104,14 @@ function App() {
           <Route
             path="/learning-path/:id"
             element={isAuthenticated ? <LearningPathDetailPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/assessments"
+            element={isAuthenticated ? <AssessmentPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/assessments/:id"
+            element={isAuthenticated ? <AssessmentPage /> : <Navigate to="/" />}
           />
           <Route
             path="/profile"

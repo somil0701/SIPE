@@ -16,6 +16,7 @@ import {
   X,
   Brain,
   Shield,
+  ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Practice', href: '/practice', icon: Code2 },
+  { name: 'DSA Assessment', href: '/assessments', icon: ShieldCheck },
   { name: 'Mock Interview', href: '/mock-interview', icon: Mic },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Resume', href: '/resume', icon: FileText },
@@ -45,9 +47,9 @@ export function Layout() {
     navigate('/login')
   }
 
-  // Auto-collapse sidebar when viewing a specific question
+  // Auto-collapse sidebar for focused coding workspaces.
   useEffect(() => {
-    if (location.pathname.startsWith('/practice/') && location.pathname !== '/practice') {
+    if ((location.pathname.startsWith('/practice/') && location.pathname !== '/practice') || /^\/assessments\/[^/]+$/.test(location.pathname)) {
       setSidebarCollapsed(true)
       localStorage.setItem('sidebar-collapsed', 'true')
     }

@@ -30,6 +30,7 @@ model User {
   analyticsDaily      AnalyticsDaily[]
   attemptFeedback     AttemptFeedback[]
   attempts            Attempt[]
+  assessmentSessions  AssessmentSession[]
   interviewSessions   InterviewSession[]
   learningPaths       LearningPath[]
   payments            Payment[]
@@ -63,6 +64,7 @@ model Skill {
   updatedAt       DateTime       @updatedAt @map("updated_at")
   learningPaths   LearningPath[]
   questions       Question[]
+  assessmentSessions AssessmentSession[]
   parent          Skill?         @relation("SkillParent", fields: [parentId], references: [id])
   children        Skill[]        @relation("SkillParent")
   userSkills      UserSkill[]
@@ -132,6 +134,7 @@ model Question {
   createdAt              DateTime           @default(now()) @map("created_at")
   updatedAt              DateTime           @updatedAt @map("updated_at")
   attempts               Attempt[]
+  assessmentQuestions    AssessmentQuestion[]
   learningPathItems      LearningPathItem[]
   questionCompanies      QuestionCompany[]
   questionTags           QuestionTag[]
@@ -179,6 +182,7 @@ model Company {
   interviewProcess  String?            @map("interview_process")
   createdAt         DateTime           @default(now()) @map("created_at")
   interviewSessions InterviewSession[]
+  assessmentSessions AssessmentSession[]
   learningPaths     LearningPath[]
   questionCompanies QuestionCompany[]
 
@@ -215,12 +219,17 @@ model Attempt {
   submittedAt        DateTime                 @default(now()) @map("submitted_at")
   isPractice         Boolean                  @default(true) @map("is_practice")
   interviewSessionId String?                  @map("interview_session_id")
+  assessmentSessionId String?                 @map("assessment_session_id")
+  assessmentQuestionId String?                @map("assessment_question_id")
+  submissionKey      String?                  @map("submission_key")
   attemptNumber      Int                      @default(1) @map("attempt_number")
   previousAttemptId  String?                  @map("previous_attempt_id")
   feedback           AttemptFeedback?
   attemptTestCases   AttemptTestCase[]
   question           Question                 @relation(fields: [questionId], references: [id], onDelete: Cascade)
   user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessmentSession  AssessmentSession?       @relation(fields: [assessmentSessionId], references: [id], onDelete: SetNull)
+  assessmentQuestion AssessmentQuestion?      @relation(fields: [assessmentQuestionId], references: [id], onDelete: SetNull)
   learningPathItems  LearningPathItem[]
   spacedRepReviews   SpacedRepetitionReview[]
 
@@ -229,6 +238,9 @@ model Attempt {
   @@index([status])
   @@index([submittedAt])
   @@index([userId, questionId])
+  @@index([assessmentSessionId])
+  @@index([assessmentQuestionId])
+  @@unique([assessmentQuestionId, submissionKey])
   @@map("attempts")
 }
 
@@ -282,7 +294,7 @@ model InterviewSession {
   interviewType       InterviewType       @map("interview_type")
   difficulty          Difficulty          @default(medium)
   targetCompanyId     String?             @map("target_company_id")
-  learningPathItemId  String?             @unique @map("learning_path_item_id")
+  legacyLearningPathItemId String?         @unique @map("learning_path_item_id")
   scheduledAt         DateTime?           @map("scheduled_at")
   startedAt           DateTime?           @map("started_at")
   endedAt             DateTime?           @map("ended_at")
@@ -301,7 +313,6 @@ model InterviewSession {
   updatedAt           DateTime            @updatedAt @map("updated_at")
   interviewQuestions  InterviewQuestion[]
   targetCompany       Company?            @relation(fields: [targetCompanyId], references: [id])
-  learningPathItem    LearningPathItem?   @relation(fields: [learningPathItemId], references: [id], onDelete: SetNull)
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -417,13 +428,71 @@ model LearningPathItem {
   attemptId        String?        @map("attempt_id")
   createdAt        DateTime       @default(now()) @map("created_at")
   attempt          Attempt?       @relation(fields: [attemptId], references: [id])
-  interviewSession InterviewSession?
+  assessmentSessions AssessmentSession[]
   learningPath     LearningPath   @relation(fields: [pathId], references: [id], onDelete: Cascade)
   question         Question?      @relation(fields: [questionId], references: [id])
 
   @@map("learning_path_items")
   @@index([pathId, orderIndex])
   @@index([pathId, status])
+}
+
+model AssessmentSession {
+  id                 String             @id @default(uuid())
+  userId             String             @map("user_id")
+  learningPathItemId String?            @map("learning_path_item_id")
+  targetSkillId      String?            @map("target_skill_id")
+  targetCompanyId    String?            @map("target_company_id")
+  questionCount      Int                @default(3) @map("question_count")
+  durationMinutes    Int                @default(60) @map("duration_minutes")
+  passingThreshold   Int                @default(70) @map("passing_threshold")
+  status             AssessmentStatus   @default(SCHEDULED)
+  startedAt          DateTime?          @map("started_at")
+  expiresAt          DateTime?          @map("expires_at")
+  completedAt        DateTime?          @map("completed_at")
+  overallScore       Int?               @map("overall_score")
+  result             Json?
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningPathItem   LearningPathItem?   @relation(fields: [learningPathItemId], references: [id], onDelete: SetNull)
+  targetSkill        Skill?              @relation(fields: [targetSkillId], references: [id], onDelete: SetNull)
+  targetCompany      Company?            @relation(fields: [targetCompanyId], references: [id], onDelete: SetNull)
+  questions          AssessmentQuestion[]
+  attempts           Attempt[]
+
+  @@index([userId, status])
+  @@index([learningPathItemId, status])
+  @@map("assessment_sessions")
+}
+
+model AssessmentQuestion {
+  id                  String                   @id @default(uuid())
+  assessmentSessionId String                   @map("assessment_session_id")
+  questionId          String                   @map("question_id")
+  orderIndex          Int                      @map("order_index")
+  status              AssessmentQuestionStatus @default(PENDING)
+  startedAt           DateTime?                @map("started_at")
+  completedAt         DateTime?                @map("completed_at")
+  submittedCode       String?                  @map("submitted_code")
+  language            String?
+  timeSpentSeconds    Int                      @default(0) @map("time_spent_seconds")
+  testCasesPassed     Int                      @default(0) @map("test_cases_passed")
+  testCasesTotal      Int                      @default(0) @map("test_cases_total")
+  verdict             AttemptStatus?
+  correctnessScore    Float                    @default(0) @map("correctness_score")
+  timeEfficiencyScore Float                    @default(0) @map("time_efficiency_score")
+  weightedScore       Float                    @default(0) @map("weighted_score")
+  createdAt           DateTime                 @default(now()) @map("created_at")
+  updatedAt           DateTime                 @updatedAt @map("updated_at")
+  assessmentSession   AssessmentSession        @relation(fields: [assessmentSessionId], references: [id], onDelete: Cascade)
+  question            Question                 @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  attempts            Attempt[]
+
+  @@unique([assessmentSessionId, questionId])
+  @@unique([assessmentSessionId, orderIndex])
+  @@index([assessmentSessionId, status])
+  @@map("assessment_questions")
 }
 
 model SpacedRepetition {
@@ -609,6 +678,22 @@ enum InterviewStatus {
   COMPLETED   @map("completed")
   CANCELLED   @map("cancelled")
   ABANDONED   @map("abandoned")
+}
+
+enum AssessmentStatus {
+  SCHEDULED      @map("scheduled")
+  IN_PROGRESS    @map("in_progress")
+  COMPLETED      @map("completed")
+  NEEDS_PRACTICE @map("needs_practice")
+  ABANDONED      @map("abandoned")
+}
+
+enum AssessmentQuestionStatus {
+  PENDING
+  IN_PROGRESS @map("in_progress")
+  SUBMITTED
+  SKIPPED
+  UNANSWERED
 }
 
 enum PathStatus {

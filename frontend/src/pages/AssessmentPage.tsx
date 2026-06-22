@@ -25,6 +25,7 @@ import { AssessmentQuestion, AssessmentSession, LearningPathOptions } from '../t
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { ErrorState, LoadingState } from '../components/StateFeedback'
+import { primaryActionClass } from '../lib/themeStyles'
 
 const LANGUAGES = [
   { id: 'javascript', name: 'JavaScript' },
@@ -178,7 +179,7 @@ function CreateAssessmentDialog({
 
         <div className="mt-6 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
-          <button type="button" onClick={submit} disabled={creating || missingTarget} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+          <button type="button" onClick={submit} disabled={creating || missingTarget} className={`${primaryActionClass} inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium`}>
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Create assessment
           </button>
         </div>
@@ -208,7 +209,7 @@ function AssessmentList({
           <h1 className="text-3xl font-bold tracking-tight">Timed DSA Assessments</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">Choose Mixed DSA, a specific skill, or a company-focused assessment. Judge results determine the score.</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-primary-foreground"><Play className="h-4 w-4" /> New assessment</button>
+        <button onClick={() => setShowCreate(true)} className={`${primaryActionClass} inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium`}><Play className="h-4 w-4" /> New assessment</button>
       </header>
 
       {assessments.length === 0 ? (
@@ -454,7 +455,7 @@ function AssessmentWorkspace({ assessment }: { assessment: AssessmentSession }) 
             {isViewingCurrent ? <div className="grid grid-cols-3 gap-2 sm:flex">
               <button type="button" onClick={handleRun} disabled={busy || !currentCode.trim()} className="flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">{runMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Run</button>
               <button type="button" onClick={() => skipMutation.mutate()} disabled={busy} className="flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"><SkipForward className="h-4 w-4" /> Skip</button>
-              <button type="button" onClick={handleSubmit} disabled={busy || !currentCode.trim()} className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 border border-blue-600 disabled:opacity-50">{submitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit</button>
+              <button type="button" onClick={handleSubmit} disabled={busy || !currentCode.trim()} className={`${primaryActionClass} flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium`}>{submitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit</button>
             </div> : <button type="button" onClick={() => viewQuestion(firstActive)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 border border-blue-600"><ArrowRight className="h-4 w-4" /> Return to unanswered question</button>}
           </div>
         </div>

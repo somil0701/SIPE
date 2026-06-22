@@ -19,6 +19,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTo
 import { dashboardApi, analyticsApi } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
+import { primaryActionClass, progressFillClass } from '../lib/themeStyles'
 
 export function DashboardPage() {
   const { user } = useAuthStore()
@@ -30,13 +31,22 @@ export function DashboardPage() {
     isError: isDashboardError,
     refetch: refetchDashboard,
   } = useQuery({
-    queryKey: ['dashboard-summary-v3'],
+    queryKey: ['dashboard', user?.id],
     queryFn: () => dashboardApi.getSummary(),
+    enabled: Boolean(user?.id),
+    staleTime: 0,
   })
 
-  const { data: dailyActivity } = useQuery({
-    queryKey: ['dashboard-daily-activity'],
+  const {
+    data: dailyActivity,
+    isLoading: isDailyActivityLoading,
+    isError: isDailyActivityError,
+    refetch: refetchDailyActivity,
+  } = useQuery({
+    queryKey: ['dashboard', user?.id, 'daily-activity', 7],
     queryFn: () => analyticsApi.getDaily(7),
+    enabled: Boolean(user?.id),
+    staleTime: 0,
   })
 
   const analytics = dashboard?.analytics
@@ -83,15 +93,10 @@ export function DashboardPage() {
         if (day.activity > 0) hasChartData = true
       }
     })
-  } else if (!dailyActivity) {
-    // If undefined/mock mode, add some dummy data to make it look alive
-    last7Days.forEach((day, i) => {
-      day.activity = [2, 5, 3, 7, 4, 6, 2][i]
-    })
-    hasChartData = true
   }
 
   const chartData = last7Days
+  const solvedToday = chartData[chartData.length - 1]?.activity || 0
 
   const totalTimeSpent = analytics?.totalTimeSpent || 0
   const hours = Math.floor(totalTimeSpent / 3600)
@@ -106,8 +111,8 @@ export function DashboardPage() {
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-100 dark:bg-green-900/30',
       subtext: 'Total problems completed',
-      trend: '+2 today',
-      trendUp: true
+      trend: solvedToday > 0 ? `+${solvedToday} today` : undefined,
+      trendUp: solvedToday > 0
     },
     {
       name: 'Accuracy Rate',
@@ -116,8 +121,8 @@ export function DashboardPage() {
       color: 'text-blue-600 dark:text-blue-400',
       bgColor: 'bg-blue-100 dark:bg-blue-900/30',
       subtext: 'Lifetime average',
-      trend: 'Top 10%',
-      trendUp: true
+      trend: undefined,
+      trendUp: false
     },
     {
       name: 'Current Streak',
@@ -126,8 +131,8 @@ export function DashboardPage() {
       color: 'text-orange-600 dark:text-orange-400',
       bgColor: 'bg-orange-100 dark:bg-orange-900/30',
       subtext: `Best streak: ${analytics?.longestStreak || 0} days`,
-      trend: 'Active',
-      trendUp: true
+      trend: analytics?.currentStreak > 0 ? 'Active' : undefined,
+      trendUp: analytics?.currentStreak > 0
     },
     {
       name: 'Study Time',
@@ -136,7 +141,7 @@ export function DashboardPage() {
       color: 'text-purple-600 dark:text-purple-400',
       bgColor: 'bg-purple-100 dark:bg-purple-900/30',
       subtext: totalTimeSpent > 0 ? 'Total time invested' : 'No study time logged yet',
-      trend: 'This week',
+      trend: 'All time',
       trendUp: false
     },
   ]
@@ -153,7 +158,7 @@ export function DashboardPage() {
     {
       name: 'Mock Interview',
       description: 'Practice with AI-powered mock interviews',
-      hint: `${interviews.length || 0} completed`,
+      hint: `${dashboard?.completedInterviewCount || 0} completed`,
       icon: Mic,
       href: '/mock-interview',
       color: 'bg-green-500',
@@ -175,8 +180,6 @@ export function DashboardPage() {
       color: 'bg-orange-500',
     },
   ]
-
-  const fallbackTags = ['Arrays', 'Two Pointers', 'Dynamic Prog.', 'Prefix Sum']
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -355,7 +358,23 @@ export function DashboardPage() {
             </h2>
           </div>
           <div className="p-4 flex-1 flex flex-col justify-end min-h-[180px]">
-            {hasChartData ? (
+            {isDailyActivityLoading ? (
+              <LoadingState message="Loading activity..." bordered={false} />
+            ) : isDailyActivityError ? (
+              <ErrorState
+                title="Unable to load activity"
+                bordered={false}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => refetchDailyActivity()}
+                    className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    Retry
+                  </button>
+                }
+              />
+            ) : hasChartData ? (
               <ResponsiveContainer width="100%" height="100%" minHeight={150}>
                 <BarChart data={chartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                   <defs>
@@ -506,7 +525,7 @@ export function DashboardPage() {
                       <p className="text-[10px] text-muted-foreground font-medium">{activePathProgress}%</p>
                     </div>
                     <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full" style={{ width: `${activePathProgress}%` }} />
+                      <div className={`${progressFillClass} h-full rounded-full`} style={{ width: `${activePathProgress}%` }} />
                     </div>
                   </div>
                 </div>
@@ -514,7 +533,7 @@ export function DashboardPage() {
                 <div className="mt-auto pt-2 shrink-0">
                   <Link
                     to={`/learning-path/${activeLearningPath.id}`}
-                    className="flex items-center justify-center w-full gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white py-2 text-sm font-medium shadow-sm transition-all border border-transparent"
+                    className={`${primaryActionClass} flex w-full items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium hover:-translate-y-0.5`}
                   >
                     Continue Path <ChevronRight className="h-4 w-4" />
                   </Link>
@@ -527,7 +546,7 @@ export function DashboardPage() {
               />
             ) : (
               <div className="space-y-3">
-                {(Array.isArray(recommendedQuestions) ? recommendedQuestions : []).map((question: any, i) => (
+                {(Array.isArray(recommendedQuestions) ? recommendedQuestions : []).map((question: any) => (
                   <Link
                     key={question.id}
                     to={`/practice/${question.slug}`}
@@ -537,7 +556,7 @@ export function DashboardPage() {
                       <h3 className="text-sm font-semibold group-hover:text-primary transition-colors truncate">{question.title}</h3>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full difficulty-${question.difficulty?.toLowerCase() || 'medium'}`}>
-                          {question.difficulty || 'Medium'}
+                          {question.difficulty}
                         </span>
 
                         {/* Tags Display */}
@@ -546,16 +565,19 @@ export function DashboardPage() {
                             <span key={tag} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-600 dark:text-slate-400">
                               {tag}
                             </span>
-                          )) || (
+                          ))}
+                          {(!question.tags || question.tags.length === 0) && question.topic?.name && (
                               <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-600 dark:text-slate-400">
-                                {question.topic?.name || fallbackTags[i % fallbackTags.length]}
+                                {question.topic.name}
                               </span>
                             )}
                         </div>
 
-                        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 ml-auto sm:ml-2 shrink-0">
-                          <Target className="h-3 w-3" /> {question.acceptanceRate || 0}%
-                        </span>
+                        {typeof question.acceptanceRate === 'number' && (
+                          <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 ml-auto sm:ml-2 shrink-0">
+                            <Target className="h-3 w-3" /> {question.acceptanceRate}%
+                          </span>
+                        )}
                       </div>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
@@ -613,7 +635,7 @@ export function DashboardPage() {
                   <p className="text-[11px] text-muted-foreground mb-3 leading-snug">Data Structures & Algorithms - Core Patterns</p>
                   <Link
                     to="/assessments"
-                    className="flex items-center justify-center w-full gap-2 rounded-md bg-black hover:bg-black/90 dark:bg-none dark:bg-gradient-to-r dark:from-indigo-600/80 dark:to-purple-600/80 dark:hover:from-indigo-600 dark:hover:to-purple-600 text-white py-1.5 text-xs font-medium shadow-sm transition-all hover:-translate-y-0.5 border border-transparent"
+                    className={`${primaryActionClass} flex w-full items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-medium hover:-translate-y-0.5`}
                   >
                     Start Assessment
                   </Link>
@@ -628,11 +650,15 @@ export function DashboardPage() {
                     className="group flex items-center justify-between p-4 rounded-xl border border-border/50 dark:border-white/5 bg-muted/40 dark:bg-background/40 hover:border-primary/30 hover:shadow-md hover:bg-muted/60 dark:hover:bg-white/[0.02] transition-all duration-200"
                   >
                     <div className="flex-1 min-w-0 pr-4">
-                      <h3 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{activity.title || 'Technical Interview'}</h3>
+                      <h3 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{activity.title}</h3>
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1.5 mb-2">
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {activity.durationMinutes ? `${activity.durationMinutes}m` : '45m'}</span>
-                        <span>•</span>
-                        <span>{activity.activityAt ? new Date(activity.activityAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today'}</span>
+                        {activity.durationMinutes != null && (
+                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {activity.durationMinutes}m</span>
+                        )}
+                        {activity.durationMinutes != null && activity.activityAt && <span>•</span>}
+                        {activity.activityAt && (
+                          <span>{new Date(activity.activityAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-transparent shadow-sm">

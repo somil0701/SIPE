@@ -4,6 +4,7 @@ import {
   InterviewType as PrismaInterviewType,
 } from '@prisma/client';
 import { prisma } from '../config/database';
+import { cache, cacheKeys } from '../config/redis';
 import { logger } from '../config/logger';
 import { ApiError } from '../middleware/errorHandler';
 import { aiService } from './ai.service';
@@ -56,6 +57,7 @@ class InterviewService {
 
     logger.info('Interview session created', { interviewId: interview.id, userId });
 
+    await cache.del(cacheKeys.dashboard(interview.userId));
     return serializeInterview(interview) as unknown as InterviewSession;
   }
 
@@ -86,6 +88,7 @@ class InterviewService {
     // Generate first question
     await this.generateNextQuestion(interviewId, userId);
 
+    await cache.del(cacheKeys.dashboard(userId));
     return serializeInterview(updated) as unknown as InterviewSession;
   }
 
@@ -368,6 +371,7 @@ class InterviewService {
 
     logger.info('Interview completed', { interviewId, overallScore });
 
+    await cache.del(cacheKeys.dashboard(interview.userId));
     return serializeInterview(updated) as unknown as InterviewSession;
   }
 
@@ -470,6 +474,8 @@ class InterviewService {
       where: { id: interviewId },
       data: { status: PrismaInterviewStatus.CANCELLED },
     });
+
+    await cache.del(cacheKeys.dashboard(userId));
 
     logger.info('Interview cancelled', { interviewId });
   }

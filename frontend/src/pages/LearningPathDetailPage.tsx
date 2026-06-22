@@ -21,6 +21,7 @@ import {
 import { learningPathApi } from '../services/api'
 import { LearningPathItem } from '../types'
 import { ErrorState, LoadingState } from '../components/StateFeedback'
+import { primaryActionClass, progressFillClass } from '../lib/themeStyles'
 
 function formatDate(value?: string) {
   if (!value) return 'Not scheduled'
@@ -131,7 +132,7 @@ export function LearningPathDetailPage() {
 
         <div className="mt-6 border-t pt-5">
           <div className="mb-2 flex items-center justify-between text-sm"><span className="text-muted-foreground">Plan completion</span><span className="font-semibold">{path.completedItems} / {path.totalItems} tasks · {Math.round(path.progressPercentage)}%</span></div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${path.progressPercentage}%` }} /></div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-muted"><div className={`${progressFillClass} h-full rounded-full transition-[width]`} style={{ width: `${path.progressPercentage}%` }} /></div>
           <p className="mt-2 text-xs text-muted-foreground">Completion reflects verified submissions, reviews, and interview checkpoints—not just opened tasks.</p>
         </div>
       </header>
@@ -141,7 +142,7 @@ export function LearningPathDetailPage() {
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">Continue where you left off</p>
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div><h2 className="text-lg font-semibold">{nextItem.title || nextItem.question?.title}</h2><p className="mt-1 text-sm text-muted-foreground">{nextItem.phase} · {nextItem.estimatedMinutes || 30} minutes</p></div>
-            <button onClick={() => startItem(nextItem)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">{nextItem.status === 'in_progress' ? 'Continue' : 'Start task'}<ArrowRight className="h-4 w-4" /></button>
+            <button onClick={() => startItem(nextItem)} className={`${primaryActionClass} inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium`}>{nextItem.status === 'in_progress' ? 'Continue' : 'Start task'}<ArrowRight className="h-4 w-4" /></button>
           </div>
         </section>
       )}
@@ -167,7 +168,7 @@ export function LearningPathDetailPage() {
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2 pl-8 sm:pl-0">
-                        {!completed && item.status !== 'skipped' && path.status === 'active' && <button onClick={() => startItem(item)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${current ? 'bg-primary text-primary-foreground' : 'border hover:bg-muted'}`}>{item.itemType === 'milestone' ? 'Start interview' : item.status === 'in_progress' ? 'Continue' : 'Start'}<ExternalLink className="h-3.5 w-3.5" /></button>}
+                        {!completed && item.status !== 'skipped' && path.status === 'active' && <button onClick={() => startItem(item)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${current ? primaryActionClass : 'border hover:bg-muted'}`}>{item.itemType === 'milestone' ? 'Start interview' : item.status === 'in_progress' ? 'Continue' : 'Start'}<ExternalLink className="h-3.5 w-3.5" /></button>}
                         {!completed && item.status !== 'skipped' && path.status === 'active' && <button onClick={() => updateItemMutation.mutate({ itemId: item.id, status: 'skipped' })} className="rounded-lg px-2 py-2 text-xs text-muted-foreground hover:bg-muted">Skip</button>}
                         {item.status === 'skipped' && path.status === 'active' && <button onClick={() => updateItemMutation.mutate({ itemId: item.id, status: 'pending' })} className="rounded-lg border px-3 py-2 text-sm hover:bg-muted">Restore</button>}
                         {completed && item.question?.slug && <Link to={`/practice/${item.question.slug}`} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm hover:bg-muted">View solution <ExternalLink className="h-3.5 w-3.5" /></Link>}

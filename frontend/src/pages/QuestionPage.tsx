@@ -24,6 +24,7 @@ import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { initVimMode } from 'monaco-vim'
 import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
+import { primaryActionClass } from '../lib/themeStyles'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
@@ -828,7 +829,7 @@ export function QuestionPage() {
                 onClick={handleSubmit}
                 disabled={submitMutation.isPending || !code.trim()}
                 title="Submit (Ctrl/⌘+Enter)"
-                className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 border border-blue-600 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className={`${primaryActionClass} flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
               >
                 {submitMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

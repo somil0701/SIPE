@@ -13,9 +13,15 @@ const DASHBOARD_CACHE_TTL_SECONDS = 60;
 
 function isCurrentDashboardCache(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
-  const dashboard = value as { today?: unknown; recentAssessments?: unknown; activeLearningPath?: unknown };
+  const dashboard = value as {
+    today?: unknown;
+    recentAssessments?: unknown;
+    activeLearningPath?: unknown;
+    completedInterviewCount?: unknown;
+  };
   if (!Array.isArray(dashboard.today)) return false;
   if (!Array.isArray(dashboard.recentAssessments)) return false;
+  if (typeof dashboard.completedInterviewCount !== 'number') return false;
   if (!dashboard.activeLearningPath) return true;
   if (typeof dashboard.activeLearningPath !== 'object') return false;
 
@@ -78,6 +84,7 @@ router.get(
       analytics,
       recommendedQuestions,
       recentInterviews,
+      completedInterviewCount,
       recentAssessments,
       spacedRepetition,
       today,
@@ -86,6 +93,9 @@ router.get(
       analyticsService.getUserAnalytics(userId),
       questionService.getRecommendedQuestions(userId, 3),
       interviewService.getUserInterviews(userId, { limit: 3 }),
+      prisma.interviewSession.count({
+        where: { userId, status: 'COMPLETED' },
+      }),
       prisma.assessmentSession.findMany({
         where: { userId },
         select: {
@@ -138,6 +148,7 @@ router.get(
       analytics,
       recommendedQuestions: activeLearningPath ? [] : recommendedQuestions,
       recentInterviews: recentInterviews.interviews,
+      completedInterviewCount,
       recentAssessments: recentAssessments.map((assessment) => ({
         id: assessment.id,
         title: `${assessment.targetCompany?.name || assessment.targetSkill?.name || 'Mixed DSA'} Assessment`,

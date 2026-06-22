@@ -21,6 +21,7 @@ import {
 import { learningPathApi } from '../services/api'
 import { LearningPath, LearningPathInput, LearningPathPreview } from '../types'
 import { EmptyState, ErrorState, LoadingState } from '../components/StateFeedback'
+import { primaryActionClass, progressFillClass } from '../lib/themeStyles'
 
 type FormState = {
   name: string
@@ -208,7 +209,7 @@ export function LearningPathPage() {
             <span className="font-semibold">{Math.round(path.progressPercentage)}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-[width]" style={{ width: `${path.progressPercentage}%` }} />
+            <div className={`${progressFillClass} h-full rounded-full transition-[width]`} style={{ width: `${path.progressPercentage}%` }} />
           </div>
         </div>
 
@@ -239,7 +240,7 @@ export function LearningPathPage() {
                   <span className="text-indigo-500/90 dark:text-indigo-400/90">Due today</span>
                 </p>
               </div>
-              <Link to={`/learning-path/${path.id}`} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-3 py-1.5 text-xs font-medium transition-all border border-transparent shadow-sm shrink-0">
+              <Link to={`/learning-path/${path.id}`} className={`${primaryActionClass} inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium`}>
                 Continue <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
@@ -262,7 +263,7 @@ export function LearningPathPage() {
                     <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-medium">{nextItem.phase || 'Practice'}</span>
                     <span className="text-[10px] bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 px-1.5 py-0.5 rounded-md font-medium">Core Concepts</span>
                   </div>
-                  <Link to={`/learning-path/${path.id}`} className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-all duration-200 opacity-0 group-hover:opacity-100 focus-visible:opacity-100">
+                  <Link to={`/learning-path/${path.id}`} className={`${primaryActionClass} inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}>
                     Continue <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
@@ -288,14 +289,14 @@ export function LearningPathPage() {
           <h1 className="mt-1 text-3xl font-bold tracking-tight">Learning Paths</h1>
           <p className="mt-1 text-muted-foreground">A plan that changes with what you solve, miss, and review.</p>
         </div>
-        <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white transition-all border border-transparent shadow-sm px-4 py-2.5 text-sm font-medium">
+        <button onClick={() => setShowCreateModal(true)} className={`${primaryActionClass} inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium`}>
           <Plus className="h-4 w-4" /> Create path
         </button>
       </header>
 
       {pathsQuery.isLoading ? <LoadingState message="Loading learning paths..." />
         : pathsQuery.isError ? <ErrorState title="Unable to load learning paths" action={<button onClick={() => pathsQuery.refetch()} className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">Retry</button>} />
-        : paths.length === 0 ? <EmptyState title="Build your first focused plan" message="Choose a goal and SIPE will turn your performance into a paced sequence of practice, reviews, and checkpoints." icon={<MapIcon className="h-12 w-12 text-muted-foreground" />} action={<button onClick={() => setShowCreateModal(true)} className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">Create learning path</button>} />
+        : paths.length === 0 ? <EmptyState title="Build your first focused plan" message="Choose a goal and SIPE will turn your performance into a paced sequence of practice, reviews, and checkpoints." icon={<MapIcon className="h-12 w-12 text-muted-foreground" />} action={<button onClick={() => setShowCreateModal(true)} className={`${primaryActionClass} rounded-lg px-4 py-2 text-sm font-medium`}>Create learning path</button>} />
         : (
           <>
             {activePath && <section><h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Current path</h2>{pathCard(activePath, true)}</section>}
@@ -348,7 +349,7 @@ export function LearningPathPage() {
             <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-card px-6 py-4">
               {preview && <button onClick={() => setPreview(null)} className="rounded-lg border px-4 py-2 text-sm hover:bg-muted">Back</button>}
               {!preview ? <button disabled={!formValid || previewMutation.isPending} onClick={() => previewMutation.mutate()} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">{previewMutation.isPending ? 'Building plan…' : 'Preview plan'}</button>
-                : <button disabled={createMutation.isPending} onClick={() => createMutation.mutate()} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">{createMutation.isPending ? 'Creating…' : 'Create path'}</button>}
+                : <button disabled={createMutation.isPending} onClick={() => createMutation.mutate()} className={`${primaryActionClass} rounded-lg px-4 py-2 text-sm font-medium`}>{createMutation.isPending ? 'Creating…' : 'Create path'}</button>}
             </div>
           </div>
         </div>

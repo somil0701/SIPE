@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { User, AuthTokens } from '../types'
+import { queryClient } from '../lib/queryClient'
 
 interface AuthState {
   user: User | null
@@ -21,19 +22,26 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isHydrated: false,
 
-      setAuth: (user, tokens) =>
+      setAuth: (user, tokens) => {
+        const previousUserId = useAuthStore.getState().user?.id
+        if (previousUserId !== user.id) {
+          queryClient.removeQueries()
+        }
         set({
           user,
           tokens,
           isAuthenticated: true,
-        }),
+        })
+      },
 
-      logout: () =>
+      logout: () => {
+        queryClient.removeQueries()
         set({
           user: null,
           tokens: null,
           isAuthenticated: false,
-        }),
+        })
+      },
 
       updateUser: (userData) =>
         set((state) => ({

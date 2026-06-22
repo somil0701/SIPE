@@ -376,6 +376,7 @@ class AnalyticsService {
 
     // Invalidate cache
     await cache.del(cacheKeys.userAnalytics(userId));
+    await cache.del(cacheKeys.dashboard(userId));
   }
 
   /**

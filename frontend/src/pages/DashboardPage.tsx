@@ -12,7 +12,8 @@ import {
   Zap,
   BookOpen,
   Activity as ActivityIcon,
-  Crown
+  Crown,
+  Check
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, CartesianGrid } from 'recharts'
 import { dashboardApi, analyticsApi } from '../services/api'
@@ -450,58 +451,81 @@ export function DashboardPage() {
                   </button>
                 }
               />
-            ) : !recommendedQuestions || (Array.isArray(recommendedQuestions) && recommendedQuestions.length === 0) ? (
-              activeLearningPath ? (
-                <div className="flex flex-col h-full bg-muted/20 dark:bg-background/40 rounded-xl border border-dashed border-border/60 dark:border-white/10 p-4 hover:border-primary/30 transition-colors">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary shadow-sm shrink-0">
-                        <Target className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-foreground text-sm leading-none">{activeLearningPath.name}</h3>
-                        <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1.5">
-                          <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {activeLearningPath.completedItems} of {activeLearningPath.totalItems} tasks</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {activePathNextItem?.estimatedMinutes || 30}m next</span>
-                        </p>
-                      </div>
+            ) : activeLearningPath ? (
+              <div className="flex flex-col h-full bg-muted/20 dark:bg-background/40 rounded-xl border border-dashed border-border/60 dark:border-white/10 p-4 hover:border-primary/30 transition-colors">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary shadow-sm shrink-0">
+                      <Target className="h-5 w-5" />
                     </div>
-                  </div>
-
-                  <div className="bg-background rounded-lg p-3 border shadow-sm mb-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-semibold text-foreground truncate mr-2">Up Next: {activePathNextItem?.title || activePathNextItem?.question?.title || 'No pending task'}</span>
-                      {activePathNextItem && <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">{String(activePathNextItem.status).replace(/_/g, ' ')}</span>}
+                    <div>
+                      <h3 className="font-semibold text-foreground text-sm leading-none">{activeLearningPath.name}</h3>
+                      <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                        <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {activeLearningPath.completedItems} of {activeLearningPath.totalItems} tasks</span>
+                        {activeLearningPath.weeklyStudyMinutes && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {Math.round(activeLearningPath.weeklyStudyMinutes / 60)}h weekly target</span>
+                          </>
+                        )}
+                      </p>
                     </div>
-                    <div className="w-full bg-secondary h-1.5 rounded-full mt-2 overflow-hidden">
-                      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full" style={{ width: `${activePathProgress}%` }} />
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <p className="text-[10px] text-muted-foreground font-medium">{activePathProgress}% completed</p>
-                      <div className="flex gap-1">
-                        {Array.from({ length: 4 }).map((_, index) => (
-                          <span key={index} className={`h-1.5 w-4 rounded-full ${activePathProgress >= (index + 1) * 25 ? 'bg-green-500' : 'bg-secondary'}`} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-auto pt-2">
-                    <Link
-                      to={`/learning-path/${activeLearningPath.id}`}
-                      className="flex items-center justify-center w-full gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white py-2 text-xs font-medium shadow-sm transition-all border border-transparent"
-                    >
-                      Continue Path <ChevronRight className="h-3.5 w-3.5" />
-                    </Link>
                   </div>
                 </div>
-              ) : (
-                <EmptyState
-                  message="No recommendations yet. Start practicing to get personalized suggestions!"
-                  bordered={false}
-                />
-              )
+
+                <div className="flex-1 min-h-0 mb-4 flex flex-col">
+                  {/* Tasks List as a roadmap */}
+                  <div className="flex-1 overflow-y-auto pr-2 space-y-0 relative before:absolute before:inset-0 before:ml-[15px] before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-border before:via-border/50 before:to-transparent">
+                    {activeLearningPath.pathItems?.map((item: any, index: number) => {
+                      const isCompleted = item.status === 'COMPLETED' || item.status === 'SKIPPED';
+                      return (
+                        <div key={item.id} className="relative flex items-center gap-3 py-2">
+                          <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 border-2 z-10 bg-background ${isCompleted ? 'border-primary text-primary' : 'border-border text-muted-foreground'}`}>
+                            {isCompleted ? <Check className="h-4 w-4" /> : <span className="text-xs font-semibold">{index + 1}</span>}
+                          </div>
+                          <div className={`flex-1 min-w-0 bg-background rounded-lg p-2 border shadow-sm transition-colors ${item.status === 'IN_PROGRESS' ? 'border-primary/50 bg-primary/5' : 'border-border/50'}`}>
+                             <div className="flex justify-between items-start mb-1">
+                               <p className="text-xs font-semibold text-foreground truncate mr-2">{item.title || item.question?.title}</p>
+                               <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">{String(item.status).replace(/_/g, ' ')}</span>
+                             </div>
+                             <p className="text-[10px] text-muted-foreground">{item.estimatedMinutes}m • {item.phase}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {(!activeLearningPath.pathItems || activeLearningPath.pathItems.length === 0) && (
+                      <div className="text-sm text-muted-foreground text-center py-4 relative z-10 bg-background/80 rounded-lg">
+                        All caught up! Next tasks will appear soon.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Progress Bar under the roadmap */}
+                  <div className="mt-4 bg-background rounded-lg p-3 border shadow-sm shrink-0">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-semibold text-foreground">Overall Progress</span>
+                      <p className="text-[10px] text-muted-foreground font-medium">{activePathProgress}%</p>
+                    </div>
+                    <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full" style={{ width: `${activePathProgress}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-auto pt-2 shrink-0">
+                  <Link
+                    to={`/learning-path/${activeLearningPath.id}`}
+                    className="flex items-center justify-center w-full gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white py-2 text-sm font-medium shadow-sm transition-all border border-transparent"
+                  >
+                    Continue Path <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              </div>
+            ) : (!recommendedQuestions || (Array.isArray(recommendedQuestions) && recommendedQuestions.length === 0)) ? (
+              <EmptyState
+                message="No recommendations yet. Start practicing to get personalized suggestions!"
+                bordered={false}
+              />
             ) : (
               <div className="space-y-3">
                 {(Array.isArray(recommendedQuestions) ? recommendedQuestions : []).map((question: any, i) => (

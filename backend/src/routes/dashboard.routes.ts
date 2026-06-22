@@ -112,6 +112,8 @@ router.get(
           completedItems: true,
           progressPercentage: true,
           estimatedHours: true,
+          weeklyStudyMinutes: true,
+          targetCompletionDate: true,
           pathItems: {
             where: { status: { in: ['PENDING', 'IN_PROGRESS'] } },
             select: {
@@ -125,7 +127,7 @@ router.get(
               question: { select: { title: true, slug: true, difficulty: true } },
             },
             orderBy: [{ scheduledDate: 'asc' }, { orderIndex: 'asc' }],
-            take: 1,
+            take: 3,
           },
         },
         orderBy: { updatedAt: 'desc' },

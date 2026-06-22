@@ -60,7 +60,6 @@ export function DashboardPage() {
   )).slice(0, 4)
   const today = dashboard?.today || []
   const activeLearningPath = dashboard?.activeLearningPath
-  const activePathNextItem = activeLearningPath?.pathItems?.[0]
   const activePathProgress = Math.round(activeLearningPath?.progressPercentage || 0)
 
   // Generate last 7 days array

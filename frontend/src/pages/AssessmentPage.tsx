@@ -4,6 +4,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import { initVimMode } from 'monaco-vim'
 import toast from 'react-hot-toast'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import {
   AlertTriangle,
   ArrowRight,
@@ -330,35 +332,139 @@ function AssessmentList({
 
 function AssessmentResults({ assessment }: { assessment: AssessmentSession }) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const passed = assessment.status === 'completed'
+
+  const retakeMutation = useMutation({
+    mutationFn: () => assessmentApi.create({
+      targetSkillId: assessment.targetSkill?.id,
+      targetCompanyId: assessment.targetCompany?.id,
+      questionCount: assessment.questionCount || assessment.questions.length,
+      durationMinutes: assessment.durationMinutes,
+    }),
+    onSuccess: (retake) => {
+      queryClient.invalidateQueries({ queryKey: ['assessments'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Fresh assessment created with the same focus')
+      navigate(`/assessments/${retake.id}`)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Could not create a retake assessment')
+    },
+  })
+  
+  const totalQuestions = assessment.questions.length
+  const skippedCount = assessment.questions.filter(q => q.status === 'skipped').length
+  const attemptedCount = assessment.questions.filter(q => q.submittedCode?.trim().length).length
+  const totalTests = assessment.questions.reduce((sum, q) => sum + (q.testCasesTotal || 0), 0)
+  const passedTests = assessment.questions.reduce((sum, q) => sum + (q.testCasesPassed || 0), 0)
+  const totalTimeSeconds = assessment.questions.reduce((sum, q) => sum + (q.timeSpentSeconds || 0), 0)
+  const timeStr = `${Math.floor(totalTimeSeconds / 60)}m ${Math.floor(totalTimeSeconds % 60)}s`
+  
+  const hasSubmissions = attemptedCount > 0
+  const strongSkillsText = hasSubmissions 
+    ? (assessment.result?.strengths.length ? assessment.result.strengths.join(', ') : 'Keep building consistency')
+    : 'No strong skills identified yet. Submit at least one solution to unlock skill insights.'
+
   return (
     <div className="space-y-6 pb-12">
       <section className="rounded-xl border bg-card p-6">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className={`flex items-center gap-2 font-medium ${passed ? 'text-emerald-600' : 'text-amber-600'}`}>
               {passed ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
               {passed ? 'Assessment passed' : assessment.status === 'abandoned' ? 'Assessment abandoned' : 'More practice recommended'}
             </div>
-            <h1 className="mt-2 text-3xl font-bold">{assessment.overallScore ?? 0}%</h1>
-            <p className="mt-1 text-muted-foreground">Passing threshold: {assessment.passingThreshold}%</p>
+            <div className="mt-4 flex flex-wrap items-end gap-6">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Score</p>
+                <h1 className="text-4xl font-bold">{assessment.overallScore ?? 0}%</h1>
+              </div>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
+                <div><p className="text-muted-foreground">Attempted</p><p className="font-semibold">{attemptedCount}/{totalQuestions}</p></div>
+                <div><p className="text-muted-foreground">Skipped</p><p className="font-semibold">{skippedCount}</p></div>
+                <div><p className="text-muted-foreground">Passed tests</p><p className="font-semibold">{passedTests}/{totalTests}</p></div>
+                <div><p className="text-muted-foreground">Total time</p><p className="font-semibold">{timeStr}</p></div>
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">Passing threshold: {assessment.passingThreshold}%</p>
           </div>
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-center gap-3 border-t pt-6">
+          <button onClick={() => navigate('/practice')} className={`${primaryActionClass} rounded-lg px-4 py-2 text-sm font-medium`}>Continue Practice</button>
+          <button
+            type="button"
+            onClick={() => retakeMutation.mutate()}
+            disabled={retakeMutation.isPending}
+            className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {retakeMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {retakeMutation.isPending ? 'Creating retake…' : 'Retake assessment'}
+          </button>
+          {skippedCount > 0 && <button className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">Review skipped questions</button>}
           <button onClick={() => navigate('/assessments')} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">All assessments</button>
         </div>
+
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-lg bg-emerald-500/10 p-4"><p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Strong skills</p><p className="mt-1 text-sm">{assessment.result?.strengths.length ? assessment.result.strengths.join(', ') : 'Keep building consistency'}</p></div>
-          <div className="rounded-lg bg-amber-500/10 p-4"><p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Skills to reinforce</p><p className="mt-1 text-sm">{assessment.result?.weakSkills.length ? assessment.result.weakSkills.join(', ') : 'No major weakness detected'}</p></div>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Strong skills</p>
+            <p className="mt-1 text-sm text-emerald-900/80 dark:text-emerald-200/80">{strongSkillsText}</p>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-[#4a3219] dark:bg-[#2b1d0e]">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">Skills to reinforce</p>
+            <p className="mt-1 text-sm text-amber-900/80 dark:text-amber-200/80">{assessment.result?.weakSkills.length ? assessment.result.weakSkills.join(', ') : 'No major weakness detected'}</p>
+          </div>
         </div>
       </section>
+
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Question report</h2>
         {assessment.questions.map((selected) => (
           <article key={selected.id} className="rounded-xl border bg-card p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Question {selected.orderIndex} · {selected.question.difficulty}</p><h3 className="mt-1 font-semibold">{selected.question.title}</h3><p className="mt-1 text-sm text-muted-foreground">{selected.question.skill.name} · {formatClock(selected.timeSpentSeconds)} spent</p></div>
-              <div className="text-right"><p className={`font-semibold ${selected.verdict === 'accepted' ? 'text-emerald-600' : 'text-amber-600'}`}>{statusLabel(selected.verdict || selected.status)}</p><p className="text-sm text-muted-foreground">{selected.testCasesPassed}/{selected.testCasesTotal} tests · {Math.round(selected.weightedScore)} points</p></div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Question {selected.orderIndex} · {selected.question.difficulty}</p>
+                <h3 className="mt-1 font-semibold">{selected.question.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{selected.question.skill.name} · {formatClock(selected.timeSpentSeconds)} spent</p>
+              </div>
+              <div className="text-right">
+                <p className={`font-semibold ${selected.verdict === 'accepted' ? 'text-emerald-600' : 'text-amber-600'}`}>{statusLabel(selected.verdict || selected.status)}</p>
+                <p className="text-sm text-muted-foreground">{selected.testCasesPassed}/{selected.testCasesTotal} tests · {Math.round(selected.weightedScore)} points</p>
+              </div>
             </div>
-            {selected.submittedCode ? <details className="mt-4 rounded-lg border bg-muted/20"><summary className="cursor-pointer px-4 py-3 text-sm font-medium">Submitted code ({selected.language})</summary><pre className="max-h-80 overflow-auto border-t p-4 text-xs"><code>{selected.submittedCode}</code></pre></details> : <p className="mt-4 rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground">No code submitted.</p>}
+
+            <div className="mt-4">
+              {selected.submittedCode ? (
+                <details className="rounded-lg border bg-muted/20">
+                  <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Submitted code ({selected.language})</summary>
+                  <div className="max-h-80 overflow-auto border-t bg-zinc-950 text-xs">
+                    <SyntaxHighlighter
+                      language={selected.language}
+                      style={vscDarkPlus}
+                      customStyle={{
+                        margin: 0,
+                        padding: '1rem',
+                        fontSize: '0.75rem',
+                        backgroundColor: 'transparent',
+                      }}
+                      wrapLines
+                      wrapLongLines
+                    >
+                      {selected.submittedCode}
+                    </SyntaxHighlighter>
+                  </div>
+                </details>
+              ) : (
+                <p className="rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground">
+                  No code was submitted. Try solving again or review the expected approach.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button onClick={() => navigate(`/practice/${selected.question.slug || selected.question.id}`)} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">Solve again</button>
+            </div>
           </article>
         ))}
       </section>

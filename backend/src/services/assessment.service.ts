@@ -732,7 +732,6 @@ class AssessmentService {
   }
 
   private serialize(assessment: AssessmentWithDetails) {
-    const terminal = TERMINAL_STATUSES.includes(assessment.status);
     const currentQuestion = assessment.questions.find((question) => question.status === AssessmentQuestionStatus.IN_PROGRESS);
     return {
       id: assessment.id,

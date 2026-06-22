@@ -73,11 +73,6 @@ function statusTone(status?: string) {
   return 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300'
 }
 
-function resultTone(status: string) {
-  if (status === 'completed') return 'text-emerald-600 dark:text-emerald-400'
-  if (status === 'needs_practice') return 'text-amber-600 dark:text-amber-400'
-  return 'text-muted-foreground'
-}
 
 function consoleText(runResult: any) {
   if (!runResult) return 'No run yet — run your code to see output, errors, and test results.'
